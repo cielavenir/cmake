@@ -1,0 +1,25 @@
+From c5d9a8283cfac15b4a5a07f18d5eb10c1f388505 Mon Sep 17 00:00:00 2001
+From: Guillaume Belz <guillaume.belz@gmail.com>
+Date: Tue, 27 Jan 2015 22:53:54 +0100
+Subject: [PATCH] FindOpenSSL: fix detection of OpenSSL 1.0.2
+
+---
+ Modules/FindOpenSSL.cmake | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Modules/FindOpenSSL.cmake b/Modules/FindOpenSSL.cmake
+index 340b417..6b4f985 100644
+--- a/Modules/FindOpenSSL.cmake
++++ b/Modules/FindOpenSSL.cmake
+@@ -279,7 +279,7 @@ if (OPENSSL_INCLUDE_DIR)
+     set(OPENSSL_VERSION "${_OPENSSL_VERSION}")
+   elseif(OPENSSL_INCLUDE_DIR AND EXISTS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h")
+     file(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h" openssl_version_str
+-         REGEX "^#define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x([0-9a-fA-F])+.*")
++         REGEX "^# *define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x([0-9a-fA-F])+.*")
+ 
+     # The version number is encoded as 0xMNNFFPPS: major minor fix patch status
+     # The status gives if this is a developer or prerelease and is ignored here.
+-- 
+2.8.1
+

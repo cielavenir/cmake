@@ -7,3 +7,5 @@ fix-FindImageMagick-2.diff
 fix-hdf5-hl.patch
 FindJNI_ppc64le.diff
 hurd_host_system_processor.diff
+FindOpenSSL-fix-detection-of-OpenSSL-1.0.2.patch
+FindOpenSSL-Tolerate-tabs-in-header-while-parsing-ve.patch

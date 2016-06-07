@@ -1,3 +1,11 @@
+cmake (3.0.2-1+deb8u1) jessie; urgency=medium
+
+  * Fix FindOpenSSL module to detect OpenSSL 1.0.1t. (Closes: #826656)
+    - Add FindOpenSSL-fix-detection-of-OpenSSL-1.0.2.patch
+    - Add FindOpenSSL-Tolerate-tabs-in-header-while-parsing-ve.patch
+
+ -- Felix Geyer <fgeyer@debian.org>  Tue, 07 Jun 2016 16:50:32 +0200
+
 cmake (3.0.2-1) unstable; urgency=medium
 
   * New upstream release.
