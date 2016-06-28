@@ -2,6 +2,8 @@ cmake (3.5.2-2) UNRELEASED; urgency=medium
 
   * Make FindLibArchive compatible with libarchive 3.2. (Closes: #828092)
     - Add FindLibArchive_Support_libarchive_3.2.patch
+  * Backport patch to make file(GLOB) order deterministic. (Closes: #824263)
+    - Add file_Sort_GLOB_results_to_make_it_deterministic.patch
 
  -- Felix Geyer <fgeyer@debian.org>  Tue, 28 Jun 2016 19:33:54 +0200
 
