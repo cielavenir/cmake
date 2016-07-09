@@ -1,5 +1,3 @@
 FindBoost_add_-lpthread_#563479.diff
 qt_import_dir_variable.diff
 fix-ftbfs-on-kfreebsd.patch
-FindLibArchive_Support_libarchive_3.2.patch
-file_Sort_GLOB_results_to_make_it_deterministic.patch
