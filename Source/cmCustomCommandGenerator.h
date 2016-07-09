@@ -28,14 +28,15 @@ class cmCustomCommandGenerator
   cmGeneratorExpression* GE;
   mutable bool DependsDone;
   mutable std::vector<std::string> Depends;
+
 public:
   cmCustomCommandGenerator(cmCustomCommand const& cc,
-                           const std::string& config,
-                           cmLocalGenerator* lg);
+                           const std::string& config, cmLocalGenerator* lg);
   ~cmCustomCommandGenerator();
   cmCustomCommand const& GetCC() const { return this->CC; }
   unsigned int GetNumberOfCommands() const;
   std::string GetCommand(unsigned int c) const;
+  bool UseCrossCompilingEmulator(unsigned int c) const;
   void AppendArguments(unsigned int c, std::string& cmd) const;
   const char* GetComment() const;
   std::string GetWorkingDirectory() const;

@@ -132,7 +132,7 @@
 #   useful for the searching all possible Matlab installation.
 # :command:`matlab_get_mex_suffix`
 #   returns the suffix to be used for the mex files
-#   (platform/architecture dependant)
+#   (platform/architecture dependent)
 # :command:`matlab_get_version_from_matlab_run`
 #   returns the version of Matlab, given the full directory of the Matlab
 #   program.
@@ -229,6 +229,7 @@ if(NOT MATLAB_ADDITIONAL_VERSIONS)
 endif()
 
 set(MATLAB_VERSIONS_MAPPING
+  "R2016a=9.0"
   "R2015b=8.6"
   "R2015a=8.5"
   "R2014b=8.4"

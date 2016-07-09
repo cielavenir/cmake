@@ -152,6 +152,7 @@ add_RunCMake_test(ObjectLibrary)
 add_RunCMake_test(Swift)
 add_RunCMake_test(TargetObjects)
 add_RunCMake_test(TargetSources)
+add_RunCMake_test(ToolchainFile)
 add_RunCMake_test(find_dependency)
 add_RunCMake_test(CompileDefinitions)
 add_RunCMake_test(CompileFeatures)
@@ -216,6 +217,7 @@ add_RunCMake_test(alias_targets)
 add_RunCMake_test(interface_library)
 add_RunCMake_test(no_install_prefix)
 add_RunCMake_test(configure_file)
+add_RunCMake_test(CTestTimeoutAfterMatch)
 
 find_package(Qt4 QUIET)
 find_package(Qt5Core QUIET)
@@ -231,9 +233,16 @@ if(PKG_CONFIG_FOUND)
   add_RunCMake_test(FindPkgConfig)
 endif()
 
-if("${CMAKE_GENERATOR}" MATCHES "Visual Studio [^6]")
+if("${CMAKE_GENERATOR}" MATCHES "Visual Studio")
   add_RunCMake_test(include_external_msproject)
-  add_RunCMake_test(SolutionGlobalSections)
+  if("${CMAKE_GENERATOR}" MATCHES "Visual Studio ([789]|10)" AND NOT CMAKE_VS_DEVENV_COMMAND)
+    set(NO_USE_FOLDERS 1)
+  endif()
+  add_RunCMake_test(VSSolution -DNO_USE_FOLDERS=${NO_USE_FOLDERS})
+endif()
+
+if("${CMAKE_GENERATOR}" MATCHES "Visual Studio ([^789]|[789][0-9])")
+  add_RunCMake_test(VS10Project)
 endif()
 
 if(XCODE_VERSION AND NOT "${XCODE_VERSION}" VERSION_LESS 3)
@@ -280,8 +289,10 @@ if(CMake_TEST_FindMatlab)
 endif()
 
 add_executable(pseudo_emulator pseudo_emulator.c)
+add_executable(pseudo_emulator_custom_command pseudo_emulator_custom_command.c)
 add_RunCMake_test(CrosscompilingEmulator
- -DPSEUDO_EMULATOR=$<TARGET_FILE:pseudo_emulator>)
+ -DPSEUDO_EMULATOR=$<TARGET_FILE:pseudo_emulator>
+ -DPSEUDO_EMULATOR_CUSTOM_COMMAND=$<TARGET_FILE:pseudo_emulator_custom_command>)
 # Xcode 2.x forgets to create the output directory before linking
 # the individual architectures.
 if(CMAKE_OSX_ARCHITECTURES AND XCODE AND NOT "${XCODE_VERSION}" MATCHES "^[^12]")
@@ -289,10 +300,16 @@ if(CMAKE_OSX_ARCHITECTURES AND XCODE AND NOT "${XCODE_VERSION}" MATCHES "^[^12]"
     TARGET pseudo_emulator
     PRE_BUILD COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CFG_INTDIR}"
     )
+  add_custom_command(
+    TARGET pseudo_emulator_custom_command
+    PRE_BUILD COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CFG_INTDIR}"
+    )
 endif()
 
 if("${CMAKE_GENERATOR}" MATCHES "Make|Ninja")
+  add_executable(pseudo_tidy pseudo_tidy.c)
   add_executable(pseudo_iwyu pseudo_iwyu.c)
+  add_RunCMake_test(ClangTidy -DPSEUDO_TIDY=$<TARGET_FILE:pseudo_tidy>)
   add_RunCMake_test(IncludeWhatYouUse -DPSEUDO_IWYU=$<TARGET_FILE:pseudo_iwyu>)
   add_RunCMake_test(CompilerLauncher)
 endif()

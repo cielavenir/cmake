@@ -13,11 +13,12 @@
 #define cmState_h
 
 #include "cmStandardIncludes.h"
+
+#include "cmAlgorithms.h"
+#include "cmLinkedTree.h"
+#include "cmPolicies.h"
 #include "cmPropertyDefinitionMap.h"
 #include "cmPropertyMap.h"
-#include "cmLinkedTree.h"
-#include "cmAlgorithms.h"
-#include "cmPolicies.h"
 
 class cmake;
 class cmCommand;
@@ -32,6 +33,7 @@ class cmState
   struct BuildsystemDirectoryStateType;
   typedef cmLinkedTree<SnapshotDataType>::iterator PositionType;
   friend class Snapshot;
+
 public:
   cmState();
   ~cmState();
@@ -42,7 +44,7 @@ public:
     BuildsystemDirectoryType,
     FunctionCallType,
     MacroCallType,
-    CallStackType,
+    IncludeFileType,
     InlineListFileType,
     PolicyScopeType,
     VariableScopeType
@@ -50,7 +52,8 @@ public:
 
   class Directory;
 
-  class Snapshot {
+  class Snapshot
+  {
   public:
     Snapshot(cmState* state = 0);
     Snapshot(cmState* state, PositionType position);
@@ -63,18 +66,16 @@ public:
     std::vector<std::string> ClosureKeys() const;
     bool RaiseScope(std::string const& var, const char* varDef);
 
-    void Keep();
     void SetListFile(std::string const& listfile);
 
     std::string GetExecutionListFile() const;
 
     std::vector<Snapshot> GetChildren();
-    std::string GetEntryPointCommand() const;
-    long GetEntryPointLine() const;
 
     bool IsValid() const;
     Snapshot GetBuildsystemDirectoryParent() const;
     Snapshot GetCallStackParent() const;
+    Snapshot GetCallStackBottom() const;
     SnapshotType GetType() const;
 
     void SetPolicy(cmPolicies::PolicyID id, cmPolicies::PolicyStatus status);
@@ -121,16 +122,15 @@ public:
   {
     Directory(cmLinkedTree<BuildsystemDirectoryStateType>::iterator iter,
               Snapshot const& snapshot);
+
   public:
     const char* GetCurrentSource() const;
     void SetCurrentSource(std::string const& dir);
     const char* GetCurrentBinary() const;
     void SetCurrentBinary(std::string const& dir);
 
-    std::vector<std::string> const&
-    GetCurrentSourceComponents() const;
-    std::vector<std::string> const&
-    GetCurrentBinaryComponents() const;
+    std::vector<std::string> const& GetCurrentSourceComponents() const;
+    std::vector<std::string> const& GetCurrentBinaryComponents() const;
 
     const char* GetRelativePathTopSource() const;
     const char* GetRelativePathTopBinary() const;
@@ -158,17 +158,17 @@ public:
     cmStringRange GetCompileOptionsEntries() const;
     cmBacktraceRange GetCompileOptionsEntryBacktraces() const;
     void AppendCompileOptionsEntry(std::string const& vec,
-                                       cmListFileBacktrace const& lfbt);
+                                   cmListFileBacktrace const& lfbt);
     void SetCompileOptions(std::string const& vec,
-                               cmListFileBacktrace const& lfbt);
+                           cmListFileBacktrace const& lfbt);
     void ClearCompileOptions();
 
-    void SetProperty(const std::string& prop, const char *value,
-                     cmListFileBacktrace lfbt);
-    void AppendProperty(const std::string& prop, const char *value,
-                        bool asString, cmListFileBacktrace lfbt);
-    const char *GetProperty(const std::string& prop) const;
-    const char *GetProperty(const std::string& prop, bool chain) const;
+    void SetProperty(const std::string& prop, const char* value,
+                     cmListFileBacktrace const& lfbt);
+    void AppendProperty(const std::string& prop, const char* value,
+                        bool asString, cmListFileBacktrace const& lfbt);
+    const char* GetProperty(const std::string& prop) const;
+    const char* GetProperty(const std::string& prop, bool chain) const;
     bool GetPropertyAsBool(const std::string& prop) const;
     std::vector<std::string> GetPropertyKeys() const;
 
@@ -182,43 +182,45 @@ public:
     friend class Snapshot;
   };
 
-  enum TargetType { EXECUTABLE, STATIC_LIBRARY,
-                    SHARED_LIBRARY, MODULE_LIBRARY,
-                    OBJECT_LIBRARY, UTILITY, GLOBAL_TARGET,
-                    INTERFACE_LIBRARY,
-                    UNKNOWN_LIBRARY};
+  enum TargetType
+  {
+    EXECUTABLE,
+    STATIC_LIBRARY,
+    SHARED_LIBRARY,
+    MODULE_LIBRARY,
+    OBJECT_LIBRARY,
+    UTILITY,
+    GLOBAL_TARGET,
+    INTERFACE_LIBRARY,
+    UNKNOWN_LIBRARY
+  };
 
   static const char* GetTargetTypeName(cmState::TargetType targetType);
 
   Snapshot CreateBaseSnapshot();
-  Snapshot
-  CreateBuildsystemDirectorySnapshot(Snapshot originSnapshot,
-                                     std::string const& entryPointCommand,
-                                     long entryPointLine);
+  Snapshot CreateBuildsystemDirectorySnapshot(Snapshot originSnapshot);
   Snapshot CreateFunctionCallSnapshot(Snapshot originSnapshot,
-                                      std::string const& entryPointCommand,
-                                      long entryPointLine,
                                       std::string const& fileName);
   Snapshot CreateMacroCallSnapshot(Snapshot originSnapshot,
-                                   std::string const& entryPointCommand,
-                                   long entryPointLine,
                                    std::string const& fileName);
-  Snapshot CreateCallStackSnapshot(Snapshot originSnapshot,
-                                   std::string const& entryPointCommand,
-                                   long entryPointLine,
-                                   std::string const& fileName);
-  Snapshot CreateVariableScopeSnapshot(Snapshot originSnapshot,
-                                       std::string const& entryPointCommand,
-                                       long entryPointLine);
+  Snapshot CreateIncludeFileSnapshot(Snapshot originSnapshot,
+                                     std::string const& fileName);
+  Snapshot CreateVariableScopeSnapshot(Snapshot originSnapshot);
   Snapshot CreateInlineListFileSnapshot(Snapshot originSnapshot,
-                                        const std::string& entryPointCommand,
-                                        long entryPointLine,
                                         std::string const& fileName);
   Snapshot CreatePolicyScopeSnapshot(Snapshot originSnapshot);
   Snapshot Pop(Snapshot originSnapshot);
 
-  enum CacheEntryType{ BOOL=0, PATH, FILEPATH, STRING, INTERNAL,STATIC,
-                       UNINITIALIZED };
+  enum CacheEntryType
+  {
+    BOOL = 0,
+    PATH,
+    FILEPATH,
+    STRING,
+    INTERNAL,
+    STATIC,
+    UNINITIALIZED
+  };
   static CacheEntryType StringToCacheEntryType(const char*);
   static const char* CacheEntryTypeToString(CacheEntryType);
   static bool IsCacheEntryType(std::string const& key);
@@ -227,7 +229,7 @@ public:
                  std::set<std::string>& excludes,
                  std::set<std::string>& includes);
 
-  bool SaveCache(const std::string& path) ;
+  bool SaveCache(const std::string& path);
 
   bool DeleteCache(const std::string& path);
 
@@ -244,8 +246,7 @@ public:
                              std::string const& propertyName,
                              std::string const& value);
   void SetCacheEntryBoolProperty(std::string const& key,
-                                 std::string const& propertyName,
-                                 bool value);
+                                 std::string const& propertyName, bool value);
   const char* GetCacheEntryProperty(std::string const& key,
                                     std::string const& propertyName);
   bool GetCacheEntryPropertyAsBool(std::string const& key,
@@ -258,21 +259,18 @@ public:
                                 std::string const& propertyName);
 
   ///! Break up a line like VAR:type="value" into var, type and value
-  static bool ParseCacheEntry(const std::string& entry,
-                              std::string& var,
-                              std::string& value,
-                              CacheEntryType& type);
+  static bool ParseCacheEntry(const std::string& entry, std::string& var,
+                              std::string& value, CacheEntryType& type);
 
   Snapshot Reset();
   // Define a property
   void DefineProperty(const std::string& name, cmProperty::ScopeType scope,
-                      const char *ShortDescription,
-                      const char *FullDescription,
-                      bool chain = false);
+                      const char* ShortDescription,
+                      const char* FullDescription, bool chain = false);
 
   // get property definition
-  cmPropertyDefinition const* GetPropertyDefinition
-  (const std::string& name, cmProperty::ScopeType scope) const;
+  cmPropertyDefinition const* GetPropertyDefinition(
+    const std::string& name, cmProperty::ScopeType scope) const;
 
   // Is a property defined?
   bool IsPropertyDefined(const std::string& name,
@@ -296,10 +294,10 @@ public:
   void RemoveUserDefinedCommands();
   std::vector<std::string> GetCommandNames() const;
 
-  void SetGlobalProperty(const std::string& prop, const char *value);
-  void AppendGlobalProperty(const std::string& prop,
-                      const char *value,bool asString=false);
-  const char *GetGlobalProperty(const std::string& prop);
+  void SetGlobalProperty(const std::string& prop, const char* value);
+  void AppendGlobalProperty(const std::string& prop, const char* value,
+                            bool asString = false);
+  const char* GetGlobalProperty(const std::string& prop);
   bool GetGlobalPropertyAsBool(const std::string& prop);
 
   const char* GetSourceDirectory() const;

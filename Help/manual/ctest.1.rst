@@ -589,6 +589,17 @@ Configuration settings to specify the version control tool include:
   * `CTest Script`_ variable: :variable:`CTEST_GIT_COMMAND`
   * :module:`CTest` module variable: ``GITCOMMAND``
 
+  The source tree is updated by ``git fetch`` followed by
+  ``git reset --hard`` to the ``FETCH_HEAD``.  The result is the same
+  as ``git pull`` except that any local moficiations are overwritten.
+  Use ``GITUpdateCustom`` to specify a different approach.
+
+``GITInitSubmodules``
+  If set, CTest will update the repository's submodules before updating.
+
+  * `CTest Script`_ variable: :variable:`CTEST_GIT_INIT_SUBMODULES`
+  * :module:`CTest` module variable: ``CTEST_GIT_INIT_SUBMODULES``
+
 ``GITUpdateCustom``
   Specify a custom command line (as a semicolon-separated list) to run
   in the source tree (Git work tree) to update it instead of running

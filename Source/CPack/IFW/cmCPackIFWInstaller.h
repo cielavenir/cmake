@@ -13,38 +13,34 @@
 #ifndef cmCPackIFWInstaller_h
 #define cmCPackIFWInstaller_h
 
-#include <cmGeneratedFileStream.h>
 #include <cmStandardIncludes.h>
 
 class cmCPackIFWPackage;
 class cmCPackIFWGenerator;
+class cmCPackIFWRepository;
+class cmXMLWriter;
 
 /** \class cmCPackIFWInstaller
  * \brief A binary installer to be created CPack IFW generator
  */
 class cmCPackIFWInstaller
 {
-public: // Types
+public:
+  // Types
 
   typedef std::map<std::string, cmCPackIFWPackage*> PackagesMap;
+  typedef std::vector<cmCPackIFWRepository*> RepositoriesVector;
 
-  struct RepositoryStruct
-  {
-    std::string Url;
-    std::string Enabled;
-    std::string Username;
-    std::string Password;
-    std::string DisplayName;
-  };
-
-public: // Constructor
+public:
+  // Constructor
 
   /**
    * Construct installer
    */
   cmCPackIFWInstaller();
 
-public: // Configuration
+public:
+  // Configuration
 
   /// Name of the product being installed
   std::string Name;
@@ -94,14 +90,15 @@ public: // Configuration
   /// Filename for a custom installer control script
   std::string ControlScript;
 
-public: // Internal implementation
+public:
+  // Internal implementation
 
   const char* GetOption(const std::string& op) const;
   bool IsOn(const std::string& op) const;
 
-  bool IsVersionLess(const char *version);
-  bool IsVersionGreater(const char *version);
-  bool IsVersionEqual(const char *version);
+  bool IsVersionLess(const char* version);
+  bool IsVersionGreater(const char* version);
+  bool IsVersionEqual(const char* version);
 
   void ConfigureFromOptions();
 
@@ -111,11 +108,11 @@ public: // Internal implementation
 
   cmCPackIFWGenerator* Generator;
   PackagesMap Packages;
-  std::vector<RepositoryStruct> Repositories;
+  RepositoriesVector RemoteRepositories;
   std::string Directory;
 
 protected:
-  void WriteGeneratedByToStrim(cmGeneratedFileStream& xout);
+  void WriteGeneratedByToStrim(cmXMLWriter& xout);
 };
 
 #endif // cmCPackIFWInstaller_h

@@ -13,8 +13,8 @@
 #ifndef cmWIXPatch_h
 #define cmWIXPatch_h
 
-#include "cmWIXSourceWriter.h"
 #include "cmWIXPatchParser.h"
+#include "cmWIXSourceWriter.h"
 
 #include <string>
 
@@ -34,15 +34,14 @@ public:
 
 private:
   void ApplyElementChildren(const cmWIXPatchElement& element,
-    cmWIXSourceWriter& writer);
+                            cmWIXSourceWriter& writer);
 
   void ApplyElement(const cmWIXPatchElement& element,
-    cmWIXSourceWriter& writer);
+                    cmWIXSourceWriter& writer);
 
   cmCPackLog* Logger;
 
   cmWIXPatchParser::fragment_map_t Fragments;
 };
-
 
 #endif

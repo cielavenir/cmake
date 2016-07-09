@@ -452,8 +452,6 @@ if (WIN32)
       cmGlobalNMakeMakefileGenerator.h
       cmGlobalJOMMakefileGenerator.cxx
       cmGlobalJOMMakefileGenerator.h
-      cmGlobalVisualStudio6Generator.cxx
-      cmGlobalVisualStudio6Generator.h
       cmGlobalVisualStudio71Generator.cxx
       cmGlobalVisualStudio71Generator.h
       cmGlobalVisualStudio7Generator.cxx
@@ -481,8 +479,6 @@ if (WIN32)
       cmIDEFlagTable.h
       cmIDEOptions.cxx
       cmIDEOptions.h
-      cmLocalVisualStudio6Generator.cxx
-      cmLocalVisualStudio6Generator.h
       cmLocalVisualStudio7Generator.cxx
       cmLocalVisualStudio7Generator.h
       cmLocalVisualStudioGenerator.cxx
@@ -666,6 +662,7 @@ set(CPACK_SRCS
   CPack/cmCPackNSISGenerator.cxx
   CPack/IFW/cmCPackIFWPackage.cxx
   CPack/IFW/cmCPackIFWInstaller.cxx
+  CPack/IFW/cmCPackIFWRepository.cxx
   CPack/IFW/cmCPackIFWGenerator.cxx
   CPack/cmCPackSTGZGenerator.cxx
   CPack/cmCPackTGZGenerator.cxx

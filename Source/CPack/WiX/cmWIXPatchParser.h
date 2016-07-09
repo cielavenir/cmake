@@ -13,12 +13,12 @@
 #ifndef cmCPackWIXPatchParser_h
 #define cmCPackWIXPatchParser_h
 
-#include <cmXMLParser.h>
-
 #include <CPack/cmCPackLog.h>
 
-#include <map>
+#include <cmXMLParser.h>
+
 #include <list>
+#include <map>
 
 struct cmWIXPatchNode
 {
@@ -65,9 +65,9 @@ public:
   cmWIXPatchParser(fragment_map_t& Fragments, cmCPackLog* logger);
 
 private:
-  virtual void StartElement(const std::string& name, const char **atts);
+  virtual void StartElement(const std::string& name, const char** atts);
 
-  void StartFragment(const char **attributes);
+  void StartFragment(const char** attributes);
 
   virtual void EndElement(const std::string& name);
 

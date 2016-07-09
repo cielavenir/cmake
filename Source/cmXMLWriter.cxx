@@ -10,17 +10,18 @@
   See the License for more information.
 ============================================================================*/
 #include "cmXMLWriter.h"
+
 #include "cmXMLSafe.h"
 
 #include <cassert>
 #include <fstream>
 
 cmXMLWriter::cmXMLWriter(std::ostream& output, std::size_t level)
-: Output(output)
-, Level(level)
-, ElementOpen(false)
-, BreakAttrib(false)
-, IsContent(false)
+  : Output(output)
+  , Level(level)
+  , ElementOpen(false)
+  , BreakAttrib(false)
+  , IsContent(false)
 {
 }
 
@@ -53,18 +54,22 @@ void cmXMLWriter::StartElement(std::string const& name)
 void cmXMLWriter::EndElement()
 {
   assert(!this->Elements.empty());
-  if (this->ElementOpen)
-    {
+  if (this->ElementOpen) {
     this->Output << "/>";
-    }
-  else
-    {
+  } else {
     this->ConditionalLineBreak(!this->IsContent, this->Elements.size() - 1);
     this->IsContent = false;
     this->Output << "</" << this->Elements.top() << '>';
-    }
+  }
   this->Elements.pop();
   this->ElementOpen = false;
+}
+
+void cmXMLWriter::Element(const char* name)
+{
+  this->CloseStartElement();
+  this->ConditionalLineBreak(!this->IsContent, this->Elements.size());
+  this->Output << '<' << name << "/>";
 }
 
 void cmXMLWriter::BreakAttributes()
@@ -85,6 +90,13 @@ void cmXMLWriter::CData(std::string const& data)
   this->Output << "<![CDATA[" << data << "]]>";
 }
 
+void cmXMLWriter::Doctype(const char* doctype)
+{
+  this->CloseStartElement();
+  this->ConditionalLineBreak(!this->IsContent, this->Elements.size());
+  this->Output << "<!DOCTYPE " << doctype << ">";
+}
+
 void cmXMLWriter::ProcessingInstruction(const char* target, const char* data)
 {
   this->CloseStartElement();
@@ -101,20 +113,18 @@ void cmXMLWriter::FragmentFile(const char* fname)
 
 void cmXMLWriter::ConditionalLineBreak(bool condition, std::size_t indent)
 {
-  if (condition)
-    {
+  if (condition) {
     this->Output << '\n' << std::string(indent + this->Level, '\t');
-    }
+  }
 }
 
 void cmXMLWriter::PreAttribute()
 {
   assert(this->ElementOpen);
   this->ConditionalLineBreak(this->BreakAttrib, this->Elements.size());
-  if (!this->BreakAttrib)
-    {
+  if (!this->BreakAttrib) {
     this->Output << ' ';
-    }
+  }
 }
 
 void cmXMLWriter::PreContent()
@@ -125,10 +135,9 @@ void cmXMLWriter::PreContent()
 
 void cmXMLWriter::CloseStartElement()
 {
-  if (this->ElementOpen)
-    {
+  if (this->ElementOpen) {
     this->ConditionalLineBreak(this->BreakAttrib, this->Elements.size());
     this->Output << '>';
     this->ElementOpen = false;
-    }
+  }
 }

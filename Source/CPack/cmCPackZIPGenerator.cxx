@@ -12,15 +12,11 @@
 
 #include "cmCPackZIPGenerator.h"
 
-//----------------------------------------------------------------------
 cmCPackZIPGenerator::cmCPackZIPGenerator()
-  :cmCPackArchiveGenerator(cmArchiveWrite::CompressNone,
-                           "zip")
+  : cmCPackArchiveGenerator(cmArchiveWrite::CompressNone, "zip")
 {
 }
 
-//----------------------------------------------------------------------
 cmCPackZIPGenerator::~cmCPackZIPGenerator()
 {
 }
-

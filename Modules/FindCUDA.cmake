@@ -81,7 +81,7 @@
 #      --compiler-bindir is already present in the CUDA_NVCC_FLAGS or
 #      CUDA_NVCC_FLAGS_<CONFIG> variables.  For Visual Studio targets
 #      $(VCInstallDir)/bin is a special value that expands out to the path when
-#      the command is run from withing VS.
+#      the command is run from within VS.
 #
 #   CUDA_NVCC_FLAGS
 #   CUDA_NVCC_FLAGS_<CONFIG>
@@ -215,7 +215,7 @@
 #      The arguments passed in after OPTIONS are extra command line options to
 #      give to nvcc.  You can also specify per configuration options by
 #      specifying the name of the configuration followed by the options.  General
-#      options must preceed configuration specific options.  Not all
+#      options must precede configuration specific options.  Not all
 #      configurations need to be specified, only the ones provided will be used.
 #
 #         OPTIONS -DFLAG=2 "-DFLAG_OTHER=space in flag"
@@ -264,6 +264,7 @@
 #   CUDA_VERSION_MINOR    -- The minor version.
 #   CUDA_VERSION
 #   CUDA_VERSION_STRING   -- CUDA_VERSION_MAJOR.CUDA_VERSION_MINOR
+#   CUDA_HAS_FP16         -- Whether a short float (float16,fp16) is supported.
 #
 #   CUDA_TOOLKIT_ROOT_DIR -- Path to the CUDA Toolkit (defined if not set).
 #   CUDA_SDK_ROOT_DIR     -- Path to the CUDA SDK.  Use this to find files in the
@@ -548,6 +549,7 @@ macro(cuda_unset_include_and_libraries)
   endif()
   unset(CUDA_cudart_static_LIBRARY CACHE)
   unset(CUDA_cublas_LIBRARY CACHE)
+  unset(CUDA_cublas_device_LIBRARY CACHE)
   unset(CUDA_cublasemu_LIBRARY CACHE)
   unset(CUDA_cufft_LIBRARY CACHE)
   unset(CUDA_cufftemu_LIBRARY CACHE)
@@ -682,6 +684,12 @@ find_path(CUDA_TOOLKIT_INCLUDE
 # Search default search paths, after we search our own set of paths.
 find_path(CUDA_TOOLKIT_INCLUDE device_functions.h)
 mark_as_advanced(CUDA_TOOLKIT_INCLUDE)
+
+if (CUDA_VERSION VERSION_GREATER "7.0" OR EXISTS "${CUDA_TOOLKIT_INCLUDE}/cuda_fp16.h")
+  set(CUDA_HAS_FP16 TRUE)
+else()
+  set(CUDA_HAS_FP16 FALSE)
+endif()
 
 # Set the user list of include dir to nothing to initialize it.
 set (CUDA_NVCC_INCLUDE_ARGS_USER "")
@@ -847,6 +855,7 @@ if(NOT CUDA_VERSION VERSION_LESS "3.2")
   endif()
 endif()
 if(CUDA_VERSION VERSION_GREATER "5.0")
+  find_cuda_helper_libs(cublas_device)
   # In CUDA 5.5 NPP was splitted onto 3 separate libraries.
   find_cuda_helper_libs(nppc)
   find_cuda_helper_libs(nppi)
@@ -865,7 +874,7 @@ if (CUDA_BUILD_EMULATION)
   set(CUDA_CUBLAS_LIBRARIES ${CUDA_cublasemu_LIBRARY})
 else()
   set(CUDA_CUFFT_LIBRARIES ${CUDA_cufft_LIBRARY})
-  set(CUDA_CUBLAS_LIBRARIES ${CUDA_cublas_LIBRARY})
+  set(CUDA_CUBLAS_LIBRARIES ${CUDA_cublas_LIBRARY} ${CUDA_cublas_device_LIBRARY})
 endif()
 
 ########################
@@ -1388,7 +1397,8 @@ macro(CUDA_WRAP_SRCS cuda_target format generated_files)
       set(cmake_dependency_file "${cuda_compile_intermediate_directory}/${generated_file_basename}.depend")
       set(NVCC_generated_dependency_file "${cuda_compile_intermediate_directory}/${generated_file_basename}.NVCC-depend")
       set(generated_cubin_file "${generated_file_path}/${generated_file_basename}.cubin.txt")
-      set(custom_target_script "${cuda_compile_intermediate_directory}/${generated_file_basename}.cmake")
+      set(custom_target_script_pregen "${cuda_compile_intermediate_directory}/${generated_file_basename}.cmake.pre-gen")
+      set(custom_target_script "${cuda_compile_intermediate_directory}/${generated_file_basename}$<$<BOOL:$<CONFIG>>:.$<CONFIG>>.cmake")
 
       # Setup properties for obj files:
       if( NOT cuda_compile_to_external_module )
@@ -1429,7 +1439,11 @@ macro(CUDA_WRAP_SRCS cuda_target format generated_files)
       endif()
 
       # Configure the build script
-      configure_file("${CUDA_run_nvcc}" "${custom_target_script}" @ONLY)
+      configure_file("${CUDA_run_nvcc}" "${custom_target_script_pregen}" @ONLY)
+      file(GENERATE
+        OUTPUT "${custom_target_script}"
+        INPUT "${custom_target_script_pregen}"
+        )
 
       # So if a user specifies the same cuda file as input more than once, you
       # can have bad things happen with dependencies.  Here we check an option
@@ -1791,7 +1805,7 @@ macro(CUDA_ADD_CUBLAS_TO_TARGET target)
   if (CUDA_BUILD_EMULATION)
     target_link_libraries(${target} ${CUDA_cublasemu_LIBRARY})
   else()
-    target_link_libraries(${target} ${CUDA_cublas_LIBRARY})
+    target_link_libraries(${target} ${CUDA_cublas_LIBRARY} ${CUDA_cublas_device_LIBRARY})
   endif()
 endmacro()
 

@@ -76,6 +76,7 @@ Properties on Directories
    /prop_dir/VARIABLES
    /prop_dir/VS_GLOBAL_SECTION_POST_section
    /prop_dir/VS_GLOBAL_SECTION_PRE_section
+   /prop_dir/VS_STARTUP_PROJECT
 
 .. _`Target Properties`:
 
@@ -141,6 +142,7 @@ Properties on Targets
    /prop_tgt/CXX_STANDARD_REQUIRED
    /prop_tgt/DEBUG_POSTFIX
    /prop_tgt/DEFINE_SYMBOL
+   /prop_tgt/DEPLOYMENT_REMOTE_DIRECTORY
    /prop_tgt/EchoString
    /prop_tgt/ENABLE_EXPORTS
    /prop_tgt/EXCLUDE_FROM_ALL
@@ -195,6 +197,7 @@ Properties on Targets
    /prop_tgt/JOB_POOL_COMPILE
    /prop_tgt/JOB_POOL_LINK
    /prop_tgt/LABELS
+   /prop_tgt/LANG_CLANG_TIDY
    /prop_tgt/LANG_COMPILER_LAUNCHER
    /prop_tgt/LANG_INCLUDE_WHAT_YOU_USE
    /prop_tgt/LANG_VISIBILITY_PRESET
@@ -255,6 +258,7 @@ Properties on Targets
    /prop_tgt/TYPE
    /prop_tgt/VERSION
    /prop_tgt/VISIBILITY_INLINES_HIDDEN
+   /prop_tgt/VS_CONFIGURATION_TYPE
    /prop_tgt/VS_DESKTOP_EXTENSIONS_VERSION
    /prop_tgt/VS_DOTNET_REFERENCES
    /prop_tgt/VS_DOTNET_TARGET_FRAMEWORK_VERSION
@@ -302,6 +306,7 @@ Properties on Tests
    /prop_test/RUN_SERIAL
    /prop_test/SKIP_RETURN_CODE
    /prop_test/TIMEOUT
+   /prop_test/TIMEOUT_AFTER_MATCH
    /prop_test/WILL_FAIL
    /prop_test/WORKING_DIRECTORY
 
