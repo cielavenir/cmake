@@ -169,7 +169,7 @@
 #
 # ::
 #
-#    The add_jar() functions sets some target properties. You can get these
+#    The add_jar() function sets some target properties. You can get these
 #    properties with the
 #       get_property(TARGET <target_name> PROPERTY <propery_name>)
 #    command.
@@ -324,7 +324,7 @@
 # that allow your Java and C code to interact.
 #
 # There are two main signatures for create_javah.  The first signature
-# returns generated files throught variable specified by GENERATED_FILES option:
+# returns generated files through variable specified by GENERATED_FILES option:
 #
 # ::
 #
@@ -389,7 +389,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/CMakeParseArguments.cmake)
 function (__java_copy_file src dest comment)
     add_custom_command(
         OUTPUT  ${dest}
-        COMMAND cmake -E copy_if_different
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ARGS    ${src}
                 ${dest}
         DEPENDS ${src}

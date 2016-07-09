@@ -12,8 +12,9 @@
 #ifndef cmCursesWidget_h
 #define cmCursesWidget_h
 
-#include "../cmState.h"
 #include "cmCursesStandardIncludes.h"
+
+#include "../cmState.h"
 
 class cmCursesMainForm;
 
@@ -46,30 +47,20 @@ public:
   /**
    * Get the type of the widget (STRING, PATH etc...)
    */
-  cmState::CacheEntryType GetType()
-    { return this->Type; }
+  cmState::CacheEntryType GetType() { return this->Type; }
 
   /**
    * If there are any, print the widget specific commands
    * in the toolbar and return true. Otherwise, return false
    * and the parent widget will print.
    */
-  virtual bool PrintKeys()
-    {
-      return false;
-    }
+  virtual bool PrintKeys() { return false; }
 
   /**
    * Set/Get the page this widget is in.
    */
-  void SetPage(int page)
-    {
-      this->Page = page;
-    }
-  int GetPage()
-    {
-      return this->Page;
-    }
+  void SetPage(int page) { this->Page = page; }
+  int GetPage() { return this->Page; }
 
   friend class cmCursesMainForm;
 

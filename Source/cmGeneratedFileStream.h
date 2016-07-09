@@ -13,6 +13,7 @@
 #define cmGeneratedFileStream_h
 
 #include "cmStandardIncludes.h"
+
 #include <cmsys/FStream.hxx>
 
 // This is the first base class of cmGeneratedFileStream.  It will be
@@ -73,8 +74,8 @@ protected:
  * contents have changed to prevent the file modification time from
  * being updated.
  */
-class cmGeneratedFileStream: private cmGeneratedFileStreamBase,
-                             public cmsys::ofstream
+class cmGeneratedFileStream : private cmGeneratedFileStreamBase,
+                              public cmsys::ofstream
 {
 public:
   typedef cmsys::ofstream Stream;
@@ -91,7 +92,7 @@ public:
    * file cannot be opened an error message is produced unless the
    * second argument is set to true.
    */
-  cmGeneratedFileStream(const char* name, bool quiet=false);
+  cmGeneratedFileStream(const char* name, bool quiet = false);
 
   /**
    * The destructor checks the stream status to be sure the temporary
@@ -106,8 +107,8 @@ public:
    * temporary file.  If the file cannot be opened an error message is
    * produced unless the second argument is set to true.
    */
-  cmGeneratedFileStream& Open(const char* name, bool quiet=false,
-    bool binaryFlag=false);
+  cmGeneratedFileStream& Open(const char* name, bool quiet = false,
+                              bool binaryFlag = false);
 
   /**
    * Close the output file.  This should be used only with an open

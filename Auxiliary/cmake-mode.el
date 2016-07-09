@@ -228,7 +228,9 @@ the indentation.  Otherwise it retains the same position on the line"
 ;;
 ;; Indentation increment.
 ;;
-(defvar cmake-tab-width 2)
+(defcustom cmake-tab-width 2
+  "Number of columns to indent cmake blocks"
+  :type 'integer)
 
 ;------------------------------------------------------------------------------
 
@@ -304,7 +306,8 @@ and store the result as a list in LISTVAR."
           (save-window-excursion
             (cmake-command-run (concat "--help-" listname "-list") nil temp-buffer-name)
             (with-current-buffer temp-buffer-name
-              (set listvar (cdr (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t))))))
+              ; FIXME: Ignore first line if it is "cmake version ..." from CMake < 3.0.
+              (set listvar (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)))))
       (symbol-value listvar)
       ))
   )

@@ -13,11 +13,13 @@
 #ifndef cmCPackIFWGenerator_h
 #define cmCPackIFWGenerator_h
 
-#include <cmGeneratedFileStream.h>
 #include <CPack/cmCPackGenerator.h>
 
-#include "cmCPackIFWPackage.h"
 #include "cmCPackIFWInstaller.h"
+#include "cmCPackIFWPackage.h"
+#include "cmCPackIFWRepository.h"
+
+class cmXMLWriter;
 
 /** \class cmCPackIFWGenerator
  * \brief A generator for Qt Installer Framework tools
@@ -30,6 +32,7 @@ public:
   cmCPackTypeMacro(cmCPackIFWGenerator, cmCPackGenerator);
 
   typedef std::map<std::string, cmCPackIFWPackage> PackagesMap;
+  typedef std::map<std::string, cmCPackIFWRepository> RepositoriesMap;
   typedef std::map<std::string, cmCPackComponent> ComponentsMap;
   typedef std::map<std::string, cmCPackComponentGroup> ComponentGoupsMap;
   typedef std::map<std::string, cmCPackIFWPackage::DependenceStruct>
@@ -48,19 +51,20 @@ public:
   /**
    * Compare \a version with QtIFW framework version
    */
-  bool IsVersionLess(const char *version);
+  bool IsVersionLess(const char* version);
 
   /**
    * Compare \a version with QtIFW framework version
    */
-  bool IsVersionGreater(const char *version);
+  bool IsVersionGreater(const char* version);
 
   /**
    * Compare \a version with QtIFW framework version
    */
-  bool IsVersionEqual(const char *version);
+  bool IsVersionEqual(const char* version);
 
-protected: // cmCPackGenerator reimplementation
+protected:
+  // cmCPackGenerator reimplementation
 
   /**
    * @brief Initialize generator
@@ -88,9 +92,8 @@ protected: // cmCPackGenerator reimplementation
    *
    * @return Pointer to component
    */
-  virtual cmCPackComponent* GetComponent(
-    const std::string& projectName,
-    const std::string& componentName);
+  virtual cmCPackComponent* GetComponent(const std::string& projectName,
+                                         const std::string& componentName);
 
   /**
    * @brief Get group of component
@@ -102,36 +105,44 @@ protected: // cmCPackGenerator reimplementation
    * @return Pointer to component group
    */
   virtual cmCPackComponentGroup* GetComponentGroup(
-    const std::string& projectName,
-    const std::string& groupName);
+    const std::string& projectName, const std::string& groupName);
 
   enum cmCPackGenerator::CPackSetDestdirSupport SupportsSetDestdir() const;
   virtual bool SupportsAbsoluteDestination() const;
   virtual bool SupportsComponentInstallation() const;
 
-protected: // Methods
+protected:
+  // Methods
 
   bool IsOnePackage() const;
 
   std::string GetRootPackageName();
 
-  std::string GetGroupPackageName(cmCPackComponentGroup *group) const;
-  std::string GetComponentPackageName(cmCPackComponent *component) const;
+  std::string GetGroupPackageName(cmCPackComponentGroup* group) const;
+  std::string GetComponentPackageName(cmCPackComponent* component) const;
 
-  cmCPackIFWPackage* GetGroupPackage(cmCPackComponentGroup *group) const;
-  cmCPackIFWPackage* GetComponentPackage(cmCPackComponent *component) const;
+  cmCPackIFWPackage* GetGroupPackage(cmCPackComponentGroup* group) const;
+  cmCPackIFWPackage* GetComponentPackage(cmCPackComponent* component) const;
 
-  void WriteGeneratedByToStrim(cmGeneratedFileStream& xout);
+  cmCPackIFWRepository* GetRepository(const std::string& repositoryName);
 
-protected: // Data
+  void WriteGeneratedByToStrim(cmXMLWriter& xout);
+
+protected:
+  // Data
 
   friend class cmCPackIFWPackage;
   friend class cmCPackIFWInstaller;
+  friend class cmCPackIFWRepository;
 
   // Installer
   cmCPackIFWInstaller Installer;
+  // Repository
+  cmCPackIFWRepository Repository;
   // Collection of packages
   PackagesMap Packages;
+  // Collection of repositories
+  RepositoriesMap Repositories;
   // Collection of binary packages
   std::set<cmCPackIFWPackage*> BinaryPackages;
   // Collection of downloaded packages

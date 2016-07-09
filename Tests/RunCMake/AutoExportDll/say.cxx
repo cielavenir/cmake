@@ -1,17 +1,16 @@
-#include <stdio.h>
 #include "hello.h"
+#include <stdio.h>
 #ifdef _MSC_VER
 #include "windows.h"
 #else
 #define WINAPI
 #endif
 
-extern "C"
-{
+extern "C" {
 // test __cdecl stuff
-  int WINAPI foo();
+int WINAPI foo();
 // test regular C
-  int bar();
+int bar();
 }
 
 // test c++ functions

@@ -12,15 +12,11 @@
 
 #include "cmCPackTarCompressGenerator.h"
 
-//----------------------------------------------------------------------
 cmCPackTarCompressGenerator::cmCPackTarCompressGenerator()
-  :cmCPackArchiveGenerator(cmArchiveWrite::CompressCompress,
-                           "paxr")
+  : cmCPackArchiveGenerator(cmArchiveWrite::CompressCompress, "paxr")
 {
 }
 
-//----------------------------------------------------------------------
 cmCPackTarCompressGenerator::~cmCPackTarCompressGenerator()
 {
 }
-

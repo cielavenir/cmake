@@ -10,32 +10,31 @@
   See the License for more information.
 ============================================================================*/
 #include "cmPropertyDefinitionMap.h"
-#include "cmSystemTools.h"
-#include "cmDocumentationSection.h"
 
-void cmPropertyDefinitionMap
-::DefineProperty(const std::string& name, cmProperty::ScopeType scope,
-                 const char *ShortDescription,
-                 const char *FullDescription,
-                 bool chain)
+#include "cmDocumentationSection.h"
+#include "cmSystemTools.h"
+
+void cmPropertyDefinitionMap::DefineProperty(const std::string& name,
+                                             cmProperty::ScopeType scope,
+                                             const char* ShortDescription,
+                                             const char* FullDescription,
+                                             bool chain)
 {
   cmPropertyDefinitionMap::iterator it = this->find(name);
-  cmPropertyDefinition *prop;
-  if (it == this->end())
-    {
+  cmPropertyDefinition* prop;
+  if (it == this->end()) {
     prop = &(*this)[name];
-    prop->DefineProperty(name,scope,ShortDescription, FullDescription,
+    prop->DefineProperty(name, scope, ShortDescription, FullDescription,
                          chain);
-    }
+  }
 }
 
 bool cmPropertyDefinitionMap::IsPropertyDefined(const std::string& name) const
 {
   cmPropertyDefinitionMap::const_iterator it = this->find(name);
-  if (it == this->end())
-    {
+  if (it == this->end()) {
     return false;
-    }
+  }
 
   return true;
 }
@@ -43,10 +42,9 @@ bool cmPropertyDefinitionMap::IsPropertyDefined(const std::string& name) const
 bool cmPropertyDefinitionMap::IsPropertyChained(const std::string& name) const
 {
   cmPropertyDefinitionMap::const_iterator it = this->find(name);
-  if (it == this->end())
-    {
+  if (it == this->end()) {
     return false;
-    }
+  }
 
   return it->second.IsChained();
 }

@@ -11,6 +11,7 @@
 ============================================================================*/
 #ifndef cmCommands_h
 #define cmCommands_h
+
 #include "cmStandardIncludes.h"
 
 #include <vector>
@@ -26,6 +27,5 @@ class cmCommand;
 void GetBootstrapCommands1(std::vector<cmCommand*>& commands);
 void GetBootstrapCommands2(std::vector<cmCommand*>& commands);
 void GetPredefinedCommands(std::vector<cmCommand*>& commands);
-
 
 #endif

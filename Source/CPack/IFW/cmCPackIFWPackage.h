@@ -14,26 +14,28 @@
 #define cmCPackIFWPackage_h
 
 #include <cmStandardIncludes.h>
-#include <cmGeneratedFileStream.h>
 
 class cmCPackComponent;
 class cmCPackComponentGroup;
 class cmCPackIFWInstaller;
 class cmCPackIFWGenerator;
+class cmXMLWriter;
 
 /** \class cmCPackIFWPackage
  * \brief A single component to be installed by CPack IFW generator
  */
 class cmCPackIFWPackage
 {
-public: // Types
+public:
+  // Types
+
   enum CompareTypes
   {
-    CompareNone           = 0x0,
-    CompareEqual          = 0x1,
-    CompareLess           = 0x2,
-    CompareLessOrEqual    = 0x3,
-    CompareGreater        = 0x4,
+    CompareNone = 0x0,
+    CompareEqual = 0x1,
+    CompareLess = 0x2,
+    CompareLessOrEqual = 0x3,
+    CompareGreater = 0x4,
     CompareGreaterOrEqual = 0x5
   };
 
@@ -48,27 +50,29 @@ public: // Types
   struct DependenceStruct
   {
     DependenceStruct();
-    DependenceStruct(const std::string &dependence);
+    DependenceStruct(const std::string& dependence);
 
     std::string Name;
     CompareStruct Compare;
 
     std::string NameWithCompare() const;
 
-    bool operator < (const DependenceStruct &other) const
-      {
+    bool operator<(const DependenceStruct& other) const
+    {
       return Name < other.Name;
-      }
+    }
   };
 
-public: // [Con|De]structor
+public:
+  // [Con|De]structor
 
   /**
    * Construct package
    */
   cmCPackIFWPackage();
 
-public: // Configuration
+public:
+  // Configuration
 
   /// Human-readable name of the component
   std::string DisplayName;
@@ -97,29 +101,33 @@ public: // Configuration
   /// Set to true to preselect the component in the installer
   std::string Default;
 
+  /// Marks the package as essential to force a restart of the MaintenanceTool
+  std::string Essential;
+
   /// Set to true to hide the component from the installer
   std::string Virtual;
 
   /// Determines that the package must always be installed
   std::string ForcedInstallation;
 
-public: // Internal implementation
+public:
+  // Internal implementation
 
   const char* GetOption(const std::string& op) const;
   bool IsOn(const std::string& op) const;
 
-  bool IsVersionLess(const char *version);
-  bool IsVersionGreater(const char *version);
-  bool IsVersionEqual(const char *version);
+  bool IsVersionLess(const char* version);
+  bool IsVersionGreater(const char* version);
+  bool IsVersionEqual(const char* version);
 
-  std::string GetComponentName(cmCPackComponent *component);
+  std::string GetComponentName(cmCPackComponent* component);
 
   void DefaultConfiguration();
 
   int ConfigureFromOptions();
-  int ConfigureFromComponent(cmCPackComponent *component);
-  int ConfigureFromGroup(cmCPackComponentGroup *group);
-  int ConfigureFromGroup(const std::string &groupName);
+  int ConfigureFromComponent(cmCPackComponent* component);
+  int ConfigureFromGroup(cmCPackComponentGroup* group);
+  int ConfigureFromGroup(const std::string& groupName);
 
   void GeneratePackageFile();
 
@@ -135,7 +143,7 @@ public: // Internal implementation
   std::string Directory;
 
 protected:
-  void WriteGeneratedByToStrim(cmGeneratedFileStream& xout);
+  void WriteGeneratedByToStrim(cmXMLWriter& xout);
 };
 
 #endif // cmCPackIFWPackage_h

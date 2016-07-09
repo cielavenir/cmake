@@ -19,7 +19,7 @@
 #
 #  The disk image format. Common values are UDRO (UDIF read-only), UDZO (UDIF
 #  zlib-compressed) or UDBZ (UDIF bzip2-compressed). Refer to hdiutil(1) for
-#  more information on other available formats.
+#  more information on other available formats. Defaults to UDZO.
 #
 # .. variable:: CPACK_DMG_DS_STORE
 #
@@ -45,6 +45,11 @@
 #  extension.  The background image is installed into the image before
 #  CPACK_DMG_DS_STORE_SETUP_SCRIPT is executed or CPACK_DMG_DS_STORE is
 #  installed.  By default no background image is set.
+#
+# .. variable:: CPACK_DMG_DISABLE_APPLICATIONS_SYMLINK
+#
+#  Default behaviour is to include a symlink to ``/Applications`` in the DMG.
+#  Set this option to ``ON`` to avoid adding the symlink.
 #
 # .. variable:: CPACK_DMG_SLA_DIR
 #

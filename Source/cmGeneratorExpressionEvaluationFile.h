@@ -12,22 +12,21 @@
 #ifndef cmGeneratorExpressionEvaluationFile_h
 #define cmGeneratorExpressionEvaluationFile_h
 
-#include "cmStandardIncludes.h"
-#include <sys/types.h>
-#include <cmsys/auto_ptr.hxx>
-
 #include "cmGeneratorExpression.h"
+
+#include <cmsys/auto_ptr.hxx>
+#include <sys/types.h>
 
 class cmLocalGenerator;
 
-//----------------------------------------------------------------------------
 class cmGeneratorExpressionEvaluationFile
 {
 public:
-  cmGeneratorExpressionEvaluationFile(const std::string &input,
-        cmsys::auto_ptr<cmCompiledGeneratorExpression> outputFileExpr,
-        cmsys::auto_ptr<cmCompiledGeneratorExpression> condition,
-        bool inputIsContent);
+  cmGeneratorExpressionEvaluationFile(
+    const std::string& input,
+    cmsys::auto_ptr<cmCompiledGeneratorExpression> outputFileExpr,
+    cmsys::auto_ptr<cmCompiledGeneratorExpression> condition,
+    bool inputIsContent);
 
   void Generate(cmLocalGenerator* lg);
 
@@ -39,7 +38,7 @@ private:
   void Generate(cmLocalGenerator* lg, const std::string& config,
                 const std::string& lang,
                 cmCompiledGeneratorExpression* inputExpression,
-                std::map<std::string, std::string> &outputFiles, mode_t perm);
+                std::map<std::string, std::string>& outputFiles, mode_t perm);
 
 private:
   const std::string Input;

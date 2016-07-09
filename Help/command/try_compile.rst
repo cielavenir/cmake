@@ -112,3 +112,10 @@ The current setting of :policy:`CMP0065` is set in the generated project.
 
 Set the :variable:`CMAKE_TRY_COMPILE_CONFIGURATION` variable to choose
 a build configuration.
+
+Set the :variable:`CMAKE_TRY_COMPILE_TARGET_TYPE` variable to specify
+the type of target used for the source file signature.
+
+Set the :variable:`CMAKE_TRY_COMPILE_PLATFORM_VARIABLES` variable to specify
+variables that must be propagated into the test project.  This variable is
+meant for use only in toolchain files.

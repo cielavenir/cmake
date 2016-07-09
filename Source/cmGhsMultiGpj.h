@@ -12,6 +12,8 @@
 #ifndef cmGhsMultiGpj_h
 #define cmGhsMultiGpj_h
 
+#include "cmStandardIncludes.h"
+
 class cmGeneratedFileStream;
 
 class GhsMultiGpj
@@ -28,7 +30,7 @@ public:
   };
 
   static void WriteGpjTag(Types const gpjType,
-                          cmGeneratedFileStream *filestream);
+                          cmGeneratedFileStream* filestream);
 };
 
 #endif // ! cmGhsMultiGpjType_h
