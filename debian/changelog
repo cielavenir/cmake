@@ -1,4 +1,4 @@
-cmake (3.6.0-1) UNRELEASED; urgency=medium
+cmake (3.6.0-1) experimental; urgency=medium
 
   * New upstream release.
   * Drop patches that have been applied upstream:
@@ -8,7 +8,7 @@ cmake (3.6.0-1) UNRELEASED; urgency=medium
     - Add FindImageMagick_find_program.patch
   * Add new autopkgtest which checks if various Find modules are wokring,
 
- -- Felix Geyer <fgeyer@debian.org>  Sat, 09 Jul 2016 11:23:12 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 10 Jul 2016 10:49:22 +0200
 
 cmake (3.5.2-2) unstable; urgency=medium
 
