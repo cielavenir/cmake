@@ -6,6 +6,7 @@ cmake (3.6.0-1) UNRELEASED; urgency=medium
     - file_Sort_GLOB_results_to_make_it_deterministic.patch
   * Fix detection of ImageMagick.
     - Add FindImageMagick_find_program.patch
+  * Add new autopkgtest which checks if various Find modules are wokring,
 
  -- Felix Geyer <fgeyer@debian.org>  Sat, 09 Jul 2016 11:23:12 +0200
 
