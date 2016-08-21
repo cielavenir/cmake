@@ -1,10 +1,10 @@
-cmake (3.6.1-1) UNRELEASED; urgency=medium
+cmake (3.6.1-1) unstable; urgency=medium
 
   * New upstream release.
   * Drop FindImageMagick_find_program.patch, the underlying issue has been
     fixed upstream.
 
- -- Felix Geyer <fgeyer@debian.org>  Sat, 20 Aug 2016 09:57:50 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 21 Aug 2016 11:13:07 +0200
 
 cmake (3.6.0-1) experimental; urgency=medium
 
