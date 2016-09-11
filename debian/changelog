@@ -1,11 +1,11 @@
-cmake (3.6.2-1) UNRELEASED; urgency=medium
+cmake (3.6.2-1) unstable; urgency=medium
 
   * New upstream release.
   * Fix broken binaries when using clang with -fsanitize. (Closes: #835426)
     - Add CMakeParseImplicitLinkInfo_Exclude_libclang_rt.patch,
       cherry-picked from upstream.
 
- -- Felix Geyer <fgeyer@debian.org>  Sun, 11 Sep 2016 17:22:48 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 11 Sep 2016 18:25:36 +0200
 
 cmake (3.6.1-1) unstable; urgency=medium
 
