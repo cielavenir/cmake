@@ -44,6 +44,8 @@
 
 #include <cmsys/auto_ptr.hxx>
 
+static std::string const kWINDOWS_7_1_SDK = "Windows7.1SDK";
+
 cmIDEFlagTable const* cmVisualStudio10TargetGenerator::GetClFlagTable() const
 {
   if (this->MSTools) {
@@ -183,13 +185,12 @@ cmVisualStudio10TargetGenerator::cmVisualStudio10TargetGenerator(
   this->GUID = this->GlobalGenerator->GetGUID(this->Name.c_str());
   this->Platform = gg->GetPlatformName();
   this->NsightTegra = gg->IsNsightTegra();
-  for (int i =
-         sscanf(gg->GetNsightTegraVersion().c_str(), "%u.%u.%u.%u",
-                &this->NsightTegraVersion[0], &this->NsightTegraVersion[1],
-                &this->NsightTegraVersion[2], &this->NsightTegraVersion[3]);
-       i < 4; ++i) {
+  for (int i = 0; i < 4; ++i) {
     this->NsightTegraVersion[i] = 0;
   }
+  sscanf(gg->GetNsightTegraVersion().c_str(), "%u.%u.%u.%u",
+         &this->NsightTegraVersion[0], &this->NsightTegraVersion[1],
+         &this->NsightTegraVersion[2], &this->NsightTegraVersion[3]);
   this->MSTools = !this->NsightTegra;
   this->TargetCompileAsWinRT = false;
   this->BuildFileStream = 0;
@@ -2354,10 +2355,13 @@ bool cmVisualStudio10TargetGenerator::ComputeLinkOptions(
     cmGlobalVisualStudio10Generator* gg =
       static_cast<cmGlobalVisualStudio10Generator*>(this->GlobalGenerator);
     const char* toolset = gg->GetPlatformToolset();
-    if (toolset && (cmHasLiteralPrefix(toolset, "v90") ||
-                    cmHasLiteralPrefix(toolset, "v100") ||
-                    cmHasLiteralPrefix(toolset, "v110") ||
-                    cmHasLiteralPrefix(toolset, "v120"))) {
+    if (toolset &&
+        (toolset == kWINDOWS_7_1_SDK || /* clang-format please break here */
+         cmHasLiteralPrefix(toolset, "v80") ||
+         cmHasLiteralPrefix(toolset, "v90") ||
+         cmHasLiteralPrefix(toolset, "v100") ||
+         cmHasLiteralPrefix(toolset, "v110") ||
+         cmHasLiteralPrefix(toolset, "v120"))) {
       if (const char* debug =
             linkOptions.GetFlag("GenerateDebugInformation")) {
         // Convert value from enumeration back to boolean for older toolsets.
