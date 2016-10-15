@@ -1,5 +1,9 @@
 cmake (3.6.2-2) UNRELEASED; urgency=medium
 
+  [ Lisandro Damián Nicanor Pérez Meyer ]
+  * Add mips-rld-map-rel.patch to solve segfaults caused by new
+    DT_MIPS_RLD_MAP_REL tag and RPATH removers (Closes: #820334).
+    Thanks James Cowgill for the patch.
 
  -- Debian CMake Team <pkg-cmake-team@lists.alioth.debian.org>  Fri, 14 Oct 2016 22:12:26 -0300
 
