@@ -7,11 +7,13 @@ Bug: http://cmake.org/Bug/view.php?id=10692
 Bug-Debian: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=563479
 Forwarded: http://cmake.org/Bug/file_download.php?file_id=3629&type=bug
 
-Index: cmake/Modules/FindBoost.cmake
-===================================================================
---- cmake.orig/Modules/FindBoost.cmake
-+++ cmake/Modules/FindBoost.cmake
-@@ -447,6 +447,22 @@ function(_Boost_GUESS_COMPILER_PREFIX _r
+---
+ Modules/FindBoost.cmake |   19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+--- a/Modules/FindBoost.cmake
++++ b/Modules/FindBoost.cmake
+@@ -861,6 +861,22 @@ function(_Boost_MISSING_DEPENDENCIES com
    set(${extravar} ${_boost_extra_components} PARENT_SCOPE)
  endfunction()
  
@@ -34,7 +36,7 @@ Index: cmake/Modules/FindBoost.cmake
  #
  # End functions/macros
  #
-@@ -1177,6 +1193,9 @@ if(Boost_FOUND)
+@@ -1748,6 +1764,9 @@ if(Boost_FOUND)
        list(APPEND Boost_LIBRARIES ${Boost_${UPPERCOMPONENT}_LIBRARY})
      endif()
    endforeach()

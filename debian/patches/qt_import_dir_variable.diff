@@ -8,11 +8,13 @@ Origin: vendor
 
 This happens when there are no plugins currently installed.
 
-Index: cmake/Modules/FindQt4.cmake
-===================================================================
---- cmake.orig/Modules/FindQt4.cmake
-+++ cmake/Modules/FindQt4.cmake
-@@ -734,7 +734,7 @@ if (QT_QMAKE_EXECUTABLE AND
+---
+ Modules/FindQt4.cmake |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/Modules/FindQt4.cmake
++++ b/Modules/FindQt4.cmake
+@@ -736,7 +736,7 @@ if (QT_QMAKE_EXECUTABLE AND
    if (QT_LIBRARY_DIR AND NOT QT_IMPORTS_DIR OR QT_QMAKE_CHANGED)
      _qt4_query_qmake(QT_INSTALL_IMPORTS qt_imports_dir)
      if(qt_imports_dir)
