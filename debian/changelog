@@ -1,3 +1,9 @@
+cmake (3.6.2-3) UNRELEASED; urgency=medium
+
+  * Update Uploaders. (Closes: #840858)
+
+ -- Felix Geyer <fgeyer@debian.org>  Thu, 20 Oct 2016 20:45:13 +0200
+
 cmake (3.6.2-2) unstable; urgency=medium
 
   * Add mips-rld-map-rel.patch to solve segfaults caused by new
