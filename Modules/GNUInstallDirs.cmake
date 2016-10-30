@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # GNUInstallDirs
 # --------------
@@ -99,21 +102,23 @@
 #   `Filesystem Hierarchy Standard`_.
 #
 # .. _`Filesystem Hierarchy Standard`: https://refspecs.linuxfoundation.org/FHS_3.0/fhs/index.html
-
-#=============================================================================
-# Copyright 2015 Alex Turbov <i.zaufi@gmail.com>
-# Copyright 2011 Nikita Krupen'ko <krnekit@gmail.com>
-# Copyright 2011 Kitware, Inc.
 #
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
+# Macros
+# ^^^^^^
 #
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
+# .. command:: GNUInstallDirs_get_absolute_install_dir
+#
+#   ::
+#
+#     GNUInstallDirs_get_absolute_install_dir(absvar var)
+#
+#   Set the given variable ``absvar`` to the absolute path contained
+#   within the variable ``var``.  This is to allow the computation of an
+#   absolute path, accounting for all the special cases documented
+#   above.  While this macro is used to compute the various
+#   ``CMAKE_INSTALL_FULL_<dir>`` variables, it is exposed publicly to
+#   allow users who create additional path variables to also compute
+#   absolute paths where necessary, using the same logic.
 
 # Installation directories
 #
@@ -248,7 +253,7 @@ if(NOT CMAKE_INSTALL_DATADIR)
   set(CMAKE_INSTALL_DATADIR "${CMAKE_INSTALL_DATAROOTDIR}")
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
+if(CMAKE_SYSTEM_NAME MATCHES "^(.*BSD|DragonFly)$")
   if(NOT CMAKE_INSTALL_INFODIR)
     set(CMAKE_INSTALL_INFODIR "" CACHE PATH "info documentation (info)")
     set(CMAKE_INSTALL_INFODIR "info")
@@ -300,6 +305,41 @@ mark_as_advanced(
   CMAKE_INSTALL_DOCDIR
   )
 
+macro(GNUInstallDirs_get_absolute_install_dir absvar var)
+  if(NOT IS_ABSOLUTE "${${var}}")
+    # Handle special cases:
+    # - CMAKE_INSTALL_PREFIX == /
+    # - CMAKE_INSTALL_PREFIX == /usr
+    # - CMAKE_INSTALL_PREFIX == /opt/...
+    if("${CMAKE_INSTALL_PREFIX}" STREQUAL "/")
+      if("${dir}" STREQUAL "SYSCONFDIR" OR "${dir}" STREQUAL "LOCALSTATEDIR")
+        set(${absvar} "/${${var}}")
+      else()
+        if (NOT "${${var}}" MATCHES "^usr/")
+          set(${var} "usr/${${var}}")
+        endif()
+        set(${absvar} "/${${var}}")
+      endif()
+    elseif("${CMAKE_INSTALL_PREFIX}" MATCHES "^/usr/?$")
+      if("${dir}" STREQUAL "SYSCONFDIR" OR "${dir}" STREQUAL "LOCALSTATEDIR")
+        set(${absvar} "/${${var}}")
+      else()
+        set(${absvar} "${CMAKE_INSTALL_PREFIX}/${${var}}")
+      endif()
+    elseif("${CMAKE_INSTALL_PREFIX}" MATCHES "^/opt/.*")
+      if("${dir}" STREQUAL "SYSCONFDIR" OR "${dir}" STREQUAL "LOCALSTATEDIR")
+        set(${absvar} "/${${var}}${CMAKE_INSTALL_PREFIX}")
+      else()
+        set(${absvar} "${CMAKE_INSTALL_PREFIX}/${${var}}")
+      endif()
+    else()
+      set(${absvar} "${CMAKE_INSTALL_PREFIX}/${${var}}")
+    endif()
+  else()
+    set(${absvar} "${${var}}")
+  endif()
+endmacro()
+
 # Result directories
 #
 foreach(dir
@@ -319,36 +359,5 @@ foreach(dir
     MANDIR
     DOCDIR
     )
-  if(NOT IS_ABSOLUTE "${CMAKE_INSTALL_${dir}}")
-    # Handle special cases:
-    # - CMAKE_INSTALL_PREFIX == /
-    # - CMAKE_INSTALL_PREFIX == /usr
-    # - CMAKE_INSTALL_PREFIX == /opt/...
-    if("${CMAKE_INSTALL_PREFIX}" STREQUAL "/")
-      if("${dir}" STREQUAL "SYSCONFDIR" OR "${dir}" STREQUAL "LOCALSTATEDIR")
-        set(CMAKE_INSTALL_FULL_${dir} "/${CMAKE_INSTALL_${dir}}")
-      else()
-        if (NOT "${CMAKE_INSTALL_${dir}}" MATCHES "^usr/")
-          set(CMAKE_INSTALL_${dir} "usr/${CMAKE_INSTALL_${dir}}")
-        endif()
-        set(CMAKE_INSTALL_FULL_${dir} "/${CMAKE_INSTALL_${dir}}")
-      endif()
-    elseif("${CMAKE_INSTALL_PREFIX}" MATCHES "^/usr/?$")
-      if("${dir}" STREQUAL "SYSCONFDIR" OR "${dir}" STREQUAL "LOCALSTATEDIR")
-        set(CMAKE_INSTALL_FULL_${dir} "/${CMAKE_INSTALL_${dir}}")
-      else()
-        set(CMAKE_INSTALL_FULL_${dir} "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_${dir}}")
-      endif()
-    elseif("${CMAKE_INSTALL_PREFIX}" MATCHES "^/opt/.*")
-      if("${dir}" STREQUAL "SYSCONFDIR" OR "${dir}" STREQUAL "LOCALSTATEDIR")
-        set(CMAKE_INSTALL_FULL_${dir} "/${CMAKE_INSTALL_${dir}}${CMAKE_INSTALL_PREFIX}")
-      else()
-        set(CMAKE_INSTALL_FULL_${dir} "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_${dir}}")
-      endif()
-    else()
-      set(CMAKE_INSTALL_FULL_${dir} "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_${dir}}")
-    endif()
-  else()
-    set(CMAKE_INSTALL_FULL_${dir} "${CMAKE_INSTALL_${dir}}")
-  endif()
+  GNUInstallDirs_get_absolute_install_dir(CMAKE_INSTALL_FULL_${dir} CMAKE_INSTALL_${dir})
 endforeach()

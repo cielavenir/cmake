@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmFunctionCommand.h"
 
 #include "cmake.h"
@@ -20,7 +11,7 @@ public:
   cmFunctionHelperCommand() {}
 
   ///! clean up any memory allocated by the function
-  ~cmFunctionHelperCommand() {}
+  ~cmFunctionHelperCommand() CM_OVERRIDE {}
 
   /**
    * This is used to avoid including this command
@@ -28,12 +19,12 @@ public:
    * cmMacroHelperCommand and cmFunctionHelperCommand
    * which cannot provide appropriate documentation.
    */
-  virtual bool ShouldAppearInDocumentation() const { return false; }
+  bool ShouldAppearInDocumentation() const CM_OVERRIDE { return false; }
 
   /**
    * This is a virtual constructor for the command.
    */
-  virtual cmCommand* Clone()
+  cmCommand* Clone() CM_OVERRIDE
   {
     cmFunctionHelperCommand* newC = new cmFunctionHelperCommand;
     // we must copy when we clone
@@ -47,16 +38,17 @@ public:
   /**
    * This determines if the command is invoked when in script mode.
    */
-  virtual bool IsScriptable() const { return true; }
+  bool IsScriptable() const CM_OVERRIDE { return true; }
 
   /**
    * This is called when the command is first encountered in
    * the CMakeLists.txt file.
    */
-  virtual bool InvokeInitialPass(const std::vector<cmListFileArgument>& args,
-                                 cmExecutionStatus&);
+  bool InvokeInitialPass(const std::vector<cmListFileArgument>& args,
+                         cmExecutionStatus&) CM_OVERRIDE;
 
-  virtual bool InitialPass(std::vector<std::string> const&, cmExecutionStatus&)
+  bool InitialPass(std::vector<std::string> const&,
+                   cmExecutionStatus&) CM_OVERRIDE
   {
     return false;
   }
@@ -64,7 +56,7 @@ public:
   /**
    * The name of the command as specified in CMakeList.txt.
    */
-  virtual std::string GetName() const { return this->Args[0]; }
+  std::string GetName() const CM_OVERRIDE { return this->Args[0]; }
 
   cmTypeMacro(cmFunctionHelperCommand, cmCommand);
 
@@ -168,10 +160,9 @@ bool cmFunctionFunctionBlocker::IsFunctionBlocked(
       // remove the function blocker now that the function is defined
       mf.RemoveFunctionBlocker(this, lff);
       return true;
-    } else {
-      // decrement for each nested function that ends
-      this->Depth--;
     }
+    // decrement for each nested function that ends
+    this->Depth--;
   }
 
   // if it wasn't an endfunction and we are not executing then we must be
@@ -201,7 +192,7 @@ bool cmFunctionFunctionBlocker::ShouldRemove(const cmListFileFunction& lff,
 bool cmFunctionCommand::InitialPass(std::vector<std::string> const& args,
                                     cmExecutionStatus&)
 {
-  if (args.size() < 1) {
+  if (args.empty()) {
     this->SetError("called with incorrect number of arguments");
     return false;
   }

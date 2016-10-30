@@ -1,19 +1,11 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "windows.h" // this must be first to define GetCurrentDirectory
 
 #include "cmGlobalVisualStudio10Generator.h"
 
 #include "cmAlgorithms.h"
+#include "cmGeneratorTarget.h"
 #include "cmLocalVisualStudio10Generator.h"
 #include "cmMakefile.h"
 #include "cmSourceFile.h"
@@ -42,8 +34,8 @@ class cmGlobalVisualStudio10Generator::Factory
   : public cmGlobalGeneratorFactory
 {
 public:
-  virtual cmGlobalGenerator* CreateGlobalGenerator(const std::string& name,
-                                                   cmake* cm) const
+  cmGlobalGenerator* CreateGlobalGenerator(const std::string& name,
+                                           cmake* cm) const CM_OVERRIDE
   {
     std::string genName;
     const char* p = cmVS10GenName(name, genName);
@@ -65,21 +57,22 @@ public:
     return 0;
   }
 
-  virtual void GetDocumentation(cmDocumentationEntry& entry) const
+  void GetDocumentation(cmDocumentationEntry& entry) const CM_OVERRIDE
   {
     entry.Name = std::string(vs10generatorName) + " [arch]";
     entry.Brief = "Generates Visual Studio 2010 project files.  "
                   "Optional [arch] can be \"Win64\" or \"IA64\".";
   }
 
-  virtual void GetGenerators(std::vector<std::string>& names) const
+  void GetGenerators(std::vector<std::string>& names) const CM_OVERRIDE
   {
     names.push_back(vs10generatorName);
     names.push_back(vs10generatorName + std::string(" IA64"));
     names.push_back(vs10generatorName + std::string(" Win64"));
   }
 
-  virtual bool SupportsToolset() const { return true; }
+  bool SupportsToolset() const CM_OVERRIDE { return true; }
+  bool SupportsPlatform() const CM_OVERRIDE { return true; }
 };
 
 cmGlobalGeneratorFactory* cmGlobalVisualStudio10Generator::NewFactory()
@@ -100,6 +93,7 @@ cmGlobalVisualStudio10Generator::cmGlobalVisualStudio10Generator(
   this->SystemIsWindowsPhone = false;
   this->SystemIsWindowsStore = false;
   this->MSBuildCommandInitialized = false;
+  this->DefaultPlatformToolset = "v100";
   this->Version = VS10;
 }
 
@@ -347,16 +341,36 @@ std::string const& cmGlobalVisualStudio10Generator::GetMSBuildCommand()
 std::string cmGlobalVisualStudio10Generator::FindMSBuildCommand()
 {
   std::string msbuild;
-  std::string mskey =
-    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\MSBuild\\ToolsVersions\\";
+  std::string mskey;
+
+  // Search in standard location.
+  mskey = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\MSBuild\\ToolsVersions\\";
   mskey += this->GetToolsVersion();
   mskey += ";MSBuildToolsPath";
   if (cmSystemTools::ReadRegistryValue(mskey.c_str(), msbuild,
                                        cmSystemTools::KeyWOW64_32)) {
     cmSystemTools::ConvertToUnixSlashes(msbuild);
-    msbuild += "/";
+    msbuild += "/MSBuild.exe";
+    if (cmSystemTools::FileExists(msbuild, true)) {
+      return msbuild;
+    }
   }
-  msbuild += "MSBuild.exe";
+
+  // Search where VS15Preview places it.
+  mskey = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\SxS\\VS7;";
+  mskey += this->GetIDEVersion();
+  if (cmSystemTools::ReadRegistryValue(mskey.c_str(), msbuild,
+                                       cmSystemTools::KeyWOW64_32)) {
+    cmSystemTools::ConvertToUnixSlashes(msbuild);
+    msbuild += "/MSBuild/";
+    msbuild += this->GetIDEVersion();
+    msbuild += "/Bin/MSBuild.exe";
+    if (cmSystemTools::FileExists(msbuild, true)) {
+      return msbuild;
+    }
+  }
+
+  msbuild = "MSBuild.exe";
   return msbuild;
 }
 
@@ -459,6 +473,10 @@ void cmGlobalVisualStudio10Generator::GenerateBuildCommand(
 
 bool cmGlobalVisualStudio10Generator::Find64BitTools(cmMakefile* mf)
 {
+  if (this->DefaultPlatformToolset == "v100") {
+    // The v100 64-bit toolset does not exist in the express edition.
+    this->DefaultPlatformToolset.clear();
+  }
   if (this->GetPlatformToolset()) {
     return true;
   }

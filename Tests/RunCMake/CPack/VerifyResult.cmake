@@ -8,15 +8,15 @@ file(READ "${bin_dir}/test_error.txt" error)
 file(READ "${config_file}" config_file_content)
 
 set(output_error_message
-    "\nCPack output: '${output}'\nCPack error: '${error}';\nconfig file: '${config_file_content}'")
+    "\nCPack output: '${output}'\nCPack error: '${error}';\nCPack result: '${PACKAGING_RESULT}';\nconfig file: '${config_file_content}'")
 
 # check that expected generated files exist and contain expected content
-include("${src_dir}/${GENERATOR_TYPE}/${RunCMake_TEST}-ExpectedFiles.cmake")
+include("${src_dir}/${GENERATOR_TYPE}/${RunCMake_TEST_FILE_PREFIX}-ExpectedFiles.cmake")
 
 if(NOT EXPECTED_FILES_COUNT EQUAL 0)
   foreach(file_no_ RANGE 1 ${EXPECTED_FILES_COUNT})
     file(GLOB FOUND_FILE_${file_no_} RELATIVE "${bin_dir}" "${EXPECTED_FILE_${file_no_}}")
-    set(foundFiles_ "${foundFiles_};${FOUND_FILE_${file_no_}}")
+    list(APPEND foundFiles_ "${FOUND_FILE_${file_no_}}")
     list(LENGTH FOUND_FILE_${file_no_} foundFilesCount_)
 
     if(foundFilesCount_ EQUAL 1)
@@ -45,7 +45,7 @@ if(NOT EXPECTED_FILES_COUNT EQUAL 0)
   # check that there were no extra files generated
   foreach(all_files_glob_ IN LISTS ALL_FILES_GLOB)
     file(GLOB foundAll_ RELATIVE "${bin_dir}" "${all_files_glob_}")
-    set(allFoundFiles_ "${allFoundFiles_};${foundAll_}")
+    list(APPEND allFoundFiles_ "${foundAll_}")
   endforeach()
 
   list(LENGTH foundFiles_ foundFilesCount_)
@@ -82,8 +82,8 @@ else()
 endif()
 
 # handle additional result verifications
-if(EXISTS "${src_dir}/${GENERATOR_TYPE}/${RunCMake_TEST}-VerifyResult.cmake")
-  include("${src_dir}/${GENERATOR_TYPE}/${RunCMake_TEST}-VerifyResult.cmake")
+if(EXISTS "${src_dir}/${GENERATOR_TYPE}/${RunCMake_TEST_FILE_PREFIX}-VerifyResult.cmake")
+  include("${src_dir}/${GENERATOR_TYPE}/${RunCMake_TEST_FILE_PREFIX}-VerifyResult.cmake")
 else()
   # by default only print out output and error so that they can be compared by
   # regex

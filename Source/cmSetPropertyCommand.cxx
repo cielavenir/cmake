@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmSetPropertyCommand.h"
 
 #include "cmSetSourceFilesPropertiesCommand.h"
@@ -139,7 +130,7 @@ bool cmSetPropertyCommand::HandleGlobalMode()
   const char* name = this->PropertyName.c_str();
   const char* value = this->PropertyValue.c_str();
   if (this->Remove) {
-    value = 0;
+    value = CM_NULLPTR;
   }
   if (this->AppendMode) {
     cm->AppendProperty(name, value ? value : "", this->AppendAsString);
@@ -189,7 +180,7 @@ bool cmSetPropertyCommand::HandleDirectoryMode()
   const char* name = this->PropertyName.c_str();
   const char* value = this->PropertyValue.c_str();
   if (this->Remove) {
-    value = 0;
+    value = CM_NULLPTR;
   }
   if (this->AppendMode) {
     mf->AppendProperty(name, value ? value : "", this->AppendAsString);
@@ -230,7 +221,7 @@ bool cmSetPropertyCommand::HandleTarget(cmTarget* target)
   const char* name = this->PropertyName.c_str();
   const char* value = this->PropertyValue.c_str();
   if (this->Remove) {
-    value = 0;
+    value = CM_NULLPTR;
   }
   if (this->AppendMode) {
     target->AppendProperty(name, value, this->AppendAsString);
@@ -269,7 +260,7 @@ bool cmSetPropertyCommand::HandleSource(cmSourceFile* sf)
   const char* name = this->PropertyName.c_str();
   const char* value = this->PropertyValue.c_str();
   if (this->Remove) {
-    value = 0;
+    value = CM_NULLPTR;
   }
 
   if (this->AppendMode) {
@@ -317,7 +308,7 @@ bool cmSetPropertyCommand::HandleTest(cmTest* test)
   const char* name = this->PropertyName.c_str();
   const char* value = this->PropertyValue.c_str();
   if (this->Remove) {
-    value = 0;
+    value = CM_NULLPTR;
   }
   if (this->AppendMode) {
     test->AppendProperty(name, value, this->AppendAsString);

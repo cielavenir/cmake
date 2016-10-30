@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include "windows.h" // this must be first to define GetCurrentDirectory
 #if defined(_MSC_VER) && _MSC_VER >= 1800
@@ -21,6 +12,8 @@
 #include "cmAlgorithms.h"
 #include "cmCPackPropertiesGenerator.h"
 #include "cmComputeTargetDepends.h"
+#include "cmCustomCommand.h"
+#include "cmCustomCommandLines.h"
 #include "cmExportBuildFileGenerator.h"
 #include "cmExternalMakefileProjectGenerator.h"
 #include "cmGeneratedFileStream.h"
@@ -29,25 +22,31 @@
 #include "cmInstallGenerator.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
+#include "cmOutputConverter.h"
+#include "cmPolicies.h"
 #include "cmQtAutoGeneratorInitializer.h"
 #include "cmSourceFile.h"
 #include "cmState.h"
-#include "cmTargetExport.h"
 #include "cmVersion.h"
 #include "cmake.h"
 
+#include <algorithm>
+#include <assert.h>
 #include <cmsys/Directory.hxx>
 #include <cmsys/FStream.hxx>
+#include <iterator>
+#include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
-#include "cm_jsoncpp_value.h"
-#include "cm_jsoncpp_writer.h"
+#include <cm_jsoncpp_value.h>
+#include <cm_jsoncpp_writer.h>
 #include <cmsys/MD5.h>
 #endif
 
-#include <stdlib.h> // required for atof
-
-#include <assert.h>
+class cmInstalledFile;
 
 bool cmTarget::StrictTargetComparison::operator()(cmTarget const* t1,
                                                   cmTarget const* t2) const
@@ -81,11 +80,12 @@ cmGlobalGenerator::cmGlobalGenerator(cmake* cm)
   // how long to let try compiles run
   this->TryCompileTimeout = 0;
 
-  this->ExtraGenerator = 0;
-  this->CurrentMakefile = 0;
-  this->TryCompileOuterMakefile = 0;
+  this->ExtraGenerator = CM_NULLPTR;
+  this->CurrentMakefile = CM_NULLPTR;
+  this->TryCompileOuterMakefile = CM_NULLPTR;
 
   this->ConfigureDoneCMP0026AndCMP0024 = false;
+  this->FirstTimeProgress = 0.0f;
 
   cm->GetState()->SetMinGWMake(false);
   cm->GetState()->SetMSYSShell(false);
@@ -180,8 +180,7 @@ void cmGlobalGenerator::ResolveLanguageCompiler(const std::string& lang,
   } else {
     path = name;
   }
-  if ((path.empty() || !cmSystemTools::FileExists(path.c_str())) &&
-      (optional == false)) {
+  if (!optional && (path.empty() || !cmSystemTools::FileExists(path))) {
     return;
   }
   const char* cname =
@@ -243,7 +242,7 @@ bool cmGlobalGenerator::GenerateImportFile(const std::string& file)
     }
 
     delete it->second;
-    it->second = 0;
+    it->second = CM_NULLPTR;
     this->BuildExportSets.erase(it);
     return result;
   }
@@ -309,6 +308,12 @@ void cmGlobalGenerator::FindMakeProgram(cmMakefile* mf)
     mf->AddCacheDefinition("CMAKE_MAKE_PROGRAM", makeProgram.c_str(),
                            "make program", cmState::FILEPATH);
   }
+}
+
+bool cmGlobalGenerator::CheckLanguages(
+  std::vector<std::string> const& /* languages */, cmMakefile* /* mf */) const
+{
+  return true;
 }
 
 // enable the given language
@@ -419,6 +424,10 @@ void cmGlobalGenerator::EnableLanguage(
 
   // find and make sure CMAKE_MAKE_PROGRAM is defined
   this->FindMakeProgram(mf);
+
+  if (!this->CheckLanguages(languages, mf)) {
+    return;
+  }
 
   // try and load the CMakeSystem.cmake if it is there
   std::string fpath = rootBin;
@@ -998,6 +1007,25 @@ void cmGlobalGenerator::FillExtensionToLanguageMap(const std::string& l,
   }
 }
 
+const char* cmGlobalGenerator::GetGlobalSetting(std::string const& name) const
+{
+  assert(!this->Makefiles.empty());
+  return this->Makefiles[0]->GetDefinition(name);
+}
+
+bool cmGlobalGenerator::GlobalSettingIsOn(std::string const& name) const
+{
+  assert(!this->Makefiles.empty());
+  return this->Makefiles[0]->IsOn(name);
+}
+
+const char* cmGlobalGenerator::GetSafeGlobalSetting(
+  std::string const& name) const
+{
+  assert(!this->Makefiles.empty());
+  return this->Makefiles[0]->GetSafeDefinition(name);
+}
+
 bool cmGlobalGenerator::IgnoreFile(const char* ext) const
 {
   if (!this->GetLanguageFromExtension(ext).empty()) {
@@ -1041,6 +1069,7 @@ void cmGlobalGenerator::Configure()
 
   cmMakefile* dirMf = new cmMakefile(this, snapshot);
   this->Makefiles.push_back(dirMf);
+  this->IndexMakefile(dirMf);
 
   this->BinaryDirectories.insert(
     this->CMakeInstance->GetHomeOutputDirectory());
@@ -1053,16 +1082,16 @@ void cmGlobalGenerator::Configure()
   this->ConfigureDoneCMP0026AndCMP0024 = true;
 
   // Put a copy of each global target in every directory.
-  cmTargets globalTargets;
-  this->CreateDefaultGlobalTargets(&globalTargets);
+  std::vector<GlobalTargetInfo> globalTargets;
+  this->CreateDefaultGlobalTargets(globalTargets);
 
   for (unsigned int i = 0; i < this->Makefiles.size(); ++i) {
     cmMakefile* mf = this->Makefiles[i];
     cmTargets* targets = &(mf->GetTargets());
-    cmTargets::iterator tit;
-    for (tit = globalTargets.begin(); tit != globalTargets.end(); ++tit) {
-      (*targets)[tit->first] = tit->second;
-      (*targets)[tit->first].SetMakefile(mf);
+    for (std::vector<GlobalTargetInfo>::iterator gti = globalTargets.begin();
+         gti != globalTargets.end(); ++gti) {
+      targets->insert(
+        cmTargets::value_type(gti->Name, this->CreateGlobalTarget(*gti, mf)));
     }
   }
 
@@ -1082,7 +1111,7 @@ void cmGlobalGenerator::Configure()
     std::ostringstream msg;
     if (cmSystemTools::GetErrorOccuredFlag()) {
       msg << "Configuring incomplete, errors occurred!";
-      const char* logs[] = { "CMakeOutput.log", "CMakeError.log", 0 };
+      const char* logs[] = { "CMakeOutput.log", "CMakeError.log", CM_NULLPTR };
       for (const char** log = logs; *log; ++log) {
         std::string f = this->CMakeInstance->GetHomeOutputDirectory();
         f += this->CMakeInstance->GetCMakeFilesDirectory();
@@ -1129,7 +1158,7 @@ cmExportBuildFileGenerator* cmGlobalGenerator::GetExportedTargetsFile(
 {
   std::map<std::string, cmExportBuildFileGenerator*>::const_iterator it =
     this->BuildExportSets.find(filename);
-  return it == this->BuildExportSets.end() ? 0 : it->second;
+  return it == this->BuildExportSets.end() ? CM_NULLPTR : it->second;
 }
 
 void cmGlobalGenerator::AddCMP0042WarnTarget(const std::string& target)
@@ -1270,7 +1299,7 @@ void cmGlobalGenerator::Generate()
       "Generating", (static_cast<float>(i) + 1.0f) /
         static_cast<float>(this->LocalGenerators.size()));
   }
-  this->SetCurrentMakefile(0);
+  this->SetCurrentMakefile(CM_NULLPTR);
 
   if (!this->GenerateCPackPropertiesFile()) {
     this->GetCMakeInstance()->IssueMessage(
@@ -1292,7 +1321,7 @@ void cmGlobalGenerator::Generate()
 
   this->WriteSummary();
 
-  if (this->ExtraGenerator != 0) {
+  if (this->ExtraGenerator != CM_NULLPTR) {
     this->ExtraGenerator->Generate();
   }
 
@@ -1510,13 +1539,15 @@ void cmGlobalGenerator::ClearGeneratorMembers()
   this->TargetDependencies.clear();
   this->TargetSearchIndex.clear();
   this->GeneratorTargetSearchIndex.clear();
+  this->MakefileSearchIndex.clear();
   this->ProjectMap.clear();
   this->RuleHashes.clear();
   this->DirectoryContentMap.clear();
   this->BinaryDirectories.clear();
 }
 
-void cmGlobalGenerator::ComputeTargetObjectDirectory(cmGeneratorTarget*) const
+void cmGlobalGenerator::ComputeTargetObjectDirectory(
+  cmGeneratorTarget* /*unused*/) const
 {
 }
 
@@ -1645,15 +1676,17 @@ int cmGlobalGenerator::TryCompile(const std::string& srcdir,
 }
 
 void cmGlobalGenerator::GenerateBuildCommand(
-  std::vector<std::string>& makeCommand, const std::string&,
-  const std::string&, const std::string&, const std::string&,
-  const std::string&, bool, bool, std::vector<std::string> const&)
+  std::vector<std::string>& makeCommand, const std::string& /*unused*/,
+  const std::string& /*unused*/, const std::string& /*unused*/,
+  const std::string& /*unused*/, const std::string& /*unused*/,
+  bool /*unused*/, bool /*unused*/, std::vector<std::string> const& /*unused*/)
 {
   makeCommand.push_back(
     "cmGlobalGenerator::GenerateBuildCommand not implemented");
 }
 
-int cmGlobalGenerator::Build(const std::string&, const std::string& bindir,
+int cmGlobalGenerator::Build(const std::string& /*unused*/,
+                             const std::string& bindir,
                              const std::string& projectName,
                              const std::string& target, std::string& output,
                              const std::string& makeCommandCSTR,
@@ -1699,7 +1732,8 @@ int cmGlobalGenerator::Build(const std::string&, const std::string& bindir,
     output += "\n";
 
     if (!cmSystemTools::RunSingleCommand(cleanCommand, outputPtr, outputPtr,
-                                         &retVal, 0, outputflag, timeout)) {
+                                         &retVal, CM_NULLPTR, outputflag,
+                                         timeout)) {
       cmSystemTools::SetRunCommandHideConsole(hideconsole);
       cmSystemTools::Error("Generator: execution of make clean failed.");
       output += *outputPtr;
@@ -1719,7 +1753,8 @@ int cmGlobalGenerator::Build(const std::string&, const std::string& bindir,
   output += "\n";
 
   if (!cmSystemTools::RunSingleCommand(makeCommand, outputPtr, outputPtr,
-                                       &retVal, 0, outputflag, timeout)) {
+                                       &retVal, CM_NULLPTR, outputflag,
+                                       timeout)) {
     cmSystemTools::SetRunCommandHideConsole(hideconsole);
     cmSystemTools::Error(
       "Generator: execution of make failed. Make command was: ",
@@ -1782,6 +1817,7 @@ std::string cmGlobalGenerator::GenerateCMakeBuildCommand(
 void cmGlobalGenerator::AddMakefile(cmMakefile* mf)
 {
   this->Makefiles.push_back(mf);
+  this->IndexMakefile(mf);
 
   // update progress
   // estimate how many lg there will be
@@ -1939,14 +1975,11 @@ void cmGlobalGenerator::FillProjectMap()
 
 cmMakefile* cmGlobalGenerator::FindMakefile(const std::string& start_dir) const
 {
-  for (std::vector<cmMakefile*>::const_iterator it = this->Makefiles.begin();
-       it != this->Makefiles.end(); ++it) {
-    std::string sd = (*it)->GetCurrentSourceDirectory();
-    if (sd == start_dir) {
-      return *it;
-    }
+  MakefileMap::const_iterator i = this->MakefileSearchIndex.find(start_dir);
+  if (i != this->MakefileSearchIndex.end()) {
+    return i->second;
   }
-  return 0;
+  return CM_NULLPTR;
 }
 
 ///! Find a local generator by its startdirectory
@@ -1961,7 +1994,7 @@ cmLocalGenerator* cmGlobalGenerator::FindLocalGenerator(
       return *it;
     }
   }
-  return 0;
+  return CM_NULLPTR;
 }
 
 void cmGlobalGenerator::AddAlias(const std::string& name,
@@ -1989,13 +2022,24 @@ void cmGlobalGenerator::IndexGeneratorTarget(cmGeneratorTarget* gt)
   }
 }
 
+void cmGlobalGenerator::IndexMakefile(cmMakefile* mf)
+{
+  // FIXME: add_subdirectory supports multiple build directories
+  // sharing the same source directory.  We currently index only the
+  // first one, because that is what FindMakefile has always returned.
+  // All of its callers will need to be modified to support looking
+  // up directories by build directory path.
+  this->MakefileSearchIndex.insert(
+    MakefileMap::value_type(mf->GetCurrentSourceDirectory(), mf));
+}
+
 cmTarget* cmGlobalGenerator::FindTargetImpl(std::string const& name) const
 {
   TargetMap::const_iterator i = this->TargetSearchIndex.find(name);
   if (i != this->TargetSearchIndex.end()) {
     return i->second;
   }
-  return 0;
+  return CM_NULLPTR;
 }
 
 cmGeneratorTarget* cmGlobalGenerator::FindGeneratorTargetImpl(
@@ -2006,7 +2050,7 @@ cmGeneratorTarget* cmGlobalGenerator::FindGeneratorTargetImpl(
   if (i != this->GeneratorTargetSearchIndex.end()) {
     return i->second;
   }
-  return 0;
+  return CM_NULLPTR;
 }
 
 cmTarget* cmGlobalGenerator::FindTarget(const std::string& name,
@@ -2057,15 +2101,27 @@ inline std::string removeQuotes(const std::string& s)
   return s;
 }
 
-void cmGlobalGenerator::CreateDefaultGlobalTargets(cmTargets* targets)
+void cmGlobalGenerator::CreateDefaultGlobalTargets(
+  std::vector<GlobalTargetInfo>& targets)
+{
+  this->AddGlobalTarget_Package(targets);
+  this->AddGlobalTarget_PackageSource(targets);
+  this->AddGlobalTarget_Test(targets);
+  this->AddGlobalTarget_EditCache(targets);
+  this->AddGlobalTarget_RebuildCache(targets);
+  this->AddGlobalTarget_Install(targets);
+}
+
+void cmGlobalGenerator::AddGlobalTarget_Package(
+  std::vector<GlobalTargetInfo>& targets)
 {
   cmMakefile* mf = this->Makefiles[0];
   const char* cmakeCfgIntDir = this->GetCMakeCFGIntDir();
-
-  // CPack
-  std::string workingDir = mf->GetCurrentBinaryDirectory();
-  cmCustomCommandLines cpackCommandLines;
-  std::vector<std::string> depends;
+  GlobalTargetInfo gti;
+  gti.Name = this->GetPackageTargetName();
+  gti.Message = "Run CPack packaging tool...";
+  gti.UsesTerminal = true;
+  gti.WorkingDir = mf->GetCurrentBinaryDirectory();
   cmCustomCommandLine singleLine;
   singleLine.push_back(cmSystemTools::GetCPackCommand());
   if (cmakeCfgIntDir && *cmakeCfgIntDir && cmakeCfgIntDir[0] != '.') {
@@ -2074,55 +2130,61 @@ void cmGlobalGenerator::CreateDefaultGlobalTargets(cmTargets* targets)
   }
   singleLine.push_back("--config");
   std::string configFile = mf->GetCurrentBinaryDirectory();
-  ;
   configFile += "/CPackConfig.cmake";
   std::string relConfigFile = "./CPackConfig.cmake";
   singleLine.push_back(relConfigFile);
-  cpackCommandLines.push_back(singleLine);
+  gti.CommandLines.push_back(singleLine);
   if (this->GetPreinstallTargetName()) {
-    depends.push_back(this->GetPreinstallTargetName());
+    gti.Depends.push_back(this->GetPreinstallTargetName());
   } else {
     const char* noPackageAll =
       mf->GetDefinition("CMAKE_SKIP_PACKAGE_ALL_DEPENDENCY");
     if (!noPackageAll || cmSystemTools::IsOff(noPackageAll)) {
-      depends.push_back(this->GetAllTargetName());
+      gti.Depends.push_back(this->GetAllTargetName());
     }
   }
   if (cmSystemTools::FileExists(configFile.c_str())) {
-    (*targets)[this->GetPackageTargetName()] = this->CreateGlobalTarget(
-      this->GetPackageTargetName(), "Run CPack packaging tool...",
-      &cpackCommandLines, depends, workingDir.c_str(), /*uses_terminal*/ true);
+    targets.push_back(gti);
   }
-  // CPack source
+}
+
+void cmGlobalGenerator::AddGlobalTarget_PackageSource(
+  std::vector<GlobalTargetInfo>& targets)
+{
+  cmMakefile* mf = this->Makefiles[0];
   const char* packageSourceTargetName = this->GetPackageSourceTargetName();
   if (packageSourceTargetName) {
-    cpackCommandLines.erase(cpackCommandLines.begin(),
-                            cpackCommandLines.end());
-    singleLine.erase(singleLine.begin(), singleLine.end());
-    depends.erase(depends.begin(), depends.end());
+    GlobalTargetInfo gti;
+    gti.Name = packageSourceTargetName;
+    gti.Message = "Run CPack packaging tool for source...";
+    gti.WorkingDir = mf->GetCurrentBinaryDirectory();
+    gti.UsesTerminal = true;
+    cmCustomCommandLine singleLine;
     singleLine.push_back(cmSystemTools::GetCPackCommand());
     singleLine.push_back("--config");
-    configFile = mf->GetCurrentBinaryDirectory();
-    ;
+    std::string configFile = mf->GetCurrentBinaryDirectory();
     configFile += "/CPackSourceConfig.cmake";
-    relConfigFile = "./CPackSourceConfig.cmake";
+    std::string relConfigFile = "./CPackSourceConfig.cmake";
     singleLine.push_back(relConfigFile);
     if (cmSystemTools::FileExists(configFile.c_str())) {
       singleLine.push_back(configFile);
-      cpackCommandLines.push_back(singleLine);
-      (*targets)[packageSourceTargetName] = this->CreateGlobalTarget(
-        packageSourceTargetName, "Run CPack packaging tool for source...",
-        &cpackCommandLines, depends, workingDir.c_str(),
-        /*uses_terminal*/ true);
+      gti.CommandLines.push_back(singleLine);
+      targets.push_back(gti);
     }
   }
+}
 
-  // Test
+void cmGlobalGenerator::AddGlobalTarget_Test(
+  std::vector<GlobalTargetInfo>& targets)
+{
+  cmMakefile* mf = this->Makefiles[0];
+  const char* cmakeCfgIntDir = this->GetCMakeCFGIntDir();
   if (mf->IsOn("CMAKE_TESTING_ENABLED")) {
-    cpackCommandLines.erase(cpackCommandLines.begin(),
-                            cpackCommandLines.end());
-    singleLine.erase(singleLine.begin(), singleLine.end());
-    depends.erase(depends.begin(), depends.end());
+    GlobalTargetInfo gti;
+    gti.Name = this->GetTestTargetName();
+    gti.Message = "Running tests...";
+    gti.UsesTerminal = true;
+    cmCustomCommandLine singleLine;
     singleLine.push_back(cmSystemTools::GetCTestCommand());
     singleLine.push_back("--force-new-ctest-process");
     if (cmakeCfgIntDir && *cmakeCfgIntDir && cmakeCfgIntDir[0] != '.') {
@@ -2133,20 +2195,19 @@ void cmGlobalGenerator::CreateDefaultGlobalTargets(cmTargets* targets)
     {
       singleLine.push_back("$(ARGS)");
     }
-    cpackCommandLines.push_back(singleLine);
-    (*targets)[this->GetTestTargetName()] =
-      this->CreateGlobalTarget(this->GetTestTargetName(), "Running tests...",
-                               &cpackCommandLines, depends, 0,
-                               /*uses_terminal*/ true);
+    gti.CommandLines.push_back(singleLine);
+    targets.push_back(gti);
   }
+}
 
-  // Edit Cache
+void cmGlobalGenerator::AddGlobalTarget_EditCache(
+  std::vector<GlobalTargetInfo>& targets)
+{
   const char* editCacheTargetName = this->GetEditCacheTargetName();
   if (editCacheTargetName) {
-    cpackCommandLines.erase(cpackCommandLines.begin(),
-                            cpackCommandLines.end());
-    singleLine.erase(singleLine.begin(), singleLine.end());
-    depends.erase(depends.begin(), depends.end());
+    GlobalTargetInfo gti;
+    gti.Name = editCacheTargetName;
+    cmCustomCommandLine singleLine;
 
     // Use generator preference for the edit_cache rule if it is defined.
     std::string edit_cmd = this->GetEditCacheCommand();
@@ -2154,50 +2215,55 @@ void cmGlobalGenerator::CreateDefaultGlobalTargets(cmTargets* targets)
       singleLine.push_back(edit_cmd);
       singleLine.push_back("-H$(CMAKE_SOURCE_DIR)");
       singleLine.push_back("-B$(CMAKE_BINARY_DIR)");
-      cpackCommandLines.push_back(singleLine);
-      (*targets)[editCacheTargetName] = this->CreateGlobalTarget(
-        editCacheTargetName, "Running CMake cache editor...",
-        &cpackCommandLines, depends, 0, /*uses_terminal*/ true);
+      gti.Message = "Running CMake cache editor...";
+      gti.UsesTerminal = true;
+      gti.CommandLines.push_back(singleLine);
     } else {
       singleLine.push_back(cmSystemTools::GetCMakeCommand());
       singleLine.push_back("-E");
       singleLine.push_back("echo");
       singleLine.push_back("No interactive CMake dialog available.");
-      cpackCommandLines.push_back(singleLine);
-      (*targets)[editCacheTargetName] = this->CreateGlobalTarget(
-        editCacheTargetName, "No interactive CMake dialog available...",
-        &cpackCommandLines, depends, 0, /*uses_terminal*/ false);
+      gti.Message = "No interactive CMake dialog available...";
+      gti.UsesTerminal = false;
+      gti.CommandLines.push_back(singleLine);
     }
-  }
 
-  // Rebuild Cache
+    targets.push_back(gti);
+  }
+}
+
+void cmGlobalGenerator::AddGlobalTarget_RebuildCache(
+  std::vector<GlobalTargetInfo>& targets)
+{
   const char* rebuildCacheTargetName = this->GetRebuildCacheTargetName();
   if (rebuildCacheTargetName) {
-    cpackCommandLines.erase(cpackCommandLines.begin(),
-                            cpackCommandLines.end());
-    singleLine.erase(singleLine.begin(), singleLine.end());
-    depends.erase(depends.begin(), depends.end());
+    GlobalTargetInfo gti;
+    gti.Name = rebuildCacheTargetName;
+    gti.Message = "Running CMake to regenerate build system...";
+    gti.UsesTerminal = true;
+    cmCustomCommandLine singleLine;
     singleLine.push_back(cmSystemTools::GetCMakeCommand());
     singleLine.push_back("-H$(CMAKE_SOURCE_DIR)");
     singleLine.push_back("-B$(CMAKE_BINARY_DIR)");
-    cpackCommandLines.push_back(singleLine);
-    (*targets)[rebuildCacheTargetName] = this->CreateGlobalTarget(
-      rebuildCacheTargetName, "Running CMake to regenerate build system...",
-      &cpackCommandLines, depends, 0, /*uses_terminal*/ true);
+    gti.CommandLines.push_back(singleLine);
+    targets.push_back(gti);
   }
+}
 
-  // Install
+void cmGlobalGenerator::AddGlobalTarget_Install(
+  std::vector<GlobalTargetInfo>& targets)
+{
+  cmMakefile* mf = this->Makefiles[0];
+  const char* cmakeCfgIntDir = this->GetCMakeCFGIntDir();
   bool skipInstallRules = mf->IsOn("CMAKE_SKIP_INSTALL_RULES");
   if (this->InstallTargetEnabled && skipInstallRules) {
-    mf->IssueMessage(cmake::WARNING,
-                     "CMAKE_SKIP_INSTALL_RULES was enabled even though "
-                     "installation rules have been specified");
+    this->CMakeInstance->IssueMessage(
+      cmake::WARNING, "CMAKE_SKIP_INSTALL_RULES was enabled even though "
+                      "installation rules have been specified",
+      mf->GetBacktrace());
   } else if (this->InstallTargetEnabled && !skipInstallRules) {
     if (!cmakeCfgIntDir || !*cmakeCfgIntDir || cmakeCfgIntDir[0] == '.') {
       std::set<std::string>* componentsSet = &this->InstallComponents;
-      cpackCommandLines.erase(cpackCommandLines.begin(),
-                              cpackCommandLines.end());
-      depends.erase(depends.begin(), depends.end());
       std::ostringstream ostr;
       if (!componentsSet->empty()) {
         ostr << "Available install components are: ";
@@ -2205,23 +2271,25 @@ void cmGlobalGenerator::CreateDefaultGlobalTargets(cmTargets* targets)
       } else {
         ostr << "Only default component available";
       }
-      singleLine.push_back(ostr.str());
-      (*targets)["list_install_components"] = this->CreateGlobalTarget(
-        "list_install_components", ostr.str().c_str(), &cpackCommandLines,
-        depends, 0, /*uses_terminal*/ false);
+      GlobalTargetInfo gti;
+      gti.Name = "list_install_components";
+      gti.Message = ostr.str();
+      gti.UsesTerminal = false;
+      targets.push_back(gti);
     }
     std::string cmd = cmSystemTools::GetCMakeCommand();
-    cpackCommandLines.erase(cpackCommandLines.begin(),
-                            cpackCommandLines.end());
-    singleLine.erase(singleLine.begin(), singleLine.end());
-    depends.erase(depends.begin(), depends.end());
+    GlobalTargetInfo gti;
+    gti.Name = this->GetInstallTargetName();
+    gti.Message = "Install the project...";
+    gti.UsesTerminal = true;
+    cmCustomCommandLine singleLine;
     if (this->GetPreinstallTargetName()) {
-      depends.push_back(this->GetPreinstallTargetName());
+      gti.Depends.push_back(this->GetPreinstallTargetName());
     } else {
       const char* noall =
         mf->GetDefinition("CMAKE_SKIP_INSTALL_ALL_DEPENDENCY");
       if (!noall || cmSystemTools::IsOff(noall)) {
-        depends.push_back(this->GetAllTargetName());
+        gti.Depends.push_back(this->GetAllTargetName());
       }
     }
     if (mf->GetDefinition("CMake_BINARY_DIR") &&
@@ -2246,40 +2314,39 @@ void cmGlobalGenerator::CreateDefaultGlobalTargets(cmTargets* targets)
     }
     singleLine.push_back("-P");
     singleLine.push_back("cmake_install.cmake");
-    cpackCommandLines.push_back(singleLine);
-    (*targets)[this->GetInstallTargetName()] = this->CreateGlobalTarget(
-      this->GetInstallTargetName(), "Install the project...",
-      &cpackCommandLines, depends, 0, /*uses_terminal*/ true);
+    gti.CommandLines.push_back(singleLine);
+    targets.push_back(gti);
 
     // install_local
     if (const char* install_local = this->GetInstallLocalTargetName()) {
+      gti.Name = install_local;
+      gti.Message = "Installing only the local directory...";
+      gti.UsesTerminal = true;
+      gti.CommandLines.clear();
+
       cmCustomCommandLine localCmdLine = singleLine;
 
       localCmdLine.insert(localCmdLine.begin() + 1,
                           "-DCMAKE_INSTALL_LOCAL_ONLY=1");
-      cpackCommandLines.erase(cpackCommandLines.begin(),
-                              cpackCommandLines.end());
-      cpackCommandLines.push_back(localCmdLine);
 
-      (*targets)[install_local] = this->CreateGlobalTarget(
-        install_local, "Installing only the local directory...",
-        &cpackCommandLines, depends, 0, /*uses_terminal*/ true);
+      gti.CommandLines.push_back(localCmdLine);
+      targets.push_back(gti);
     }
 
     // install_strip
     const char* install_strip = this->GetInstallStripTargetName();
-    if ((install_strip != 0) && (mf->IsSet("CMAKE_STRIP"))) {
+    if ((install_strip != CM_NULLPTR) && (mf->IsSet("CMAKE_STRIP"))) {
+      gti.Name = install_strip;
+      gti.Message = "Installing the project stripped...";
+      gti.UsesTerminal = true;
+      gti.CommandLines.clear();
+
       cmCustomCommandLine stripCmdLine = singleLine;
 
       stripCmdLine.insert(stripCmdLine.begin() + 1,
                           "-DCMAKE_INSTALL_DO_STRIP=1");
-      cpackCommandLines.erase(cpackCommandLines.begin(),
-                              cpackCommandLines.end());
-      cpackCommandLines.push_back(stripCmdLine);
-
-      (*targets)[install_strip] = this->CreateGlobalTarget(
-        install_strip, "Installing the project stripped...",
-        &cpackCommandLines, depends, 0, /*uses_terminal*/ true);
+      gti.CommandLines.push_back(stripCmdLine);
+      targets.push_back(gti);
     }
   }
 }
@@ -2313,27 +2380,27 @@ bool cmGlobalGenerator::UseFolderProperty()
   return false;
 }
 
-cmTarget cmGlobalGenerator::CreateGlobalTarget(
-  const std::string& name, const char* message,
-  const cmCustomCommandLines* commandLines, std::vector<std::string> depends,
-  const char* workingDirectory, bool uses_terminal)
+cmTarget cmGlobalGenerator::CreateGlobalTarget(GlobalTargetInfo const& gti,
+                                               cmMakefile* mf)
 {
   // Package
-  cmTarget target;
-  target.SetType(cmState::GLOBAL_TARGET, name);
+  cmTarget target(gti.Name, cmState::GLOBAL_TARGET, cmTarget::VisibilityNormal,
+                  mf);
   target.SetProperty("EXCLUDE_FROM_ALL", "TRUE");
 
   std::vector<std::string> no_outputs;
   std::vector<std::string> no_byproducts;
   std::vector<std::string> no_depends;
   // Store the custom command in the target.
-  cmCustomCommand cc(0, no_outputs, no_byproducts, no_depends, *commandLines,
-                     0, workingDirectory);
-  cc.SetUsesTerminal(uses_terminal);
+  cmCustomCommand cc(CM_NULLPTR, no_outputs, no_byproducts, no_depends,
+                     gti.CommandLines, CM_NULLPTR, gti.WorkingDir.c_str());
+  cc.SetUsesTerminal(gti.UsesTerminal);
   target.AddPostBuildCommand(cc);
-  target.SetProperty("EchoString", message);
-  std::vector<std::string>::iterator dit;
-  for (dit = depends.begin(); dit != depends.end(); ++dit) {
+  if (!gti.Message.empty()) {
+    target.SetProperty("EchoString", gti.Message.c_str());
+  }
+  for (std::vector<std::string>::const_iterator dit = gti.Depends.begin();
+       dit != gti.Depends.end(); ++dit) {
     target.AddUtility(*dit);
   }
 
@@ -2370,10 +2437,10 @@ std::string cmGlobalGenerator::GetSharedLibFlagsForLanguage(
   return "";
 }
 
-void cmGlobalGenerator::AppendDirectoryForConfig(const std::string&,
-                                                 const std::string&,
-                                                 const std::string&,
-                                                 std::string&)
+void cmGlobalGenerator::AppendDirectoryForConfig(const std::string& /*unused*/,
+                                                 const std::string& /*unused*/,
+                                                 const std::string& /*unused*/,
+                                                 std::string& /*unused*/)
 {
   // Subclasses that support multiple configurations should implement
   // this method to append the subdirectory for the given build
@@ -2406,7 +2473,7 @@ void cmGlobalGenerator::SetExternalMakefileProjectGenerator(
   cmExternalMakefileProjectGenerator* extraGenerator)
 {
   this->ExtraGenerator = extraGenerator;
-  if (this->ExtraGenerator != 0) {
+  if (this->ExtraGenerator != CM_NULLPTR) {
     this->ExtraGenerator->SetGlobalGenerator(this);
   }
 }
@@ -2542,8 +2609,8 @@ void cmGlobalGenerator::AddRuleHash(const std::vector<std::string>& outputs,
 
   // Shorten the output name (in expected use case).
   cmOutputConverter converter(this->GetMakefiles()[0]->GetStateSnapshot());
-  std::string fname =
-    converter.Convert(outputs[0], cmOutputConverter::HOME_OUTPUT);
+  std::string fname = converter.ConvertToRelativePath(
+    this->GetMakefiles()[0]->GetState()->GetBinaryDirectory(), outputs[0]);
 
   // Associate the hash with this output.
   this->RuleHashes[fname] = hash;
@@ -2571,7 +2638,7 @@ void cmGlobalGenerator::CheckRuleHashes(std::string const& pfile,
 #if defined(_WIN32) || defined(__CYGWIN__)
   cmsys::ifstream fin(pfile.c_str(), std::ios::in | std::ios::binary);
 #else
-  cmsys::ifstream fin(pfile.c_str(), std::ios::in);
+  cmsys::ifstream fin(pfile.c_str());
 #endif
   if (!fin) {
     return;

@@ -1,17 +1,10 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmGeneratedFileStream.h"
 
 #include "cmSystemTools.h"
+
+#include <stdio.h>
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 #include <cm_zlib.h>
@@ -42,7 +35,7 @@ cmGeneratedFileStream::~cmGeneratedFileStream()
   // stream will be destroyed which will close the temporary file.
   // Finally the base destructor will be called to replace the
   // destination file.
-  this->Okay = (*this) ? true : false;
+  this->Okay = !this->fail();
 }
 
 cmGeneratedFileStream& cmGeneratedFileStream::Open(const char* name,
@@ -56,7 +49,7 @@ cmGeneratedFileStream& cmGeneratedFileStream::Open(const char* name,
     this->Stream::open(this->TempName.c_str(),
                        std::ios::out | std::ios::binary);
   } else {
-    this->Stream::open(this->TempName.c_str(), std::ios::out);
+    this->Stream::open(this->TempName.c_str());
   }
 
   // Check if the file opened.
@@ -71,7 +64,7 @@ cmGeneratedFileStream& cmGeneratedFileStream::Open(const char* name,
 bool cmGeneratedFileStream::Close()
 {
   // Save whether the temporary output file is valid before closing.
-  this->Okay = (*this) ? true : false;
+  this->Okay = !this->fail();
 
   // Close the temporary output file.
   this->Stream::close();

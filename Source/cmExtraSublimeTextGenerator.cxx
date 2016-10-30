@@ -1,28 +1,21 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2004-2009 Kitware, Inc.
-  Copyright 2004 Alexander Neundorf (neundorf@kde.org)
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmExtraSublimeTextGenerator.h"
 
 #include "cmGeneratedFileStream.h"
 #include "cmGeneratorTarget.h"
-#include "cmGlobalUnixMakefileGenerator3.h"
+#include "cmGlobalGenerator.h"
 #include "cmLocalGenerator.h"
-#include "cmLocalUnixMakefileGenerator3.h"
 #include "cmMakefile.h"
 #include "cmSourceFile.h"
+#include "cmState.h"
 #include "cmSystemTools.h"
-#include "cmake.h"
 
-#include <cmsys/SystemTools.hxx>
+#include <cmsys/RegularExpression.hxx>
+#include <ostream>
+#include <set>
+#include <string.h>
+#include <utility>
 
 /*
 Sublime Text 2 Generator
@@ -38,24 +31,30 @@ http://www.sublimetext.com/docs/2/projects.html
 http://sublimetext.info/docs/en/reference/build_systems.html
 */
 
-void cmExtraSublimeTextGenerator::GetDocumentation(cmDocumentationEntry& entry,
-                                                   const std::string&) const
+cmExternalMakefileProjectGeneratorFactory*
+cmExtraSublimeTextGenerator::GetFactory()
 {
-  entry.Name = this->GetName();
-  entry.Brief = "Generates Sublime Text 2 project files.";
+  static cmExternalMakefileProjectGeneratorSimpleFactory<
+    cmExtraSublimeTextGenerator>
+    factory("Sublime Text 2", "Generates Sublime Text 2 project files.");
+
+  if (factory.GetSupportedGlobalGenerators().empty()) {
+#if defined(_WIN32)
+    factory.AddSupportedGlobalGenerator("MinGW Makefiles");
+    factory.AddSupportedGlobalGenerator("NMake Makefiles");
+// disable until somebody actually tests it:
+// factory.AddSupportedGlobalGenerator("MSYS Makefiles");
+#endif
+    factory.AddSupportedGlobalGenerator("Ninja");
+    factory.AddSupportedGlobalGenerator("Unix Makefiles");
+  }
+
+  return &factory;
 }
 
 cmExtraSublimeTextGenerator::cmExtraSublimeTextGenerator()
   : cmExternalMakefileProjectGenerator()
 {
-#if defined(_WIN32)
-  this->SupportedGlobalGenerators.push_back("MinGW Makefiles");
-  this->SupportedGlobalGenerators.push_back("NMake Makefiles");
-// disable until somebody actually tests it:
-//  this->SupportedGlobalGenerators.push_back("MSYS Makefiles");
-#endif
-  this->SupportedGlobalGenerators.push_back("Ninja");
-  this->SupportedGlobalGenerators.push_back("Unix Makefiles");
 }
 
 void cmExtraSublimeTextGenerator::Generate()
@@ -134,9 +133,9 @@ void cmExtraSublimeTextGenerator::AppendAllTargets(
   std::string make = mf->GetRequiredDefinition("CMAKE_MAKE_PROGRAM");
   std::string compiler = "";
   if (!lgs.empty()) {
-    this->AppendTarget(fout, "all", lgs[0], 0, make.c_str(), mf,
+    this->AppendTarget(fout, "all", lgs[0], CM_NULLPTR, make.c_str(), mf,
                        compiler.c_str(), sourceFileFlags, true);
-    this->AppendTarget(fout, "clean", lgs[0], 0, make.c_str(), mf,
+    this->AppendTarget(fout, "clean", lgs[0], CM_NULLPTR, make.c_str(), mf,
                        compiler.c_str(), sourceFileFlags, false);
   }
 
@@ -155,7 +154,7 @@ void cmExtraSublimeTextGenerator::AppendAllTargets(
           // not from the subdirs
           if (strcmp((*lg)->GetCurrentBinaryDirectory(),
                      (*lg)->GetBinaryDirectory()) == 0) {
-            this->AppendTarget(fout, targetName, *lg, 0, make.c_str(),
+            this->AppendTarget(fout, targetName, *lg, CM_NULLPTR, make.c_str(),
                                makefile, compiler.c_str(), sourceFileFlags,
                                false);
           }
@@ -172,8 +171,9 @@ void cmExtraSublimeTextGenerator::AppendAllTargets(
             break;
           }
 
-          this->AppendTarget(fout, targetName, *lg, 0, make.c_str(), makefile,
-                             compiler.c_str(), sourceFileFlags, false);
+          this->AppendTarget(fout, targetName, *lg, CM_NULLPTR, make.c_str(),
+                             makefile, compiler.c_str(), sourceFileFlags,
+                             false);
           break;
         case cmState::EXECUTABLE:
         case cmState::STATIC_LIBRARY:
@@ -199,12 +199,11 @@ void cmExtraSublimeTextGenerator::AppendAllTargets(
 void cmExtraSublimeTextGenerator::AppendTarget(
   cmGeneratedFileStream& fout, const std::string& targetName,
   cmLocalGenerator* lg, cmGeneratorTarget* target, const char* make,
-  const cmMakefile* makefile,
-  const char*, // compiler
+  const cmMakefile* makefile, const char* /*compiler*/,
   MapSourceFileFlags& sourceFileFlags, bool firstTarget)
 {
 
-  if (target != 0) {
+  if (target != CM_NULLPTR) {
     std::vector<cmSourceFile*> sourceFiles;
     target->GetSourceFiles(sourceFiles,
                            makefile->GetSafeDefinition("CMAKE_BUILD_TYPE"));
@@ -295,7 +294,7 @@ std::string cmExtraSublimeTextGenerator::BuildMakeCommand(
     std::string makefileName;
     if (generator == "MinGW Makefiles") {
       // no escaping of spaces in this case, see
-      // http://public.kitware.com/Bug/view.php?id=10014
+      // https://gitlab.kitware.com/cmake/cmake/issues/10014
       makefileName = makefile;
     } else {
       makefileName = cmSystemTools::ConvertToOutputPath(makefile);
@@ -314,27 +313,14 @@ std::string cmExtraSublimeTextGenerator::ComputeFlagsForObject(
   cmSourceFile* source, cmLocalGenerator* lg, cmGeneratorTarget* gtgt)
 {
   std::string flags;
-
-  cmMakefile* makefile = lg->GetMakefile();
   std::string language = source->GetLanguage();
   if (language.empty()) {
     language = "C";
   }
-  const std::string& config = makefile->GetSafeDefinition("CMAKE_BUILD_TYPE");
-  // Add language-specific flags.
-  lg->AddLanguageFlags(flags, language, config);
+  std::string const& config =
+    lg->GetMakefile()->GetSafeDefinition("CMAKE_BUILD_TYPE");
 
-  lg->AddArchitectureFlags(flags, gtgt, language, config);
-
-  // TODO: Fortran support.
-  // // Fortran-specific flags computed for this target.
-  // if(*l == "Fortran")
-  //   {
-  //   this->AddFortranFlags(flags);
-  //   }
-
-  // Add shared-library flags if needed.
-  lg->AddCMP0018Flags(flags, gtgt, language, config);
+  lg->GetTargetCompileFlags(gtgt, config, language, flags);
 
   // Add include directory flags.
   {
@@ -345,16 +331,8 @@ std::string cmExtraSublimeTextGenerator::ComputeFlagsForObject(
     lg->AppendFlags(flags, includeFlags);
   }
 
-  // Append old-style preprocessor definition flags.
-  lg->AppendFlags(flags, makefile->GetDefineFlags());
-
-  // Add target-specific flags.
-  lg->AddCompileOptions(flags, gtgt, language, config);
-
   // Add source file specific flags.
   lg->AppendFlags(flags, source->GetProperty("COMPILE_FLAGS"));
-
-  // TODO: Handle Apple frameworks.
 
   return flags;
 }

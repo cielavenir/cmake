@@ -1,19 +1,11 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "windows.h" // this must be first to define GetCurrentDirectory
 
 #include "cmGlobalVisualStudio7Generator.h"
 
 #include "cmGeneratedFileStream.h"
+#include "cmGeneratorTarget.h"
 #include "cmLocalVisualStudio7Generator.h"
 #include "cmMakefile.h"
 #include "cmUuid.h"
@@ -122,9 +114,9 @@ void cmGlobalVisualStudio7Generator::EnableLanguage(
   // does not use the environment it is run in, and this allows
   // for running commands and using dll's that the IDE environment
   // does not know about.
-  const char* extraPath = cmSystemTools::GetEnv("CMAKE_MSVCIDE_RUN_PATH");
-  if (extraPath) {
-    mf->AddCacheDefinition("CMAKE_MSVCIDE_RUN_PATH", extraPath,
+  std::string extraPath;
+  if (cmSystemTools::GetEnv("CMAKE_MSVCIDE_RUN_PATH", extraPath)) {
+    mf->AddCacheDefinition("CMAKE_MSVCIDE_RUN_PATH", extraPath.c_str(),
                            "Saved environment variable CMAKE_MSVCIDE_RUN_PATH",
                            cmState::STATIC);
   }
@@ -149,13 +141,32 @@ std::string const& cmGlobalVisualStudio7Generator::GetDevEnvCommand()
 std::string cmGlobalVisualStudio7Generator::FindDevEnvCommand()
 {
   std::string vscmd;
-  std::string vskey = this->GetRegistryBase() + ";InstallDir";
+  std::string vskey;
+
+  // Search in standard location.
+  vskey = this->GetRegistryBase() + ";InstallDir";
   if (cmSystemTools::ReadRegistryValue(vskey.c_str(), vscmd,
                                        cmSystemTools::KeyWOW64_32)) {
     cmSystemTools::ConvertToUnixSlashes(vscmd);
-    vscmd += "/";
+    vscmd += "/devenv.com";
+    if (cmSystemTools::FileExists(vscmd, true)) {
+      return vscmd;
+    }
   }
-  vscmd += "devenv.com";
+
+  // Search where VS15Preview places it.
+  vskey = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\SxS\\VS7;";
+  vskey += this->GetIDEVersion();
+  if (cmSystemTools::ReadRegistryValue(vskey.c_str(), vscmd,
+                                       cmSystemTools::KeyWOW64_32)) {
+    cmSystemTools::ConvertToUnixSlashes(vscmd);
+    vscmd += "/Common7/IDE/devenv.com";
+    if (cmSystemTools::FileExists(vscmd, true)) {
+      return vscmd;
+    }
+  }
+
+  vscmd = "devenv.com";
   return vscmd;
 }
 
@@ -362,6 +373,7 @@ void cmGlobalVisualStudio7Generator::WriteTargetsToSolution(
 {
   VisualStudioFolders.clear();
 
+  std::string rootBinaryDir = root->GetCurrentBinaryDirectory();
   for (OrderedTargetDependSet::const_iterator tt = projectTargets.begin();
        tt != projectTargets.end(); ++tt) {
     cmGeneratorTarget const* target = *tt;
@@ -385,7 +397,7 @@ void cmGlobalVisualStudio7Generator::WriteTargetsToSolution(
       if (vcprojName) {
         cmLocalGenerator* lg = target->GetLocalGenerator();
         std::string dir = lg->GetCurrentBinaryDirectory();
-        dir = root->Convert(dir.c_str(), cmOutputConverter::START_OUTPUT);
+        dir = root->ConvertToRelativePath(rootBinaryDir, dir.c_str());
         if (dir == ".") {
           dir = ""; // msbuild cannot handle ".\" prefix
         }
@@ -674,7 +686,7 @@ std::set<std::string> cmGlobalVisualStudio7Generator::IsPartOfDefaultBuild(
           target->Target->GetMakefile()->GetDefinition(
             "CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD");
         cmGeneratorExpression ge;
-        cmsys::auto_ptr<cmCompiledGeneratorExpression> cge =
+        CM_AUTO_PTR<cmCompiledGeneratorExpression> cge =
           ge.Parse(propertyValue);
         if (cmSystemTools::IsOn(
               cge->Evaluate(target->GetLocalGenerator(), *i))) {

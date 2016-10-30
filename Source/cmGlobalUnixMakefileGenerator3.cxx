@@ -1,23 +1,26 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmGlobalUnixMakefileGenerator3.h"
 
 #include "cmAlgorithms.h"
+#include "cmDocumentationEntry.h"
 #include "cmGeneratedFileStream.h"
 #include "cmGeneratorTarget.h"
+#include "cmGlobalGenerator.h"
+#include "cmLocalGenerator.h"
 #include "cmLocalUnixMakefileGenerator3.h"
 #include "cmMakefile.h"
 #include "cmMakefileTargetGenerator.h"
+#include "cmOutputConverter.h"
+#include "cmSystemTools.h"
+#include "cmTarget.h"
+#include "cmTargetDepend.h"
 #include "cmake.h"
+
+#include <algorithm>
+#include <functional>
+#include <sstream>
+#include <utility>
 
 cmGlobalUnixMakefileGenerator3::cmGlobalUnixMakefileGenerator3(cmake* cm)
   : cmGlobalCommonGenerator(cm)
@@ -32,7 +35,7 @@ cmGlobalUnixMakefileGenerator3::cmGlobalUnixMakefileGenerator3(cmake* cm)
 #else
   this->UseLinkScript = true;
 #endif
-  this->CommandDatabase = NULL;
+  this->CommandDatabase = CM_NULLPTR;
 
   this->IncludeDirective = "include";
   this->DefineWindowsNULL = false;
@@ -155,10 +158,10 @@ void cmGlobalUnixMakefileGenerator3::Generate()
   this->WriteMainMakefile2();
   this->WriteMainCMakefile();
 
-  if (this->CommandDatabase != NULL) {
+  if (this->CommandDatabase != CM_NULLPTR) {
     *this->CommandDatabase << std::endl << "]";
     delete this->CommandDatabase;
-    this->CommandDatabase = NULL;
+    this->CommandDatabase = CM_NULLPTR;
   }
 }
 
@@ -166,7 +169,7 @@ void cmGlobalUnixMakefileGenerator3::AddCXXCompileCommand(
   const std::string& sourceFile, const std::string& workingDirectory,
   const std::string& compileCommand)
 {
-  if (this->CommandDatabase == NULL) {
+  if (this->CommandDatabase == CM_NULLPTR) {
     std::string commandDatabaseName =
       std::string(this->GetCMakeInstance()->GetHomeOutputDirectory()) +
       "/compile_commands.json";
@@ -307,15 +310,15 @@ void cmGlobalUnixMakefileGenerator3::WriteMainCMakefile()
   std::string cache = this->GetCMakeInstance()->GetHomeOutputDirectory();
   cache += "/CMakeCache.txt";
 
+  std::string currentBinDir = lg->GetCurrentBinaryDirectory();
   // Save the list to the cmake file.
   cmakefileStream
     << "# The top level Makefile was generated from the following files:\n"
     << "set(CMAKE_MAKEFILE_DEPENDS\n"
-    << "  \"" << lg->Convert(cache, cmOutputConverter::START_OUTPUT) << "\"\n";
+    << "  \"" << lg->ConvertToRelativePath(currentBinDir, cache) << "\"\n";
   for (std::vector<std::string>::const_iterator i = lfiles.begin();
        i != lfiles.end(); ++i) {
-    cmakefileStream << "  \""
-                    << lg->Convert(*i, cmOutputConverter::START_OUTPUT)
+    cmakefileStream << "  \"" << lg->ConvertToRelativePath(currentBinDir, *i)
                     << "\"\n";
   }
   cmakefileStream << "  )\n\n";
@@ -329,12 +332,13 @@ void cmGlobalUnixMakefileGenerator3::WriteMainCMakefile()
   cmakefileStream << "# The corresponding makefile is:\n"
                   << "set(CMAKE_MAKEFILE_OUTPUTS\n"
                   << "  \""
-                  << lg->Convert(makefileName, cmOutputConverter::START_OUTPUT)
+                  << lg->ConvertToRelativePath(currentBinDir, makefileName)
                   << "\"\n"
-                  << "  \""
-                  << lg->Convert(check, cmOutputConverter::START_OUTPUT)
+                  << "  \"" << lg->ConvertToRelativePath(currentBinDir, check)
                   << "\"\n";
   cmakefileStream << "  )\n\n";
+
+  const std::string binDir = lg->GetBinaryDirectory();
 
   // CMake must rerun if a byproduct is missing.
   {
@@ -344,8 +348,7 @@ void cmGlobalUnixMakefileGenerator3::WriteMainCMakefile()
       lg->GetMakefile()->GetOutputFiles();
     for (std::vector<std::string>::const_iterator k = outfiles.begin();
          k != outfiles.end(); ++k) {
-      cmakefileStream << "  \""
-                      << lg->Convert(*k, cmOutputConverter::HOME_OUTPUT)
+      cmakefileStream << "  \"" << lg->ConvertToRelativePath(binDir, *k)
                       << "\"\n";
     }
 
@@ -357,8 +360,7 @@ void cmGlobalUnixMakefileGenerator3::WriteMainCMakefile()
       tmpStr = lg->GetCurrentBinaryDirectory();
       tmpStr += cmake::GetCMakeFilesDirectory();
       tmpStr += "/CMakeDirectoryInformation.cmake";
-      cmakefileStream << "  \""
-                      << lg->Convert(tmpStr, cmOutputConverter::HOME_OUTPUT)
+      cmakefileStream << "  \"" << lg->ConvertToRelativePath(binDir, tmpStr)
                       << "\"\n";
     }
     cmakefileStream << "  )\n\n";
@@ -469,9 +471,10 @@ void cmGlobalUnixMakefileGenerator3::WriteDirectoryRules2(
   }
 
   // Begin the directory-level rules section.
-  std::string dir = lg->GetCurrentBinaryDirectory();
-  dir = lg->Convert(dir, cmOutputConverter::HOME_OUTPUT,
-                    cmOutputConverter::MAKERULE);
+  std::string dir = cmSystemTools::ConvertToOutputPath(
+    lg->ConvertToRelativePath(lg->GetBinaryDirectory(),
+                              lg->GetCurrentBinaryDirectory())
+      .c_str());
   lg->WriteDivider(ruleFileStream);
   ruleFileStream << "# Directory level rules for directory " << dir << "\n\n";
 
@@ -519,7 +522,8 @@ void cmGlobalUnixMakefileGenerator3::GenerateBuildCommand(
       tname += "/fast";
     }
     cmOutputConverter conv(mf->GetStateSnapshot());
-    tname = conv.Convert(tname, cmOutputConverter::HOME_OUTPUT);
+    tname =
+      conv.ConvertToRelativePath(mf->GetState()->GetBinaryDirectory(), tname);
     cmSystemTools::ConvertToOutputSlashes(tname);
     makeCommand.push_back(tname);
     if (this->Makefiles.empty()) {
@@ -716,8 +720,9 @@ void cmGlobalUnixMakefileGenerator3::WriteConvenienceRules2(
         std::ostringstream progCmd;
         progCmd << "$(CMAKE_COMMAND) -E cmake_progress_start ";
         // # in target
-        progCmd << lg->Convert(progress.Dir, cmOutputConverter::FULL,
-                               cmOutputConverter::SHELL);
+        progCmd << lg->ConvertToOutputFormat(
+          cmSystemTools::CollapseFullPath(progress.Dir),
+          cmOutputConverter::SHELL);
         //
         std::set<cmGeneratorTarget const*> emitted;
         progCmd << " " << this->CountProgressMarksInTarget(gtarget, emitted);
@@ -729,8 +734,9 @@ void cmGlobalUnixMakefileGenerator3::WriteConvenienceRules2(
       {
         std::ostringstream progCmd;
         progCmd << "$(CMAKE_COMMAND) -E cmake_progress_start "; // # 0
-        progCmd << lg->Convert(progress.Dir, cmOutputConverter::FULL,
-                               cmOutputConverter::SHELL);
+        progCmd << lg->ConvertToOutputFormat(
+          cmSystemTools::CollapseFullPath(progress.Dir),
+          cmOutputConverter::SHELL);
         progCmd << " 0";
         commands.push_back(progCmd.str());
       }

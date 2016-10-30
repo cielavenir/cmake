@@ -1,30 +1,28 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2004-2009 Kitware, Inc.
-  Copyright 2004 Alexander Neundorf (neundorf@kde.org)
-  Copyright 2007 Miguel A. Figueroa-Villanueva
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmExtraEclipseCDT4Generator.h"
 
 #include "cmGeneratedFileStream.h"
-#include "cmGlobalUnixMakefileGenerator3.h"
-#include "cmLocalUnixMakefileGenerator3.h"
+#include "cmGeneratorExpression.h"
+#include "cmGeneratorTarget.h"
+#include "cmGlobalGenerator.h"
+#include "cmLocalGenerator.h"
 #include "cmMakefile.h"
+#include "cmOutputConverter.h"
 #include "cmSourceFile.h"
+#include "cmSourceGroup.h"
 #include "cmState.h"
-#include "cmTarget.h"
-#include "cmXMLWriter.h"
-
 #include "cmSystemTools.h"
+#include "cmXMLWriter.h"
+#include "cmake.h"
+
+#include <algorithm>
 #include <assert.h>
-#include <stdlib.h>
+#include <cmsys/RegularExpression.hxx>
+#include <map>
+#include <sstream>
+#include <stdio.h>
+#include <utility>
 
 static void AppendAttribute(cmXMLWriter& xml, const char* keyval)
 {
@@ -46,16 +44,6 @@ void AppendDictionary(cmXMLWriter& xml, const char* key, T const& value)
 cmExtraEclipseCDT4Generator::cmExtraEclipseCDT4Generator()
   : cmExternalMakefileProjectGenerator()
 {
-// TODO: Verify if __CYGWIN__ should be checked.
-//#if defined(_WIN32) && !defined(__CYGWIN__)
-#if defined(_WIN32)
-  this->SupportedGlobalGenerators.push_back("NMake Makefiles");
-  this->SupportedGlobalGenerators.push_back("MinGW Makefiles");
-//  this->SupportedGlobalGenerators.push_back("MSYS Makefiles");
-#endif
-  this->SupportedGlobalGenerators.push_back("Ninja");
-  this->SupportedGlobalGenerators.push_back("Unix Makefiles");
-
   this->SupportsVirtualFolders = true;
   this->GenerateLinkedResources = true;
   this->SupportsGmakeErrorParser = true;
@@ -64,15 +52,31 @@ cmExtraEclipseCDT4Generator::cmExtraEclipseCDT4Generator()
   this->CXXEnabled = false;
 }
 
-void cmExtraEclipseCDT4Generator::GetDocumentation(cmDocumentationEntry& entry,
-                                                   const std::string&) const
+cmExternalMakefileProjectGeneratorFactory*
+cmExtraEclipseCDT4Generator::GetFactory()
 {
-  entry.Name = this->GetName();
-  entry.Brief = "Generates Eclipse CDT 4.0 project files.";
+  static cmExternalMakefileProjectGeneratorSimpleFactory<
+    cmExtraEclipseCDT4Generator>
+    factory("Eclipse CDT4", "Generates Eclipse CDT 4.0 project files.");
+
+  if (factory.GetSupportedGlobalGenerators().empty()) {
+// TODO: Verify if __CYGWIN__ should be checked.
+//#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32)
+    factory.AddSupportedGlobalGenerator("NMake Makefiles");
+    factory.AddSupportedGlobalGenerator("MinGW Makefiles");
+// factory.AddSupportedGlobalGenerator("MSYS Makefiles");
+#endif
+    factory.AddSupportedGlobalGenerator("Ninja");
+    factory.AddSupportedGlobalGenerator("Unix Makefiles");
+  }
+
+  return &factory;
 }
 
 void cmExtraEclipseCDT4Generator::EnableLanguage(
-  std::vector<std::string> const& languages, cmMakefile*, bool)
+  std::vector<std::string> const& languages, cmMakefile* /*unused*/,
+  bool /*optional*/)
 {
   for (std::vector<std::string>::const_iterator lit = languages.begin();
        lit != languages.end(); ++lit) {
@@ -129,7 +133,7 @@ void cmExtraEclipseCDT4Generator::Generate()
     (this->IsOutOfSourceBuild &&
      mf->IsOn("CMAKE_ECLIPSE_GENERATE_SOURCE_PROJECT"));
 
-  if ((this->GenerateSourceProject == false) &&
+  if (!this->GenerateSourceProject &&
       (mf->IsOn("ECLIPSE_CDT4_GENERATE_SOURCE_PROJECT"))) {
     mf->IssueMessage(
       cmake::WARNING,
@@ -208,7 +212,8 @@ void cmExtraEclipseCDT4Generator::AddEnvVar(std::ostream& out,
   // get the variables from the environment and from the cache and then
   // figure out which one to use:
 
-  const char* envVarValue = getenv(envVar);
+  std::string envVarValue;
+  const bool envVarSet = cmSystemTools::GetEnv(envVar, envVarValue);
 
   std::string cacheEntryName = "CMAKE_ECLIPSE_ENVVAR_";
   cacheEntryName += envVar;
@@ -217,17 +222,17 @@ void cmExtraEclipseCDT4Generator::AddEnvVar(std::ostream& out,
 
   // now we have both, decide which one to use
   std::string valueToUse;
-  if (envVarValue == 0 && cacheValue == 0) {
+  if (!envVarSet && cacheValue == CM_NULLPTR) {
     // nothing known, do nothing
     valueToUse = "";
-  } else if (envVarValue != 0 && cacheValue == 0) {
+  } else if (envVarSet && cacheValue == CM_NULLPTR) {
     // The variable is in the env, but not in the cache. Use it and put it
     // in the cache
     valueToUse = envVarValue;
     mf->AddCacheDefinition(cacheEntryName, valueToUse.c_str(),
                            cacheEntryName.c_str(), cmState::STRING, true);
     mf->GetCMakeInstance()->SaveCache(lg->GetBinaryDirectory());
-  } else if (envVarValue == 0 && cacheValue != 0) {
+  } else if (!envVarSet && cacheValue != CM_NULLPTR) {
     // It is already in the cache, but not in the env, so use it from the cache
     valueToUse = cacheValue;
   } else {
@@ -311,7 +316,7 @@ void cmExtraEclipseCDT4Generator::CreateProjectFile()
                    "false");
 
   // set project specific environment
-  std::stringstream environment;
+  std::ostringstream environment;
   environment << "VERBOSE=1|CMAKE_NO_VERBOSE=1|"; // verbose Makefile output
   // set vsvars32.bat environment available at CMake time,
   //   but not necessarily when eclipse is open
@@ -341,7 +346,7 @@ void cmExtraEclipseCDT4Generator::CreateProjectFile()
   AppendDictionary(xml, "org.eclipse.cdt.make.core.autoBuildTarget", "all");
 
   // set error parsers
-  std::stringstream errorOutputParser;
+  std::ostringstream errorOutputParser;
 
   if (compilerId == "MSVC") {
     errorOutputParser << "org.eclipse.cdt.core.VCErrorParser;";
@@ -398,8 +403,8 @@ void cmExtraEclipseCDT4Generator::CreateProjectFile()
   if (this->IsOutOfSourceBuild) {
     // create a linked resource to CMAKE_SOURCE_DIR
     // (this is not done anymore for each project because of
-    // http://public.kitware.com/Bug/view.php?id=9978 and because I found it
-    // actually quite confusing in bigger projects with many directories and
+    // https://gitlab.kitware.com/cmake/cmake/issues/9978 and because I found
+    // it actually quite confusing in bigger projects with many directories and
     // projects, Alex
 
     std::string sourceLinkedResourceName = "[Source directory]";
@@ -897,8 +902,8 @@ void cmExtraEclipseCDT4Generator::CreateCProjectFile() const
        it != this->GlobalGenerator->GetLocalGenerators().end(); ++it) {
     const std::vector<cmGeneratorTarget*> targets =
       (*it)->GetGeneratorTargets();
-    std::string subdir = (*it)->Convert((*it)->GetCurrentBinaryDirectory(),
-                                        cmOutputConverter::HOME_OUTPUT);
+    std::string subdir = (*it)->ConvertToRelativePath(
+      this->HomeOutputDirectory, (*it)->GetCurrentBinaryDirectory());
     if (subdir == ".") {
       subdir = "";
     }

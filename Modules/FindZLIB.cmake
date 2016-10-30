@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # FindZLIB
 # --------
@@ -46,19 +49,6 @@
 # A user may set ``ZLIB_ROOT`` to a zlib installation root to tell this
 # module where to look.
 
-#=============================================================================
-# Copyright 2001-2011 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
-
 set(_ZLIB_SEARCHES)
 
 # Search ZLIB_ROOT first if it is set.
@@ -96,7 +86,7 @@ endif()
 unset(ZLIB_NAMES)
 unset(ZLIB_NAMES_DEBUG)
 
-mark_as_advanced(ZLIB_LIBRARY ZLIB_INCLUDE_DIR)
+mark_as_advanced(ZLIB_INCLUDE_DIR)
 
 if(ZLIB_INCLUDE_DIR AND EXISTS "${ZLIB_INCLUDE_DIR}/zlib.h")
     file(STRINGS "${ZLIB_INCLUDE_DIR}/zlib.h" ZLIB_H REGEX "^#define ZLIB_VERSION \"[^\"]*\"$")
@@ -110,7 +100,7 @@ if(ZLIB_INCLUDE_DIR AND EXISTS "${ZLIB_INCLUDE_DIR}/zlib.h")
     set(ZLIB_VERSION_TWEAK "")
     if( "${ZLIB_H}" MATCHES "ZLIB_VERSION \"[0-9]+\\.[0-9]+\\.[0-9]+\\.([0-9]+)")
         set(ZLIB_VERSION_TWEAK "${CMAKE_MATCH_1}")
-        set(ZLIB_VERSION_STRING "${ZLIB_VERSION_STRING}.${ZLIB_VERSION_TWEAK}")
+        string(APPEND ZLIB_VERSION_STRING ".${ZLIB_VERSION_TWEAK}")
     endif()
 
     set(ZLIB_MAJOR_VERSION "${ZLIB_VERSION_MAJOR}")

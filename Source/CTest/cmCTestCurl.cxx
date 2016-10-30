@@ -1,18 +1,13 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2015 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCTestCurl.h"
 
 #include "cmCTest.h"
 #include "cmSystemTools.h"
+
+#include <cmConfigure.h>
+#include <ostream>
+#include <stdio.h>
 
 cmCTestCurl::cmCTestCurl(cmCTest* ctest)
 {
@@ -54,8 +49,8 @@ static size_t curlWriteMemoryCallback(void* ptr, size_t size, size_t nmemb,
   return realsize;
 }
 
-static size_t curlDebugCallback(CURL*, curl_infotype, char* chPtr, size_t size,
-                                void* data)
+static size_t curlDebugCallback(CURL* /*unused*/, curl_infotype /*unused*/,
+                                char* chPtr, size_t size, void* data)
 {
   std::vector<char>* vec = static_cast<std::vector<char>*>(data);
   vec->insert(vec->end(), chPtr, chPtr + size);
@@ -88,10 +83,10 @@ bool cmCTestCurl::InitCurl()
   if (this->VerifyHostOff) {
     curl_easy_setopt(this->Curl, CURLOPT_SSL_VERIFYHOST, 0);
   }
-  if (this->HTTPProxy.size()) {
+  if (!this->HTTPProxy.empty()) {
     curl_easy_setopt(this->Curl, CURLOPT_PROXY, this->HTTPProxy.c_str());
     curl_easy_setopt(this->Curl, CURLOPT_PROXYTYPE, this->HTTPProxyType);
-    if (this->HTTPProxyAuth.size() > 0) {
+    if (!this->HTTPProxyAuth.empty()) {
       curl_easy_setopt(this->Curl, CURLOPT_PROXYUSERPWD,
                        this->HTTPProxyAuth.c_str());
     }
@@ -147,7 +142,7 @@ bool cmCTestCurl::UploadFile(std::string const& local_file,
   ::curl_easy_setopt(this->Curl, CURLOPT_DEBUGFUNCTION, curlDebugCallback);
   // Be sure to set Content-Type to satisfy fussy modsecurity rules
   struct curl_slist* headers =
-    ::curl_slist_append(NULL, "Content-Type: text/xml");
+    ::curl_slist_append(CM_NULLPTR, "Content-Type: text/xml");
   ::curl_easy_setopt(this->Curl, CURLOPT_HTTPHEADER, headers);
   std::vector<char> responseData;
   std::vector<char> debugData;
@@ -160,17 +155,17 @@ bool cmCTestCurl::UploadFile(std::string const& local_file,
   ::curl_easy_setopt(this->Curl, CURLOPT_HTTPHEADER, NULL);
   ::curl_slist_free_all(headers);
 
-  if (responseData.size() > 0) {
+  if (!responseData.empty()) {
     response = std::string(responseData.begin(), responseData.end());
     cmCTestLog(this->CTest, HANDLER_VERBOSE_OUTPUT, "Curl response: ["
                  << response << "]\n");
   }
   std::string curlDebug;
-  if (debugData.size() > 0) {
+  if (!debugData.empty()) {
     curlDebug = std::string(debugData.begin(), debugData.end());
     cmCTestLog(this->CTest, DEBUG, "Curl debug: [" << curlDebug << "]\n");
   }
-  if (response.size() == 0) {
+  if (response.empty()) {
     cmCTestLog(this->CTest, ERROR_MESSAGE, "No response from server.\n"
                  << curlDebug);
     return false;
@@ -205,11 +200,11 @@ bool cmCTestCurl::HttpRequest(std::string const& url,
 
   CURLcode res = ::curl_easy_perform(this->Curl);
 
-  if (responseData.size() > 0) {
+  if (!responseData.empty()) {
     response = std::string(responseData.begin(), responseData.end());
     cmCTestLog(this->CTest, DEBUG, "Curl response: [" << response << "]\n");
   }
-  if (debugData.size() > 0) {
+  if (!debugData.empty()) {
     std::string curlDebug = std::string(debugData.begin(), debugData.end());
     cmCTestLog(this->CTest, DEBUG, "Curl debug: [" << curlDebug << "]\n");
   }
@@ -219,16 +214,18 @@ bool cmCTestCurl::HttpRequest(std::string const& url,
 
 void cmCTestCurl::SetProxyType()
 {
-  if (cmSystemTools::GetEnv("HTTP_PROXY")) {
-    this->HTTPProxy = cmSystemTools::GetEnv("HTTP_PROXY");
-    if (cmSystemTools::GetEnv("HTTP_PROXY_PORT")) {
+  this->HTTPProxy = "";
+  // this is the default
+  this->HTTPProxyType = CURLPROXY_HTTP;
+  this->HTTPProxyAuth = "";
+  if (cmSystemTools::GetEnv("HTTP_PROXY", this->HTTPProxy)) {
+    std::string port;
+    if (cmSystemTools::GetEnv("HTTP_PROXY_PORT", port)) {
       this->HTTPProxy += ":";
-      this->HTTPProxy += cmSystemTools::GetEnv("HTTP_PROXY_PORT");
+      this->HTTPProxy += port;
     }
-    if (cmSystemTools::GetEnv("HTTP_PROXY_TYPE")) {
-      // this is the default
-      this->HTTPProxyType = CURLPROXY_HTTP;
-      std::string type = cmSystemTools::GetEnv("HTTP_PROXY_TYPE");
+    std::string type;
+    if (cmSystemTools::GetEnv("HTTP_PROXY_TYPE", type)) {
       // HTTP/SOCKS4/SOCKS5
       if (type == "HTTP") {
         this->HTTPProxyType = CURLPROXY_HTTP;
@@ -238,12 +235,11 @@ void cmCTestCurl::SetProxyType()
         this->HTTPProxyType = CURLPROXY_SOCKS5;
       }
     }
-    if (cmSystemTools::GetEnv("HTTP_PROXY_USER")) {
-      this->HTTPProxyAuth = cmSystemTools::GetEnv("HTTP_PROXY_USER");
-    }
-    if (cmSystemTools::GetEnv("HTTP_PROXY_PASSWD")) {
+    cmSystemTools::GetEnv("HTTP_PROXY_USER", this->HTTPProxyAuth);
+    std::string passwd;
+    if (cmSystemTools::GetEnv("HTTP_PROXY_PASSWD", passwd)) {
       this->HTTPProxyAuth += ":";
-      this->HTTPProxyAuth += cmSystemTools::GetEnv("HTTP_PROXY_PASSWD");
+      this->HTTPProxyAuth += passwd;
     }
   }
 }

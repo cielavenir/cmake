@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # CPackDeb
 # --------
@@ -176,6 +179,24 @@
 #  * Default   : "devel"
 #
 #  See https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
+#
+# .. variable:: CPACK_DEBIAN_ARCHIVE_TYPE
+#
+#  The archive format used for creating the Debian package.
+#
+#  * Mandatory : YES
+#  * Default   : "paxr"
+#
+#  Possible values are:
+#
+#  - paxr
+#  - gnutar
+#
+#  .. note::
+#
+#    Default pax archive format is the most portable format and generates
+#    packages that do not treat sparse files specially.
+#    GNU tar format on the other hand supports longer filenames.
 #
 # .. variable:: CPACK_DEBIAN_COMPRESSION_TYPE
 #
@@ -476,24 +497,6 @@
 #
 #    This value is not interpreted. It is possible to pass an optional
 #    revision number of the referenced source package as well.
-
-#=============================================================================
-# Copyright 2007-2009 Kitware, Inc.
-# Copyright 2007-2009 Mathieu Malaterre <mathieu.malaterre@gmail.com>
-# Copyright 2014-2016 Alexander Smorkalov <alexander.smorkalov@itseez.com>
-# Copyright 2014-2016 Roman Donchenko <roman.donchenko@itseez.com>
-# Copyright 2014-2016 Roman Kharitonov <roman.kharitonov@itseez.com>
-# Copyright 2014-2016 Ilya Lavrenov <ilya.lavrenov@itseez.com>
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 # CPack script for creating Debian package
 # Author: Mathieu Malaterre
@@ -842,11 +845,23 @@ function(cpack_deb_prepare_package_vars)
     set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
   endif()
 
+  if(CPACK_DEBIAN_ARCHIVE_TYPE)
+    set(archive_types_ "paxr;gnutar")
+    cmake_policy(PUSH)
+      cmake_policy(SET CMP0057 NEW)
+      if(NOT CPACK_DEBIAN_ARCHIVE_TYPE IN_LIST archive_types_)
+        message(FATAL_ERROR "CPACK_DEBIAN_ARCHIVE_TYPE set to unsupported"
+          "type ${CPACK_DEBIAN_ARCHIVE_TYPE}")
+      endif()
+    cmake_policy(POP)
+  else()
+    set(CPACK_DEBIAN_ARCHIVE_TYPE "paxr")
+  endif()
+
   # Compression: (recommended)
   if(NOT CPACK_DEBIAN_COMPRESSION_TYPE)
     set(CPACK_DEBIAN_COMPRESSION_TYPE "gzip")
   endif()
-
 
   # Recommends:
   # You should set: CPACK_DEBIAN_PACKAGE_RECOMMENDS
@@ -1000,6 +1015,7 @@ function(cpack_deb_prepare_package_vars)
   set(GEN_CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_DEBIAN_PACKAGE_MAINTAINER}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_DESCRIPTION "${CPACK_DEBIAN_PACKAGE_DESCRIPTION}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}" PARENT_SCOPE)
+  set(GEN_CPACK_DEBIAN_ARCHIVE_TYPE "${CPACK_DEBIAN_ARCHIVE_TYPE}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_COMPRESSION_TYPE "${CPACK_DEBIAN_COMPRESSION_TYPE}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_RECOMMENDS "${CPACK_DEBIAN_PACKAGE_RECOMMENDS}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_SUGGESTS "${CPACK_DEBIAN_PACKAGE_SUGGESTS}" PARENT_SCOPE)

@@ -1,20 +1,19 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCTestHandlerCommand_h
 #define cmCTestHandlerCommand_h
 
+#include <cmConfigure.h>
+
 #include "cmCTestCommand.h"
+#include "cmTypeMacro.h"
+
+#include <stddef.h>
+#include <string>
+#include <vector>
 
 class cmCTestGenericHandler;
+class cmExecutionStatus;
 
 /** \class cmCTestHandler
  * \brief Run a ctest script
@@ -30,8 +29,8 @@ public:
    * This is called when the command is first encountered in
    * the CMakeLists.txt file.
    */
-  virtual bool InitialPass(std::vector<std::string> const& args,
-                           cmExecutionStatus& status);
+  bool InitialPass(std::vector<std::string> const& args,
+                   cmExecutionStatus& status) CM_OVERRIDE;
 
   cmTypeMacro(cmCTestHandlerCommand, cmCTestCommand);
 
@@ -39,6 +38,7 @@ public:
   {
     ct_NONE,
     ct_RETURN_VALUE,
+    ct_CAPTURE_CMAKE_ERROR,
     ct_BUILD,
     ct_SOURCE,
     ct_SUBMIT_INDEX,

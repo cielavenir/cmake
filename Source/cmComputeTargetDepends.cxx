@@ -1,29 +1,27 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmComputeTargetDepends.h"
 
 #include "cmComputeComponentGraph.h"
+#include "cmGeneratorTarget.h"
 #include "cmGlobalGenerator.h"
+#include "cmLinkItem.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
+#include "cmPolicies.h"
 #include "cmSourceFile.h"
 #include "cmState.h"
 #include "cmSystemTools.h"
 #include "cmTarget.h"
+#include "cmTargetDepend.h"
 #include "cmake.h"
 
-#include <algorithm>
-
 #include <assert.h>
+#include <sstream>
+#include <stdio.h>
+#include <utility>
+
+class cmListFileBacktrace;
 
 /*
 
@@ -291,7 +289,7 @@ void cmComputeTargetDepends::AddInterfaceDepends(
   // within the project.
   if (dependee && dependee->GetType() == cmState::EXECUTABLE &&
       !dependee->IsExecutableWithExports()) {
-    dependee = 0;
+    dependee = CM_NULLPTR;
   }
 
   if (dependee) {
@@ -355,7 +353,7 @@ void cmComputeTargetDepends::AddTargetDepend(int depender_index,
   // within the project.
   if (linking && dependee && dependee->GetType() == cmState::EXECUTABLE &&
       !dependee->IsExecutableWithExports()) {
-    dependee = 0;
+    dependee = CM_NULLPTR;
   }
 
   if (dependee) {

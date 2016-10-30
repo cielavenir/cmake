@@ -1,21 +1,13 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCTestMemCheckHandler_h
 #define cmCTestMemCheckHandler_h
 
-#include "cmCTestTestHandler.h"
+#include <cmConfigure.h>
 
-#include "cmListFileCache.h"
+#include "cmCTestTestHandler.h"
+#include "cmTypeMacro.h"
+
 #include <string>
 #include <vector>
 
@@ -33,16 +25,17 @@ class cmCTestMemCheckHandler : public cmCTestTestHandler
 public:
   cmTypeMacro(cmCTestMemCheckHandler, cmCTestTestHandler);
 
-  void PopulateCustomVectors(cmMakefile* mf);
+  void PopulateCustomVectors(cmMakefile* mf) CM_OVERRIDE;
 
   cmCTestMemCheckHandler();
 
-  void Initialize();
+  void Initialize() CM_OVERRIDE;
 
 protected:
-  virtual int PreProcessHandler();
-  virtual int PostProcessHandler();
-  virtual void GenerateTestCommand(std::vector<std::string>& args, int test);
+  int PreProcessHandler() CM_OVERRIDE;
+  int PostProcessHandler() CM_OVERRIDE;
+  void GenerateTestCommand(std::vector<std::string>& args,
+                           int test) CM_OVERRIDE;
 
 private:
   enum
@@ -125,7 +118,7 @@ private:
   /**
    * Generate the Dart compatible output
    */
-  void GenerateDartOutput(cmXMLWriter& xml);
+  void GenerateDartOutput(cmXMLWriter& xml) CM_OVERRIDE;
 
   std::vector<std::string> CustomPreMemCheck;
   std::vector<std::string> CustomPostMemCheck;

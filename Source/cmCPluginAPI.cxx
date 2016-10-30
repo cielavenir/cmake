@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 /*
    this file contains the implementation of the C API to CMake. Generally
    these routines just manipulate arguments and then call the associated
@@ -218,8 +209,8 @@ void CCONV cmAddUtilityCommand(void* arg, const char* utilityName,
   }
 
   // Pass the call to the makefile instance.
-  mf->AddUtilityCommand(utilityName, (all ? false : true), 0, depends2,
-                        commandLines);
+  mf->AddUtilityCommand(utilityName, (all ? false : true), CM_NULLPTR,
+                        depends2, commandLines);
 }
 void CCONV cmAddCustomCommand(void* arg, const char* source,
                               const char* command, int numArgs,
@@ -257,7 +248,7 @@ void CCONV cmAddCustomCommand(void* arg, const char* source,
   }
 
   // Pass the call to the makefile instance.
-  const char* no_comment = 0;
+  const char* no_comment = CM_NULLPTR;
   mf->AddCustomCommandOldStyle(target, outputs2, depends2, source,
                                commandLines, no_comment);
 }
@@ -291,8 +282,8 @@ void CCONV cmAddCustomCommandToOutput(void* arg, const char* output,
   }
 
   // Pass the call to the makefile instance.
-  const char* no_comment = 0;
-  const char* no_working_dir = 0;
+  const char* no_comment = CM_NULLPTR;
+  const char* no_working_dir = CM_NULLPTR;
   mf->AddCustomCommandToOutput(output, depends2, main_dependency, commandLines,
                                no_comment, no_working_dir);
 }
@@ -333,8 +324,8 @@ void CCONV cmAddCustomCommandToTarget(void* arg, const char* target,
   // Pass the call to the makefile instance.
   std::vector<std::string> no_byproducts;
   std::vector<std::string> no_depends;
-  const char* no_comment = 0;
-  const char* no_working_dir = 0;
+  const char* no_comment = CM_NULLPTR;
+  const char* no_working_dir = CM_NULLPTR;
   mf->AddCustomCommandToTarget(target, no_byproducts, no_depends, commandLines,
                                cctype, no_comment, no_working_dir);
 }
@@ -414,7 +405,7 @@ void CCONV cmExpandSourceListArguments(void* arg, int numArgs,
     result.push_back(args[i]);
   }
   int resargc = static_cast<int>(result.size());
-  char** resargv = 0;
+  char** resargv = CM_NULLPTR;
   if (resargc) {
     resargv = (char**)malloc(resargc * sizeof(char*));
   }
@@ -453,7 +444,7 @@ int CCONV cmGetTotalArgumentSize(int argc, char** argv)
 struct cmCPluginAPISourceFile
 {
   cmCPluginAPISourceFile()
-    : RealSourceFile(0)
+    : RealSourceFile(CM_NULLPTR)
   {
   }
   cmSourceFile* RealSourceFile;
@@ -524,9 +515,8 @@ void CCONV* cmGetSource(void* arg, const char* name)
       i = cmCPluginAPISourceFiles.insert(entry).first;
     }
     return (void*)i->second;
-  } else {
-    return 0;
   }
+  return CM_NULLPTR;
 }
 
 void* CCONV cmAddSource(void* arg, void* arg2)
@@ -534,7 +524,7 @@ void* CCONV cmAddSource(void* arg, void* arg2)
   cmMakefile* mf = static_cast<cmMakefile*>(arg);
   cmCPluginAPISourceFile* osf = static_cast<cmCPluginAPISourceFile*>(arg2);
   if (osf->FullPath.empty()) {
-    return 0;
+    return CM_NULLPTR;
   }
 
   // Create the real cmSourceFile instance and copy over saved information.
@@ -574,12 +564,11 @@ const char* CCONV cmSourceFileGetProperty(void* arg, const char* prop)
   cmCPluginAPISourceFile* sf = static_cast<cmCPluginAPISourceFile*>(arg);
   if (cmSourceFile* rsf = sf->RealSourceFile) {
     return rsf->GetProperty(prop);
-  } else {
-    if (!strcmp(prop, "LOCATION")) {
-      return sf->FullPath.c_str();
-    }
-    return sf->Properties.GetPropertyValue(prop);
   }
+  if (!strcmp(prop, "LOCATION")) {
+    return sf->FullPath.c_str();
+  }
+  return sf->Properties.GetPropertyValue(prop);
 }
 
 int CCONV cmSourceFileGetPropertyAsBool(void* arg, const char* prop)
@@ -587,9 +576,8 @@ int CCONV cmSourceFileGetPropertyAsBool(void* arg, const char* prop)
   cmCPluginAPISourceFile* sf = static_cast<cmCPluginAPISourceFile*>(arg);
   if (cmSourceFile* rsf = sf->RealSourceFile) {
     return rsf->GetPropertyAsBool(prop) ? 1 : 0;
-  } else {
-    return cmSystemTools::IsOn(cmSourceFileGetProperty(arg, prop)) ? 1 : 0;
   }
+  return cmSystemTools::IsOn(cmSourceFileGetProperty(arg, prop)) ? 1 : 0;
 }
 
 void CCONV cmSourceFileSetProperty(void* arg, const char* prop,

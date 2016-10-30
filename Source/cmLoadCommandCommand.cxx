@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmLoadCommandCommand.h"
 
 #include "cmCPluginAPI.cxx"
@@ -37,12 +28,12 @@ public:
   }
 
   ///! clean up any memory allocated by the plugin
-  ~cmLoadedCommand();
+  ~cmLoadedCommand() CM_OVERRIDE;
 
   /**
    * This is a virtual constructor for the command.
    */
-  virtual cmCommand* Clone()
+  cmCommand* Clone() CM_OVERRIDE
   {
     cmLoadedCommand* newC = new cmLoadedCommand;
     // we must copy when we clone
@@ -54,8 +45,8 @@ public:
    * This is called when the command is first encountered in
    * the CMakeLists.txt file.
    */
-  virtual bool InitialPass(std::vector<std::string> const& args,
-                           cmExecutionStatus&);
+  bool InitialPass(std::vector<std::string> const& args,
+                   cmExecutionStatus&) CM_OVERRIDE;
 
   /**
    * This is called at the end after all the information
@@ -63,8 +54,8 @@ public:
    * not implement this method.  At this point, reading and
    * writing to the cache can be done.
    */
-  virtual void FinalPass();
-  virtual bool HasFinalPass() const
+  void FinalPass() CM_OVERRIDE;
+  bool HasFinalPass() const CM_OVERRIDE
   {
     return this->info.FinalPass ? true : false;
   }
@@ -72,7 +63,7 @@ public:
   /**
    * The name of the command as specified in CMakeList.txt.
    */
-  virtual std::string GetName() const { return info.Name; }
+  std::string GetName() const CM_OVERRIDE { return info.Name; }
 
   static const char* LastName;
   static void TrapsForSignals(int sig)
@@ -94,11 +85,11 @@ public:
 #endif
       signal(SIGILL, TrapsForSignalsCFunction);
     } else {
-      signal(SIGSEGV, 0);
+      signal(SIGSEGV, CM_NULLPTR);
 #ifdef SIGBUS
-      signal(SIGBUS, 0);
+      signal(SIGBUS, CM_NULLPTR);
 #endif
-      signal(SIGILL, 0);
+      signal(SIGILL, CM_NULLPTR);
     }
   }
 
@@ -112,7 +103,7 @@ extern "C" void TrapsForSignalsCFunction(int sig)
   cmLoadedCommand::TrapsForSignals(sig);
 }
 
-const char* cmLoadedCommand::LastName = 0;
+const char* cmLoadedCommand::LastName = CM_NULLPTR;
 
 bool cmLoadedCommand::InitialPass(std::vector<std::string> const& args,
                                   cmExecutionStatus&)
@@ -128,7 +119,7 @@ bool cmLoadedCommand::InitialPass(std::vector<std::string> const& args,
 
   // create argc and argv and then invoke the command
   int argc = static_cast<int>(args.size());
-  char** argv = 0;
+  char** argv = CM_NULLPTR;
   if (argc) {
     argv = (char**)malloc(argc * sizeof(char*));
   }
@@ -183,7 +174,7 @@ bool cmLoadCommandCommand::InitialPass(std::vector<std::string> const& args,
         "The load_command command should not be called; see CMP0031.")) {
     return true;
   }
-  if (args.size() < 1) {
+  if (args.empty()) {
     return true;
   }
 

@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmExportCommand.h"
 
 #include "cmGeneratedFileStream.h"
@@ -18,6 +9,7 @@
 #include <cmsys/Encoding.hxx>
 #include <cmsys/RegularExpression.hxx>
 
+#include "cmExportBuildAndroidMKGenerator.h"
 #include "cmExportBuildFileGenerator.h"
 
 #if defined(__HAIKU__)
@@ -34,8 +26,9 @@ cmExportCommand::cmExportCommand()
   , Namespace(&Helper, "NAMESPACE", &ArgumentGroup)
   , Filename(&Helper, "FILE", &ArgumentGroup)
   , ExportOld(&Helper, "EXPORT_LINK_INTERFACE_LIBRARIES", &ArgumentGroup)
+  , AndroidMKFile(&Helper, "ANDROID_MK")
 {
-  this->ExportSet = 0;
+  this->ExportSet = CM_NULLPTR;
 }
 
 // cmExportCommand
@@ -49,11 +42,12 @@ bool cmExportCommand::InitialPass(std::vector<std::string> const& args,
 
   if (args[0] == "PACKAGE") {
     return this->HandlePackage(args);
-  } else if (args[0] == "EXPORT") {
-    this->ExportSetName.Follows(0);
+  }
+  if (args[0] == "EXPORT") {
+    this->ExportSetName.Follows(CM_NULLPTR);
     this->ArgumentGroup.Follows(&this->ExportSetName);
   } else {
-    this->Targets.Follows(0);
+    this->Targets.Follows(CM_NULLPTR);
     this->ArgumentGroup.Follows(&this->Targets);
   }
 
@@ -66,13 +60,18 @@ bool cmExportCommand::InitialPass(std::vector<std::string> const& args,
   }
 
   std::string fname;
-  if (!this->Filename.WasFound()) {
+  bool android = false;
+  if (this->AndroidMKFile.WasFound()) {
+    fname = this->AndroidMKFile.GetString();
+    android = true;
+  }
+  if (!this->Filename.WasFound() && fname.empty()) {
     if (args[0] != "EXPORT") {
       this->SetError("FILE <filename> option missing.");
       return false;
     }
     fname = this->ExportSetName.GetString() + ".cmake";
-  } else {
+  } else if (fname.empty()) {
     // Make sure the file has a .cmake extension.
     if (cmSystemTools::GetFilenameLastExtension(this->Filename.GetCString()) !=
         ".cmake") {
@@ -176,7 +175,12 @@ bool cmExportCommand::InitialPass(std::vector<std::string> const& args,
   }
 
   // Setup export file generation.
-  cmExportBuildFileGenerator* ebfg = new cmExportBuildFileGenerator;
+  cmExportBuildFileGenerator* ebfg = CM_NULLPTR;
+  if (android) {
+    ebfg = new cmExportBuildAndroidMKGenerator;
+  } else {
+    ebfg = new cmExportBuildFileGenerator;
+  }
   ebfg->SetExportFile(fname.c_str());
   ebfg->SetNamespace(this->Namespace.GetCString());
   ebfg->SetAppendMode(this->Append.IsEnabled());
@@ -327,11 +331,10 @@ void cmExportCommand::StorePackageRegistryDir(std::string const& package,
   fname += "/cmake/packages/";
   fname += package;
 #else
-  const char* home = cmSystemTools::GetEnv("HOME");
-  if (!home) {
+  std::string fname;
+  if (!cmSystemTools::GetEnv("HOME", fname)) {
     return;
   }
-  std::string fname = home;
   cmSystemTools::ConvertToUnixSlashes(fname);
   fname += "/.cmake/packages/";
   fname += package;

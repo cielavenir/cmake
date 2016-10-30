@@ -1,15 +1,6 @@
 #!/bin/sh
-#=============================================================================
-# CMake - Cross Platform Makefile Generator
-# Copyright 2000-2011 Kitware, Inc., Insight Software Consortium
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
 die() {
   echo "$@" 1>&2 ; exit 1
@@ -60,10 +51,12 @@ fi
 
 cmake_copyright="`grep '^Copyright .* Kitware' "${cmake_source_dir}/Copyright.txt"`"
 
+cmake_bin_dir_keyword="OTHER"
 cmake_data_dir_keyword="OTHER"
 cmake_doc_dir_keyword="OTHER"
 cmake_man_dir_keyword="OTHER"
 cmake_xdgdata_dir_keyword="OTHER"
+cmake_bin_dir=""
 cmake_data_dir=""
 cmake_doc_dir=""
 cmake_man_dir=""
@@ -72,6 +65,7 @@ cmake_init_file=""
 cmake_bootstrap_system_libs=""
 cmake_bootstrap_qt_gui=""
 cmake_bootstrap_qt_qmake=""
+cmake_bootstrap_server=""
 cmake_sphinx_man=""
 cmake_sphinx_html=""
 cmake_sphinx_qthelp=""
@@ -88,7 +82,7 @@ else
 fi
 
 # Determine whether this is a MinGW environment.
-if echo "${cmake_system}" | grep MINGW >/dev/null 2>&1; then
+if echo "${cmake_system}" | grep 'MINGW\|MSYS' >/dev/null 2>&1; then
   cmake_system_mingw=true
 else
   cmake_system_mingw=false
@@ -213,6 +207,7 @@ else
 fi
 
 # Lookup default install destinations.
+cmake_bin_dir_default="`cmake_install_dest_default BIN ${cmake_bin_dir_keyword}`"
 cmake_data_dir_default="`cmake_install_dest_default DATA ${cmake_data_dir_keyword}`"
 cmake_doc_dir_default="`cmake_install_dest_default DOC ${cmake_doc_dir_keyword}`"
 cmake_man_dir_default="`cmake_install_dest_default MAN ${cmake_man_dir_keyword}`"
@@ -263,6 +258,7 @@ CMAKE_CXX_SOURCES="\
   cmPropertyDefinition \
   cmPropertyDefinitionMap \
   cmMakefile \
+  cmMessenger \
   cmExportBuildFileGenerator \
   cmExportFileGenerator \
   cmExportInstallFileGenerator \
@@ -362,7 +358,6 @@ KWSYS_CXX_SOURCES="\
   SystemTools"
 
 KWSYS_FILES="\
-  auto_ptr.hxx \
   Directory.hxx \
   Encoding.h \
   Encoding.hxx \
@@ -413,6 +408,9 @@ Configuration:
   --no-qt-gui             do not build the Qt-based GUI (default)
   --qt-qmake=<qmake>      use <qmake> as the qmake executable to find Qt
 
+  --server                enable the server mode (default if supported)
+  --no-server             disable the server mode
+
   --sphinx-man            build man pages with Sphinx
   --sphinx-html           build html help with Sphinx
   --sphinx-qthelp         build qch help with Sphinx
@@ -422,6 +420,8 @@ Configuration:
 Directory and file names:
   --prefix=PREFIX         install files in tree rooted at PREFIX
                           ['"${cmake_default_prefix}"']
+  --bindir=DIR            install binaries in PREFIX/DIR
+                          ['"${cmake_bin_dir_default}"']
   --datadir=DIR           install data files in PREFIX/DIR
                           ['"${cmake_data_dir_default}"']
   --docdir=DIR            install documentation files in PREFIX/DIR
@@ -507,6 +507,7 @@ cmake_kwsys_config_replace_string ()
                 s/@KWSYS_LFS_REQUESTED@/${KWSYS_LFS_REQUESTED}/g;
                 s/@KWSYS_NAME_IS_KWSYS@/${KWSYS_NAME_IS_KWSYS}/g;
                 s/@KWSYS_STL_HAS_WSTRING@/${KWSYS_STL_HAS_WSTRING}/g;
+                s/@KWSYS_CXX_HAS_EXT_STDIO_FILEBUF_H@/${KWSYS_CXX_HAS_EXT_STDIO_FILEBUF_H}/g;
                }" >> "${OUTFILE}${_tmp}"
     if [ -f "${OUTFILE}${_tmp}" ]; then
       if "${_diff}" "${OUTFILE}" "${OUTFILE}${_tmp}" > /dev/null 2> /dev/null ; then
@@ -627,6 +628,7 @@ while test $# != 0; do
   --prefix=*) dir=`cmake_arg "$1"`
               cmake_prefix_dir=`cmake_fix_slashes "$dir"` ;;
   --parallel=*) cmake_parallel_make=`cmake_arg "$1"` ;;
+  --bindir=*) cmake_bin_dir=`cmake_arg "$1"` ;;
   --datadir=*) cmake_data_dir=`cmake_arg "$1"` ;;
   --docdir=*) cmake_doc_dir=`cmake_arg "$1"` ;;
   --mandir=*) cmake_man_dir=`cmake_arg "$1"` ;;
@@ -643,6 +645,8 @@ while test $# != 0; do
   --qt-gui) cmake_bootstrap_qt_gui="1" ;;
   --no-qt-gui) cmake_bootstrap_qt_gui="0" ;;
   --qt-qmake=*) cmake_bootstrap_qt_qmake=`cmake_arg "$1"` ;;
+  --server) cmake_bootstrap_server="1" ;;
+  --no-server) cmake_bootstrap_server="0" ;;
   --sphinx-man) cmake_sphinx_man="1" ;;
   --sphinx-html) cmake_sphinx_html="1" ;;
   --sphinx-qthelp) cmake_sphinx_qthelp="1" ;;
@@ -1177,6 +1181,7 @@ KWSYS_BUILD_SHARED=0
 KWSYS_LFS_AVAILABLE=0
 KWSYS_LFS_REQUESTED=0
 KWSYS_STL_HAS_WSTRING=0
+KWSYS_CXX_HAS_EXT_STDIO_FILEBUF_H=0
 KWSYS_CXX_HAS_SETENV=0
 KWSYS_CXX_HAS_UNSETENV=0
 KWSYS_CXX_HAS_ENVIRON_IN_STDLIB_H=0
@@ -1217,6 +1222,15 @@ if cmake_try_run "${cmake_cxx_compiler}" \
   echo "${cmake_cxx_compiler} has stl wstring"
 else
   echo "${cmake_cxx_compiler} does not have stl wstring"
+fi
+
+if cmake_try_run "${cmake_cxx_compiler}" \
+  "${cmake_cxx_flags} -DTEST_KWSYS_CXX_HAS_EXT_STDIO_FILEBUF_H" \
+  "${cmake_source_dir}/Source/kwsys/kwsysPlatformTestsCXX.cxx" >> cmake_bootstrap.log 2>&1; then
+  KWSYS_CXX_HAS_EXT_STDIO_FILEBUF_H=1
+  echo "${cmake_cxx_compiler} has <ext/stdio_filebuf.h>"
+else
+  echo "${cmake_cxx_compiler} does not have <ext/stdio_filebuf.h>"
 fi
 
 # Just to be safe, let us store compiler and flags to the header file
@@ -1263,8 +1277,11 @@ cmake_report cmVersionConfig.h${_tmp} "#define CMake_VERSION_PATCH ${cmake_versi
 cmake_report cmVersionConfig.h${_tmp} "#define CMake_VERSION \"${cmake_version}\""
 cmake_report cmConfigure.h${_tmp} "#define CMAKE_BOOTSTRAP_SOURCE_DIR \"${CMAKE_BOOTSTRAP_SOURCE_DIR}\""
 cmake_report cmConfigure.h${_tmp} "#define CMAKE_BOOTSTRAP_BINARY_DIR \"${CMAKE_BOOTSTRAP_BINARY_DIR}\""
+cmake_report cmConfigure.h${_tmp} "#define CMAKE_BIN_DIR \"/bootstrap-not-insalled\""
 cmake_report cmConfigure.h${_tmp} "#define CMAKE_DATA_DIR \"/bootstrap-not-insalled\""
 cmake_report cmConfigure.h${_tmp} "#define CMAKE_BOOTSTRAP"
+cmake_report cmConfigure.h${_tmp} "#define CM_NULLPTR 0"
+cmake_report cmConfigure.h${_tmp} "#define CM_OVERRIDE"
 
 # Regenerate configured headers
 for h in Configure VersionConfig; do
@@ -1374,6 +1391,7 @@ echo '
 set (CMAKE_INSTALL_PREFIX "'"${cmake_prefix_dir}"'" CACHE PATH "Install path prefix, prepended onto install directories." FORCE)
 set (CMAKE_DOC_DIR "'"${cmake_doc_dir}"'" CACHE PATH "Install location for documentation (relative to prefix)." FORCE)
 set (CMAKE_MAN_DIR "'"${cmake_man_dir}"'" CACHE PATH "Install location for man pages (relative to prefix)." FORCE)
+set (CMAKE_BIN_DIR "'"${cmake_bin_dir}"'" CACHE PATH "Install location for binaries (relative to prefix)." FORCE)
 set (CMAKE_DATA_DIR "'"${cmake_data_dir}"'" CACHE PATH "Install location for data (relative to prefix)." FORCE)
 set (CMAKE_XDGDATA_DIR "'"${cmake_xdgdata_dir}"'" CACHE PATH "Install location for XDG specific files (relative to prefix)." FORCE)
 ' > "${cmake_bootstrap_dir}/InitialCacheFlags.cmake"
@@ -1387,6 +1405,11 @@ fi
 if [ "x${cmake_bootstrap_qt_qmake}" != "x" ]; then
   echo '
 set (QT_QMAKE_EXECUTABLE "'"${cmake_bootstrap_qt_qmake}"'" CACHE FILEPATH "Location of Qt qmake" FORCE)
+' >> "${cmake_bootstrap_dir}/InitialCacheFlags.cmake"
+fi
+if [ "x${cmake_bootstrap_server}" != "x" ]; then
+  echo '
+set (CMake_ENABLE_SERVER_MODE '"${cmake_bootstrap_server}"' CACHE BOOL "Enable server mode" FORCE)
 ' >> "${cmake_bootstrap_dir}/InitialCacheFlags.cmake"
 fi
 if [ "x${cmake_sphinx_man}" != "x" ]; then

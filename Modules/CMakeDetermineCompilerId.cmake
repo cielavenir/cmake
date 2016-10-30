@@ -1,16 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
-#=============================================================================
-# Copyright 2007-2009 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 # Function to compile a source file to identify the compiler.  This is
 # used internally by CMake and should not be included by user code.
@@ -266,6 +256,11 @@ Id flags: ${testflags}
     else()
       set(id_toolset "")
     endif()
+    if("${lang}" STREQUAL "Swift")
+      set(id_lang_version "SWIFT_VERSION = 2.3;")
+    else()
+      set(id_lang_version "")
+    endif()
     if(CMAKE_OSX_DEPLOYMENT_TARGET)
       set(id_deployment_target
         "MACOSX_DEPLOYMENT_TARGET = \"${CMAKE_OSX_DEPLOYMENT_TARGET}\";")
@@ -365,14 +360,15 @@ ${CMAKE_${lang}_COMPILER_ID_OUTPUT}
 
     # Find the executable produced by the compiler, try all files in the
     # binary dir.
+    string(REGEX REPLACE "([][])" "[\\1]" _glob_id_dir "${CMAKE_${lang}_COMPILER_ID_DIR}")
     file(GLOB files
       RELATIVE ${CMAKE_${lang}_COMPILER_ID_DIR}
 
       # normal case
-      ${CMAKE_${lang}_COMPILER_ID_DIR}/*
+      ${_glob_id_dir}/*
 
       # com.apple.package-type.bundle.unit-test
-      ${CMAKE_${lang}_COMPILER_ID_DIR}/*.xctest/*
+      ${_glob_id_dir}/*.xctest/*
       )
     list(REMOVE_ITEM files "${src}")
     set(COMPILER_${lang}_PRODUCED_FILES "")
@@ -492,11 +488,11 @@ function(CMAKE_DETERMINE_COMPILER_ID_CHECK lang file)
     if(NOT DEFINED COMPILER_VERSION AND HAVE_COMPILER_VERSION_MAJOR)
       set(COMPILER_VERSION "${COMPILER_VERSION_MAJOR}")
       if(HAVE_COMPILER_VERSION_MINOR)
-        set(COMPILER_VERSION "${COMPILER_VERSION}.${COMPILER_VERSION_MINOR}")
+        string(APPEND COMPILER_VERSION ".${COMPILER_VERSION_MINOR}")
         if(HAVE_COMPILER_VERSION_PATCH)
-          set(COMPILER_VERSION "${COMPILER_VERSION}.${COMPILER_VERSION_PATCH}")
+          string(APPEND COMPILER_VERSION ".${COMPILER_VERSION_PATCH}")
           if(HAVE_COMPILER_VERSION_TWEAK)
-            set(COMPILER_VERSION "${COMPILER_VERSION}.${COMPILER_VERSION_TWEAK}")
+            string(APPEND COMPILER_VERSION ".${COMPILER_VERSION_TWEAK}")
           endif()
         endif()
       endif()

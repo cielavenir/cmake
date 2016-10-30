@@ -1,23 +1,21 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCacheManager_h
 #define cmCacheManager_h
 
-#include "cmStandardIncludes.h"
+#include <cmConfigure.h> // IWYU pragma: keep
 
 #include "cmPropertyMap.h"
 #include "cmState.h"
 
-class cmMarkAsAdvancedCommand;
+#include <iosfwd>
+#include <map>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
+class cmake;
 
 /** \class cmCacheManager
  * \brief Control class for cmake's cache
@@ -38,6 +36,7 @@ private:
     std::string Value;
     cmState::CacheEntryType Type;
     cmPropertyMap Properties;
+    std::vector<std::string> GetPropertyList() const;
     const char* GetProperty(const std::string&) const;
     void SetProperty(const std::string& property, const char* value);
     void AppendProperty(const std::string& property, const char* value,
@@ -60,6 +59,7 @@ public:
     bool IsAtEnd() const;
     void Next();
     std::string GetName() const { return this->Position->first; }
+    std::vector<std::string> GetPropertyList() const;
     const char* GetProperty(const std::string&) const;
     bool GetPropertyAsBool(const std::string&) const;
     bool PropertyExists(const std::string&) const;
@@ -111,7 +111,7 @@ public:
   void PrintCache(std::ostream&) const;
 
   ///! Get the iterator for an entry with a given key.
-  cmCacheManager::CacheIterator GetCacheIterator(const char* key = 0);
+  cmCacheManager::CacheIterator GetCacheIterator(const char* key = CM_NULLPTR);
 
   ///! Remove an entry from the cache
   void RemoveCacheEntry(const std::string& key);
@@ -126,7 +126,7 @@ public:
   {
     cmCacheManager::CacheIterator it = this->GetCacheIterator(key.c_str());
     if (it.IsAtEnd()) {
-      return 0;
+      return CM_NULLPTR;
     }
     return it.GetValue();
   }
@@ -169,7 +169,8 @@ public:
   void RemoveCacheEntryProperty(std::string const& key,
                                 std::string const& propName)
   {
-    this->GetCacheIterator(key.c_str()).SetProperty(propName, (void*)0);
+    this->GetCacheIterator(key.c_str())
+      .SetProperty(propName, (void*)CM_NULLPTR);
   }
 
   void AppendCacheEntryProperty(std::string const& key,

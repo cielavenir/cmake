@@ -1,19 +1,9 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCTestCoverageHandler.h"
 
 #include "cmCTest.h"
 #include "cmGeneratedFileStream.h"
-#include "cmMakefile.h"
 #include "cmParseBlanketJSCoverage.h"
 #include "cmParseCacheCoverage.h"
 #include "cmParseCoberturaCoverage.h"
@@ -25,14 +15,19 @@
 #include "cmXMLWriter.h"
 #include "cmake.h"
 
+#include <algorithm>
 #include <cmsys/FStream.hxx>
 #include <cmsys/Glob.hxx>
 #include <cmsys/Process.h>
 #include <cmsys/RegularExpression.hxx>
-
-#include <float.h>
-#include <math.h>
+#include <iomanip>
+#include <iterator>
+#include <sstream>
+#include <stdio.h>
 #include <stdlib.h>
+#include <utility>
+
+class cmMakefile;
 
 #define SAFEDIV(x, y) (((y) != 0) ? ((x) / (y)) : (0))
 
@@ -76,7 +71,7 @@ public:
          i != this->CommandLineStrings.end(); ++i) {
       args.push_back(i->c_str());
     }
-    args.push_back(0); // null terminate
+    args.push_back(CM_NULLPTR); // null terminate
     cmsysProcess_SetCommand(this->Process, &*args.begin());
     if (!this->WorkingDirectory.empty()) {
       cmsysProcess_SetWorkingDirectory(this->Process,
@@ -90,11 +85,8 @@ public:
     cmsysProcess_Execute(this->Process);
     this->PipeState = cmsysProcess_GetState(this->Process);
     // if the process is running or exited return true
-    if (this->PipeState == cmsysProcess_State_Executing ||
-        this->PipeState == cmsysProcess_State_Exited) {
-      return true;
-    }
-    return false;
+    return this->PipeState == cmsysProcess_State_Executing ||
+      this->PipeState == cmsysProcess_State_Exited;
   }
   void SetStdoutFile(const char* fname)
   {
@@ -104,7 +96,7 @@ public:
   {
     cmsysProcess_SetPipeFile(this->Process, cmsysProcess_Pipe_STDERR, fname);
   }
-  int WaitForExit(double* timeout = 0)
+  int WaitForExit(double* timeout = CM_NULLPTR)
   {
     this->PipeState = cmsysProcess_WaitForExit(this->Process, timeout);
     return this->PipeState;
@@ -705,13 +697,8 @@ bool IsFileInDir(const std::string& infile, const std::string& indir)
   std::string file = cmSystemTools::CollapseFullPath(infile);
   std::string dir = cmSystemTools::CollapseFullPath(indir);
 
-  if (file.size() > dir.size() &&
-      (fnc(file.substr(0, dir.size())) == fnc(dir)) &&
-      file[dir.size()] == '/') {
-    return true;
-  }
-
-  return false;
+  return file.size() > dir.size() &&
+    fnc(file.substr(0, dir.size())) == fnc(dir) && file[dir.size()] == '/';
 }
 
 int cmCTestCoverageHandler::HandlePHPCoverage(
@@ -735,10 +722,8 @@ int cmCTestCoverageHandler::HandleCoberturaCoverage(
   // if it doesn't exist or is empty, assume the
   // binary directory is used.
   std::string coverageXMLFile;
-  const char* covDir = cmSystemTools::GetEnv("COBERTURADIR");
-  if (covDir && strlen(covDir) != 0) {
-    coverageXMLFile = std::string(covDir);
-  } else {
+  if (!cmSystemTools::GetEnv("COBERTURADIR", coverageXMLFile) ||
+      coverageXMLFile.empty()) {
     coverageXMLFile = this->CTest->GetBinaryDir();
   }
   // build the find file string with the directory from above
@@ -773,12 +758,11 @@ int cmCTestCoverageHandler::HandleMumpsCoverage(
                        this->Quiet);
     cov.ReadCoverageFile(coverageFile.c_str());
     return static_cast<int>(cont->TotalCoverage.size());
-  } else {
-    cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
-                       " Cannot find GTM coverage file: " << coverageFile
-                                                          << std::endl,
-                       this->Quiet);
   }
+  cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
+                     " Cannot find GTM coverage file: " << coverageFile
+                                                        << std::endl,
+                     this->Quiet);
   cmParseCacheCoverage ccov(*cont, this->CTest);
   coverageFile = this->CTest->GetBinaryDir() + "/cache_coverage.cmcov";
   if (cmSystemTools::FileExists(coverageFile.c_str())) {
@@ -799,7 +783,8 @@ struct cmCTestCoverageHandlerLocale
 {
   cmCTestCoverageHandlerLocale()
   {
-    if (const char* l = cmSystemTools::GetEnv("LC_ALL")) {
+    std::string l;
+    if (cmSystemTools::GetEnv("LC_ALL", l)) {
       lc_all = l;
     }
     if (lc_all != "C") {
@@ -935,8 +920,7 @@ int cmCTestCoverageHandler::HandleGCovCoverage(
   std::string gcovCommand =
     this->CTest->GetCTestConfiguration("CoverageCommand");
   if (gcovCommand.empty()) {
-    cmCTestLog(this->CTest, ERROR_MESSAGE, "Could not find gcov."
-                 << std::endl);
+    cmCTestLog(this->CTest, WARNING, "Could not find gcov." << std::endl);
     return 0;
   }
   std::string gcovExtraFlags =
@@ -1020,7 +1004,7 @@ int cmCTestCoverageHandler::HandleGCovCoverage(
       "-o \"" + fileDir + "\" " + "\"" + *it + "\"";
 
     cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
-                       command.c_str() << std::endl, this->Quiet);
+                       command << std::endl, this->Quiet);
 
     std::string output = "";
     std::string errors = "";
@@ -1385,7 +1369,7 @@ int cmCTestCoverageHandler::HandleLCovCoverage(
                        "Current coverage dir: " << fileDir << std::endl,
                        this->Quiet);
     cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
-                       command.c_str() << std::endl, this->Quiet);
+                       command << std::endl, this->Quiet);
 
     std::string output = "";
     std::string errors = "";
@@ -1789,7 +1773,7 @@ const char* bullseyeHelp[] = {
   "      condition evaluated true or false, respectively.",
   "    * A k indicates a constant decision or condition.",
   "    * The slash / means this probe is excluded from summary results. ",
-  0
+  CM_NULLPTR
 };
 }
 
@@ -1817,7 +1801,7 @@ int cmCTestCoverageHandler::RunBullseyeCoverageBranch(
   cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
                      "run covbr: " << std::endl, this->Quiet);
 
-  if (!this->RunBullseyeCommand(cont, "covbr", 0, outputFile)) {
+  if (!this->RunBullseyeCommand(cont, "covbr", CM_NULLPTR, outputFile)) {
     cmCTestLog(this->CTest, ERROR_MESSAGE, "error running covbr for."
                  << "\n");
     return -1;
@@ -1890,7 +1874,7 @@ int cmCTestCoverageHandler::RunBullseyeCoverageBranch(
         covLogXML.StartElement("Report");
         // write the bullseye header
         line = 0;
-        for (int k = 0; bullseyeHelp[k] != 0; ++k) {
+        for (int k = 0; bullseyeHelp[k] != CM_NULLPTR; ++k) {
           covLogXML.StartElement("Line");
           covLogXML.Attribute("Number", line);
           covLogXML.Attribute("Count", -1);
@@ -2129,8 +2113,8 @@ int cmCTestCoverageHandler::RunBullseyeSourceSummary(
 int cmCTestCoverageHandler::HandleBullseyeCoverage(
   cmCTestCoverageHandlerContainer* cont)
 {
-  const char* covfile = cmSystemTools::GetEnv("COVFILE");
-  if (!covfile || strlen(covfile) == 0) {
+  std::string covfile;
+  if (!cmSystemTools::GetEnv("COVFILE", covfile) || covfile.empty()) {
     cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
                        " COVFILE environment variable not found, not running "
                        " bullseye\n",

@@ -1,15 +1,6 @@
 
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmGlobalVisualStudioGenerator.h"
 
 #include "cmAlgorithms.h"
@@ -827,6 +818,7 @@ void cmGlobalVisualStudioGenerator::AddSymbolExportCommand(
     cmSystemTools::Error("could not open ", objs_file.c_str());
     return;
   }
+  std::vector<std::string> objs;
   for (std::vector<cmSourceFile const*>::const_iterator it =
          objectSources.begin();
        it != objectSources.end(); ++it) {
@@ -836,6 +828,12 @@ void cmGlobalVisualStudioGenerator::AddSymbolExportCommand(
     // It must exist because we populated the mapping just above.
     assert(!map_it->second.empty());
     std::string objFile = obj_dir + map_it->second;
+    objs.push_back(objFile);
+  }
+  gt->UseObjectLibraries(objs, configName);
+  for (std::vector<std::string>::iterator it = objs.begin(); it != objs.end();
+       ++it) {
+    std::string objFile = *it;
     // replace $(ConfigurationName) in the object names
     cmSystemTools::ReplaceString(objFile, this->GetCMakeCFGIntDir(),
                                  configName.c_str());

@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmWhileCommand.h"
 
 #include "cmConditionEvaluator.h"
@@ -37,8 +28,7 @@ bool cmWhileFunctionBlocker::IsFunctionBlocked(const cmListFileFunction& lff,
     // if this is the endwhile for this while loop then execute
     if (!this->Depth) {
       // Remove the function blocker for this scope or bail.
-      cmsys::auto_ptr<cmFunctionBlocker> fb(
-        mf.RemoveFunctionBlocker(this, lff));
+      CM_AUTO_PTR<cmFunctionBlocker> fb(mf.RemoveFunctionBlocker(this, lff));
       if (!fb.get()) {
         return false;
       }
@@ -105,10 +95,9 @@ bool cmWhileFunctionBlocker::IsFunctionBlocked(const cmListFileFunction& lff,
                                            messageType);
       }
       return true;
-    } else {
-      // decrement for each nested while that ends
-      this->Depth--;
     }
+    // decrement for each nested while that ends
+    this->Depth--;
   }
 
   // record the command
@@ -134,7 +123,7 @@ bool cmWhileFunctionBlocker::ShouldRemove(const cmListFileFunction& lff,
 bool cmWhileCommand::InvokeInitialPass(
   const std::vector<cmListFileArgument>& args, cmExecutionStatus&)
 {
-  if (args.size() < 1) {
+  if (args.empty()) {
     this->SetError("called with incorrect number of arguments");
     return false;
   }

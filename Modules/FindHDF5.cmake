@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # FindHDF5
 # --------
@@ -87,20 +90,6 @@
 # The following variable can be set to guide the search for HDF5 libraries and includes:
 #
 # HDF5_ROOT
-
-#=============================================================================
-# Copyright 2015 Axel Huebl, Helmholtz-Zentrum Dresden - Rossendorf
-# Copyright 2009 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 # This module is maintained by Will Dicharry <wdicharry@stellarscience.com>.
 
@@ -691,7 +680,7 @@ if( NOT HDF5_FOUND )
             if(UNIX AND HDF5_USE_STATIC_LIBRARIES)
                 # According to bug 1643 on the CMake bug tracker, this is the
                 # preferred method for searching for a static library.
-                # See https://cmake.org/Bug/view.php?id=1643.  We search
+                # See https://gitlab.kitware.com/cmake/cmake/issues/1643.  We search
                 # first for the full static library name, but fall back to a
                 # generic search on the name if the static search fails.
                 set( THIS_LIBRARY_SEARCH_DEBUG
@@ -728,7 +717,7 @@ if( NOT HDF5_FOUND )
                 if(UNIX AND HDF5_USE_STATIC_LIBRARIES)
                     # According to bug 1643 on the CMake bug tracker, this is the
                     # preferred method for searching for a static library.
-                    # See https://cmake.org/Bug/view.php?id=1643.  We search
+                    # See https://gitlab.kitware.com/cmake/cmake/issues/1643.  We search
                     # first for the full static library name, but fall back to a
                     # generic search on the name if the static search fails.
                     set( THIS_LIBRARY_SEARCH_DEBUG

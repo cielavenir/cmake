@@ -1,29 +1,24 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmMakefileTargetGenerator_h
 #define cmMakefileTargetGenerator_h
 
-#include "cmCommonTargetGenerator.h"
+#include <cmConfigure.h>
 
+#include "cmCommonTargetGenerator.h"
 #include "cmLocalUnixMakefileGenerator3.h"
 #include "cmOSXBundleGenerator.h"
 
+#include <iosfwd>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
 class cmCustomCommandGenerator;
-class cmDepends;
-class cmGeneratorTarget;
 class cmGeneratedFileStream;
+class cmGeneratorTarget;
 class cmGlobalUnixMakefileGenerator3;
-class cmLocalUnixMakefileGenerator3;
-class cmMakefile;
 class cmSourceFile;
 
 /** \class cmMakefileTargetGenerator
@@ -35,7 +30,7 @@ class cmMakefileTargetGenerator : public cmCommonTargetGenerator
 public:
   // constructor to set the ivars
   cmMakefileTargetGenerator(cmGeneratorTarget* target);
-  virtual ~cmMakefileTargetGenerator();
+  ~cmMakefileTargetGenerator() CM_OVERRIDE;
 
   // construct using this factory call
   static cmMakefileTargetGenerator* New(cmGeneratorTarget* tgt);
@@ -83,7 +78,8 @@ protected:
     {
     }
 
-    void operator()(cmSourceFile const& source, const char* pkgloc);
+    void operator()(cmSourceFile const& source,
+                    const char* pkgloc) CM_OVERRIDE;
 
   private:
     cmMakefileTargetGenerator* Generator;
@@ -150,6 +146,9 @@ protected:
   std::string CreateResponseFile(const char* name, std::string const& options,
                                  std::vector<std::string>& makefile_depends);
 
+  bool CheckUseResponseFileForObjects(std::string const& l) const;
+  bool CheckUseResponseFileForLibraries(std::string const& l) const;
+
   /** Create list of flags for link libraries. */
   void CreateLinkLibs(std::string& linkLibs, bool relink, bool useResponseFile,
                       std::vector<std::string>& makefile_depends,
@@ -161,7 +160,12 @@ protected:
                          std::vector<std::string>& makefile_depends,
                          bool useWatcomQuote);
 
-  void AddIncludeFlags(std::string& flags, const std::string& lang);
+  /** Add commands for generate def files */
+  void GenDefFile(std::vector<std::string>& real_link_commands,
+                  std::string& linkFlags);
+
+  void AddIncludeFlags(std::string& flags,
+                       const std::string& lang) CM_OVERRIDE;
 
   virtual void CloseFileStreams();
   void RemoveForbiddenFlags(const char* flagVar, const std::string& linkLang,

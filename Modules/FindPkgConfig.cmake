@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # FindPkgConfig
 # -------------
@@ -11,22 +14,6 @@
 # In order to find the ``pkg-config`` executable, it uses the
 # :variable:`PKG_CONFIG_EXECUTABLE` variable or the ``PKG_CONFIG``
 # environment variable first.
-
-#=============================================================================
-# Copyright 2006-2014 Kitware, Inc.
-# Copyright 2014      Christoph Grüninger <foss@grueninger.de>
-# Copyright 2006      Enrico Scholz <enrico.scholz@informatik.tu-chemnitz.de>
-# Copyright 2016      Rolf Eike Beer <eike@sf-mail.de>
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 ### Common stuff ####
 set(PKG_CONFIG_VERSION 1)
@@ -200,7 +187,7 @@ function(_pkg_create_imp_target _prefix _no_cmake_path _no_cmake_environment_pat
     set(_find_opts "NO_CMAKE_PATH")
   endif()
   if(_no_cmake_environment_path)
-    set(_find_opts "${_find_opts} NO_CMAKE_ENVIRONMENT_PATH")
+    string(APPEND _find_opts " NO_CMAKE_ENVIRONMENT_PATH")
   endif()
 
   foreach (flag IN LISTS ${_prefix}_LDFLAGS)
@@ -316,9 +303,13 @@ macro(_pkg_check_modules_internal _is_required _is_silent _no_cmake_path _no_cma
             list(APPEND _lib_dirs "lib/${CMAKE_LIBRARY_ARCHITECTURE}/pkgconfig")
           endif()
         else()
-          # not debian, chech the FIND_LIBRARY_USE_LIB64_PATHS property
+          # not debian, check the FIND_LIBRARY_USE_LIB32_PATHS and FIND_LIBRARY_USE_LIB64_PATHS properties
+          get_property(uselib32 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB32_PATHS)
+          if(uselib32 AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+            list(APPEND _lib_dirs "lib32/pkgconfig")
+          endif()
           get_property(uselib64 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS)
-          if(uselib64)
+          if(uselib64 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
             list(APPEND _lib_dirs "lib64/pkgconfig")
           endif()
         endif()

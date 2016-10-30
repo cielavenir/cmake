@@ -1,21 +1,21 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmTestGenerator.h"
 
 #include "cmGeneratorExpression.h"
+#include "cmGeneratorTarget.h"
 #include "cmLocalGenerator.h"
 #include "cmOutputConverter.h"
+#include "cmProperty.h"
+#include "cmPropertyMap.h"
+#include "cmState.h"
 #include "cmSystemTools.h"
 #include "cmTest.h"
+#include "cm_auto_ptr.hxx"
+
+#include <map>
+#include <ostream>
+#include <utility>
 
 cmTestGenerator::cmTestGenerator(
   cmTest* test, std::vector<std::string> const& configurations)
@@ -24,7 +24,7 @@ cmTestGenerator::cmTestGenerator(
 {
   this->ActionsPerConfig = !test->GetOldStyle();
   this->TestGenerated = false;
-  this->LG = 0;
+  this->LG = CM_NULLPTR;
 }
 
 cmTestGenerator::~cmTestGenerator()
@@ -83,7 +83,7 @@ void cmTestGenerator::GenerateScriptForConfig(std::ostream& os,
 
     // Prepend with the emulator when cross compiling if required.
     const char* emulator = target->GetProperty("CROSSCOMPILING_EMULATOR");
-    if (emulator != 0) {
+    if (emulator != CM_NULLPTR) {
       std::vector<std::string> emulatorWithArgs;
       cmSystemTools::ExpandListArgument(emulator, emulatorWithArgs);
       std::string emulatorExe(emulatorWithArgs[0]);

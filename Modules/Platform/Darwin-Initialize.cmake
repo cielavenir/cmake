@@ -90,7 +90,7 @@ elseif("${CMAKE_GENERATOR}" MATCHES Xcode
       endif()
     endforeach()
 
-    if(NOT CMAKE_OSX_DEPLOYMENT_TARGET AND _CURRENT_OSX_VERSION VERSION_LESS _CMAKE_OSX_DEPLOYMENT_TARGET)
+    if(NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_OSX_DEPLOYMENT_TARGET AND _CURRENT_OSX_VERSION VERSION_LESS _CMAKE_OSX_DEPLOYMENT_TARGET)
       set(CMAKE_OSX_DEPLOYMENT_TARGET ${_CURRENT_OSX_VERSION} CACHE STRING
         "Minimum OS X version to target for deployment (at runtime); newer APIs weak linked. Set to empty string for default value." FORCE)
     endif()
@@ -125,8 +125,10 @@ if(CMAKE_OSX_SYSROOT)
       set(_CMAKE_OSX_SYSROOT_ORIG "")
     endif()
     set(_CMAKE_OSX_SYSROOT_PATH "${CMAKE_OSX_SYSROOT}")
-  else()
-    # Transform the sdk name into a path.
+  endif()
+
+  if(CMAKE_OSX_SYSROOT)
+    # Transform the (maybe unversioned) sysroot into a versioned path.
     execute_process(
       COMMAND xcodebuild -sdk ${CMAKE_OSX_SYSROOT} -version Path
       OUTPUT_VARIABLE _stdout

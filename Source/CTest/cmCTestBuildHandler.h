@@ -1,25 +1,19 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCTestBuildHandler_h
 #define cmCTestBuildHandler_h
 
-#include "cmCTestGenericHandler.h"
+#include <cmConfigure.h>
 
-#include "cmListFileCache.h"
+#include "cmCTestGenericHandler.h"
+#include "cmTypeMacro.h"
 
 #include <cmsys/RegularExpression.hxx>
-
 #include <deque>
+#include <iosfwd>
+#include <stddef.h>
+#include <string>
+#include <vector>
 
 class cmMakefile;
 class cmXMLWriter;
@@ -36,16 +30,16 @@ public:
   /*
    * The main entry point for this class
    */
-  int ProcessHandler();
+  int ProcessHandler() CM_OVERRIDE;
 
   cmCTestBuildHandler();
 
-  void PopulateCustomVectors(cmMakefile* mf);
+  void PopulateCustomVectors(cmMakefile* mf) CM_OVERRIDE;
 
   /**
    * Initialize handler
    */
-  virtual void Initialize();
+  void Initialize() CM_OVERRIDE;
 
   int GetTotalErrors() { return this->TotalErrors; }
   int GetTotalWarnings() { return this->TotalWarnings; }
@@ -148,6 +142,7 @@ private:
   bool UseCTestLaunch;
   std::string CTestLaunchDir;
   class LaunchHelper;
+
   friend class LaunchHelper;
   class FragmentCompare;
 };

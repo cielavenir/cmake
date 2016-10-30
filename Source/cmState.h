@@ -1,30 +1,27 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2015 Stephen Kelly <steveire@gmail.com>
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmState_h
 #define cmState_h
 
-#include "cmStandardIncludes.h"
+#include <cmConfigure.h> // IWYU pragma: keep
 
 #include "cmAlgorithms.h"
+#include "cmDefinitions.h"
 #include "cmLinkedTree.h"
 #include "cmPolicies.h"
+#include "cmProperty.h"
 #include "cmPropertyDefinitionMap.h"
 #include "cmPropertyMap.h"
 
-class cmake;
-class cmCommand;
-class cmDefinitions;
-class cmListFileBacktrace;
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
 class cmCacheManager;
+class cmCommand;
+class cmListFileBacktrace;
+class cmPropertyDefinition;
 
 class cmState
 {
@@ -55,7 +52,7 @@ public:
   class Snapshot
   {
   public:
-    Snapshot(cmState* state = 0);
+    Snapshot(cmState* state = CM_NULLPTR);
     Snapshot(cmState* state, PositionType position);
 
     const char* GetDefinition(std::string const& name) const;
@@ -129,9 +126,6 @@ public:
     const char* GetCurrentBinary() const;
     void SetCurrentBinary(std::string const& dir);
 
-    std::vector<std::string> const& GetCurrentSourceComponents() const;
-    std::vector<std::string> const& GetCurrentBinaryComponents() const;
-
     const char* GetRelativePathTopSource() const;
     const char* GetRelativePathTopBinary() const;
     void SetRelativePathTopSource(const char* dir);
@@ -171,6 +165,8 @@ public:
     const char* GetProperty(const std::string& prop, bool chain) const;
     bool GetPropertyAsBool(const std::string& prop) const;
     std::vector<std::string> GetPropertyKeys() const;
+
+    void AddNormalTargetName(std::string const& name);
 
   private:
     void ComputeRelativePathTopSource();
@@ -247,6 +243,7 @@ public:
                              std::string const& value);
   void SetCacheEntryBoolProperty(std::string const& key,
                                  std::string const& propertyName, bool value);
+  std::vector<std::string> GetCacheEntryPropertyList(std::string const& key);
   const char* GetCacheEntryProperty(std::string const& key,
                                     std::string const& propertyName);
   bool GetCacheEntryPropertyAsBool(std::string const& key,
@@ -305,9 +302,6 @@ public:
   const char* GetBinaryDirectory() const;
   void SetBinaryDirectory(std::string const& binaryDirectory);
 
-  std::vector<std::string> const& GetSourceDirectoryComponents() const;
-  std::vector<std::string> const& GetBinaryDirectoryComponents() const;
-
   void SetWindowsShell(bool windowsShell);
   bool UseWindowsShell() const;
   void SetWindowsVSIDE(bool windowsVSIDE);
@@ -343,8 +337,6 @@ private:
   cmLinkedTree<SnapshotDataType> SnapshotData;
   cmLinkedTree<cmDefinitions> VarTree;
 
-  std::vector<std::string> SourceDirectoryComponents;
-  std::vector<std::string> BinaryDirectoryComponents;
   std::string SourceDirectory;
   std::string BinaryDirectory;
   bool IsInTryCompile;

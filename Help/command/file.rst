@@ -222,6 +222,12 @@ Options to both ``DOWNLOAD`` and ``UPLOAD`` are:
 ``TIMEOUT <seconds>``
   Terminate the operation after a given total time has elapsed.
 
+``USERPWD <username>:<password>``
+  Set username and password for operation.
+
+``HTTPHEADER <HTTP-header>``
+  HTTP header for operation. Suboption can be repeated several times.
+
 Additional options to ``DOWNLOAD`` are:
 
 ``EXPECTED_HASH ALGO=<value>``
