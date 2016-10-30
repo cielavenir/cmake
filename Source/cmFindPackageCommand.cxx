@@ -1,17 +1,9 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmFindPackageCommand.h"
 
 #include "cmAlgorithms.h"
+#include <cmSystemTools.h>
 #include <cmsys/Directory.hxx>
 #include <cmsys/Encoding.hxx>
 #include <cmsys/RegularExpression.hxx>
@@ -33,6 +25,45 @@ cmFindPackageCommand::PathLabel cmFindPackageCommand::PathLabel::Builds(
 cmFindPackageCommand::PathLabel
   cmFindPackageCommand::PathLabel::SystemRegistry("SYSTEM_PACKAGE_REGISTRY");
 
+struct StrverscmpGreater
+{
+  bool operator()(const std::string& lhs, const std::string& rhs) const
+  {
+    return cmSystemTools::strverscmp(lhs, rhs) > 0;
+  }
+};
+
+struct StrverscmpLesser
+{
+  bool operator()(const std::string& lhs, const std::string& rhs) const
+  {
+    return cmSystemTools::strverscmp(lhs, rhs) < 0;
+  }
+};
+
+void cmFindPackageCommand::Sort(std::vector<std::string>::iterator begin,
+                                std::vector<std::string>::iterator end,
+                                SortOrderType order, SortDirectionType dir)
+{
+  if (order == Name_order) {
+    if (dir == Dec) {
+      std::sort(begin, end, std::greater<std::string>());
+    } else {
+      std::sort(begin, end);
+    }
+  } else if (order == Natural)
+  // natural order uses letters and numbers (contiguous numbers digit are
+  // compared such that e.g. 000  00 < 01 < 010 < 09 < 0 < 1 < 9 < 10
+  {
+    if (dir == Dec) {
+      std::sort(begin, end, StrverscmpGreater());
+    } else {
+      std::sort(begin, end, StrverscmpLesser());
+    }
+  }
+  // else do not sort
+}
+
 cmFindPackageCommand::cmFindPackageCommand()
 {
   this->CMakePathName = "PACKAGE";
@@ -43,6 +74,7 @@ cmFindPackageCommand::cmFindPackageCommand()
   this->UseConfigFiles = true;
   this->UseFindModules = true;
   this->DebugMode = false;
+  this->UseLib32Paths = false;
   this->UseLib64Paths = false;
   this->PolicyScope = true;
   this->VersionMajor = 0;
@@ -57,7 +89,8 @@ cmFindPackageCommand::cmFindPackageCommand()
   this->VersionFoundTweak = 0;
   this->VersionFoundCount = 0;
   this->RequiredCMakeVersion = 0;
-
+  this->SortOrder = None;
+  this->SortDirection = Asc;
   this->AppendSearchPathGroups();
 }
 
@@ -88,7 +121,7 @@ void cmFindPackageCommand::AppendSearchPathGroups()
 bool cmFindPackageCommand::InitialPass(std::vector<std::string> const& args,
                                        cmExecutionStatus&)
 {
-  if (args.size() < 1) {
+  if (args.empty()) {
     this->SetError("called with incorrect number of arguments");
     return false;
   }
@@ -110,6 +143,13 @@ bool cmFindPackageCommand::InitialPass(std::vector<std::string> const& args,
     this->LibraryArchitecture = arch;
   }
 
+  // Lookup whether lib32 paths should be used.
+  if (this->Makefile->PlatformIs32Bit() &&
+      this->Makefile->GetState()->GetGlobalPropertyAsBool(
+        "FIND_LIBRARY_USE_LIB32_PATHS")) {
+    this->UseLib32Paths = true;
+  }
+
   // Lookup whether lib64 paths should be used.
   if (this->Makefile->PlatformIs64Bit() &&
       this->Makefile->GetState()->GetGlobalPropertyAsBool(
@@ -125,6 +165,23 @@ bool cmFindPackageCommand::InitialPass(std::vector<std::string> const& args,
   // Check if System Package Registry should be disabled
   if (this->Makefile->IsOn("CMAKE_FIND_PACKAGE_NO_SYSTEM_PACKAGE_REGISTRY")) {
     this->NoSystemRegistry = true;
+  }
+
+  // Check if Sorting should be enabled
+  if (const char* so =
+        this->Makefile->GetDefinition("CMAKE_FIND_PACKAGE_SORT_ORDER")) {
+
+    if (strcmp(so, "NAME") == 0) {
+      this->SortOrder = Name_order;
+    } else if (strcmp(so, "NATURAL") == 0) {
+      this->SortOrder = Natural;
+    } else {
+      this->SortOrder = None;
+    }
+  }
+  if (const char* sd =
+        this->Makefile->GetDefinition("CMAKE_FIND_PACKAGE_SORT_DIRECTION")) {
+    this->SortDirection = strcmp(sd, "ASC") == 0 ? Asc : Dec;
   }
 
   // Find the current root path mode.
@@ -664,16 +721,18 @@ bool cmFindPackageCommand::HandlePackageMode()
     // If there are files in ConsideredConfigs, it means that FooConfig.cmake
     // have been found, but they didn't have appropriate versions.
     else if (!this->ConsideredConfigs.empty()) {
+      std::vector<ConfigFileInfo>::const_iterator duplicate_end =
+        cmRemoveDuplicates(this->ConsideredConfigs);
       e << "Could not find a configuration file for package \"" << this->Name
         << "\" that "
         << (this->VersionExact ? "exactly matches" : "is compatible with")
         << " requested version \"" << this->Version << "\".\n"
         << "The following configuration files were considered but not "
            "accepted:\n";
-      for (std::vector<ConfigFileInfo>::size_type i = 0;
-           i < this->ConsideredConfigs.size(); i++) {
-        e << "  " << this->ConsideredConfigs[i].filename
-          << ", version: " << this->ConsideredConfigs[i].version << "\n";
+      for (std::vector<ConfigFileInfo>::const_iterator i =
+             this->ConsideredConfigs.begin();
+           i != duplicate_end; ++i) {
+        e << "  " << i->filename << ", version: " << i->version << "\n";
       }
     } else {
       std::string requestedVersionString;
@@ -766,12 +825,13 @@ bool cmFindPackageCommand::HandlePackageMode()
   std::string consideredVersions;
 
   const char* sep = "";
-  for (std::vector<ConfigFileInfo>::size_type i = 0;
-       i < this->ConsideredConfigs.size(); i++) {
+  for (std::vector<ConfigFileInfo>::const_iterator i =
+         this->ConsideredConfigs.begin();
+       i != this->ConsideredConfigs.end(); ++i) {
     consideredConfigFiles += sep;
     consideredVersions += sep;
-    consideredConfigFiles += this->ConsideredConfigs[i].filename;
-    consideredVersions += this->ConsideredConfigs[i].version;
+    consideredConfigFiles += i->filename;
+    consideredVersions += i->version;
     sep = ";";
   }
 
@@ -1066,8 +1126,8 @@ void cmFindPackageCommand::FillPrefixesUserRegistry()
                                  this->LabeledPaths[PathLabel::UserRegistry]);
   }
 #else
-  if (const char* home = cmSystemTools::GetEnv("HOME")) {
-    std::string dir = home;
+  std::string dir;
+  if (cmSystemTools::GetEnv("HOME", dir)) {
     dir += "/.cmake/packages/";
     dir += this->Name;
     this->LoadPackageRegistryDir(dir,
@@ -1188,7 +1248,7 @@ public:
       cmSystemTools::RemoveFile(this->File);
     }
   }
-  void Release() { this->File = 0; }
+  void Release() { this->File = CM_NULLPTR; }
 };
 
 void cmFindPackageCommand::LoadPackageRegistryDir(std::string const& dir,
@@ -1239,18 +1299,16 @@ bool cmFindPackageCommand::CheckPackageRegistryEntry(const std::string& fname,
         outPaths.AddPath(fname);
       }
       return true;
-    } else {
-      // The path does not exist.  Assume the stream content is
-      // associated with an old package that no longer exists, and
-      // delete it to keep the package registry clean.
-      return false;
     }
-  } else {
-    // The first line in the stream is not the full path to a file or
-    // directory.  Assume the stream content was created by a future
-    // version of CMake that uses a different format, and leave it.
-    return true;
+    // The path does not exist.  Assume the stream content is
+    // associated with an old package that no longer exists, and
+    // delete it to keep the package registry clean.
+    return false;
   }
+  // The first line in the stream is not the full path to a file or
+  // directory.  Assume the stream content was created by a future
+  // version of CMake that uses a different format, and leave it.
+  return true;
 }
 
 void cmFindPackageCommand::FillPrefixesCMakeSystemVariable()
@@ -1489,9 +1547,9 @@ void cmFindPackageCommand::StoreVersionFound()
   this->Makefile->AddDefinition(ver + "_COUNT", buf);
 }
 
+#include <cm_auto_ptr.hxx>
 #include <cmsys/Glob.hxx>
 #include <cmsys/String.h>
-#include <cmsys/auto_ptr.hxx>
 
 class cmFileList;
 class cmFileListGeneratorBase
@@ -1504,10 +1562,10 @@ protected:
 private:
   bool Search(cmFileList&);
   virtual bool Search(std::string const& parent, cmFileList&) = 0;
-  virtual cmsys::auto_ptr<cmFileListGeneratorBase> Clone() const = 0;
+  virtual CM_AUTO_PTR<cmFileListGeneratorBase> Clone() const = 0;
   friend class cmFileList;
   cmFileListGeneratorBase* SetNext(cmFileListGeneratorBase const& next);
-  cmsys::auto_ptr<cmFileListGeneratorBase> Next;
+  CM_AUTO_PTR<cmFileListGeneratorBase> Next;
 };
 
 class cmFileList
@@ -1515,7 +1573,7 @@ class cmFileList
 public:
   cmFileList()
     : First()
-    , Last(0)
+    , Last(CM_NULLPTR)
   {
   }
   virtual ~cmFileList() {}
@@ -1540,7 +1598,7 @@ public:
 private:
   virtual bool Visit(std::string const& fullPath) = 0;
   friend class cmFileListGeneratorBase;
-  cmsys::auto_ptr<cmFileListGeneratorBase> First;
+  CM_AUTO_PTR<cmFileListGeneratorBase> First;
   cmFileListGeneratorBase* Last;
 };
 
@@ -1555,13 +1613,12 @@ public:
   }
 
 private:
-  bool Visit(std::string const& fullPath)
+  bool Visit(std::string const& fullPath) CM_OVERRIDE
   {
     if (this->UseSuffixes) {
       return this->FPC->SearchDirectory(fullPath);
-    } else {
-      return this->FPC->CheckDirectory(fullPath);
     }
+    return this->FPC->CheckDirectory(fullPath);
   }
   cmFindPackageCommand* FPC;
   bool UseSuffixes;
@@ -1584,9 +1641,8 @@ bool cmFileListGeneratorBase::Consider(std::string const& fullPath,
 {
   if (this->Next.get()) {
     return this->Next->Search(fullPath + "/", listing);
-  } else {
-    return listing.Visit(fullPath + "/");
   }
+  return listing.Visit(fullPath + "/");
 }
 
 class cmFileListGeneratorFixed : public cmFileListGeneratorBase
@@ -1605,14 +1661,14 @@ public:
 
 private:
   std::string String;
-  virtual bool Search(std::string const& parent, cmFileList& lister)
+  bool Search(std::string const& parent, cmFileList& lister) CM_OVERRIDE
   {
     std::string fullPath = parent + this->String;
     return this->Consider(fullPath, lister);
   }
-  virtual cmsys::auto_ptr<cmFileListGeneratorBase> Clone() const
+  CM_AUTO_PTR<cmFileListGeneratorBase> Clone() const CM_OVERRIDE
   {
-    cmsys::auto_ptr<cmFileListGeneratorBase> g(
+    CM_AUTO_PTR<cmFileListGeneratorBase> g(
       new cmFileListGeneratorFixed(*this));
     return g;
   }
@@ -1634,7 +1690,7 @@ public:
 
 private:
   std::vector<std::string> const& Vector;
-  virtual bool Search(std::string const& parent, cmFileList& lister)
+  bool Search(std::string const& parent, cmFileList& lister) CM_OVERRIDE
   {
     for (std::vector<std::string>::const_iterator i = this->Vector.begin();
          i != this->Vector.end(); ++i) {
@@ -1644,9 +1700,9 @@ private:
     }
     return false;
   }
-  virtual cmsys::auto_ptr<cmFileListGeneratorBase> Clone() const
+  CM_AUTO_PTR<cmFileListGeneratorBase> Clone() const CM_OVERRIDE
   {
-    cmsys::auto_ptr<cmFileListGeneratorBase> g(
+    CM_AUTO_PTR<cmFileListGeneratorBase> g(
       new cmFileListGeneratorEnumerate(*this));
     return g;
   }
@@ -1655,20 +1711,36 @@ private:
 class cmFileListGeneratorProject : public cmFileListGeneratorBase
 {
 public:
-  cmFileListGeneratorProject(std::vector<std::string> const& names)
+  cmFileListGeneratorProject(std::vector<std::string> const& names,
+                             cmFindPackageCommand::SortOrderType so,
+                             cmFindPackageCommand::SortDirectionType sd)
     : cmFileListGeneratorBase()
     , Names(names)
   {
+    this->SetSort(so, sd);
   }
   cmFileListGeneratorProject(cmFileListGeneratorProject const& r)
     : cmFileListGeneratorBase()
     , Names(r.Names)
   {
+    this->SetSort(r.SortOrder, r.SortDirection);
   }
+
+  void SetSort(cmFindPackageCommand::SortOrderType o,
+               cmFindPackageCommand::SortDirectionType d)
+  {
+    SortOrder = o;
+    SortDirection = d;
+  }
+
+protected:
+  // sort parameters
+  cmFindPackageCommand::SortOrderType SortOrder;
+  cmFindPackageCommand::SortDirectionType SortDirection;
 
 private:
   std::vector<std::string> const& Names;
-  virtual bool Search(std::string const& parent, cmFileList& lister)
+  bool Search(std::string const& parent, cmFileList& lister) CM_OVERRIDE
   {
     // Construct a list of matches.
     std::vector<std::string> matches;
@@ -1687,6 +1759,13 @@ private:
       }
     }
 
+    // before testing the matches check if there is a specific sorting order to
+    // perform
+    if (this->SortOrder != cmFindPackageCommand::None) {
+      cmFindPackageCommand::Sort(matches.begin(), matches.end(), SortOrder,
+                                 SortDirection);
+    }
+
     for (std::vector<std::string>::const_iterator i = matches.begin();
          i != matches.end(); ++i) {
       if (this->Consider(parent + *i, lister)) {
@@ -1695,9 +1774,9 @@ private:
     }
     return false;
   }
-  virtual cmsys::auto_ptr<cmFileListGeneratorBase> Clone() const
+  CM_AUTO_PTR<cmFileListGeneratorBase> Clone() const CM_OVERRIDE
   {
-    cmsys::auto_ptr<cmFileListGeneratorBase> g(
+    CM_AUTO_PTR<cmFileListGeneratorBase> g(
       new cmFileListGeneratorProject(*this));
     return g;
   }
@@ -1723,7 +1802,7 @@ public:
 private:
   std::vector<std::string> const& Names;
   std::string Extension;
-  virtual bool Search(std::string const& parent, cmFileList& lister)
+  bool Search(std::string const& parent, cmFileList& lister) CM_OVERRIDE
   {
     // Construct a list of matches.
     std::vector<std::string> matches;
@@ -1752,9 +1831,9 @@ private:
     }
     return false;
   }
-  virtual cmsys::auto_ptr<cmFileListGeneratorBase> Clone() const
+  CM_AUTO_PTR<cmFileListGeneratorBase> Clone() const CM_OVERRIDE
   {
-    cmsys::auto_ptr<cmFileListGeneratorBase> g(
+    CM_AUTO_PTR<cmFileListGeneratorBase> g(
       new cmFileListGeneratorMacProject(*this));
     return g;
   }
@@ -1777,7 +1856,7 @@ public:
 
 private:
   std::string String;
-  virtual bool Search(std::string const& parent, cmFileList& lister)
+  bool Search(std::string const& parent, cmFileList& lister) CM_OVERRIDE
   {
     // Look for matching files.
     std::vector<std::string> matches;
@@ -1796,9 +1875,9 @@ private:
     }
     return false;
   }
-  virtual cmsys::auto_ptr<cmFileListGeneratorBase> Clone() const
+  CM_AUTO_PTR<cmFileListGeneratorBase> Clone() const CM_OVERRIDE
   {
-    cmsys::auto_ptr<cmFileListGeneratorBase> g(
+    CM_AUTO_PTR<cmFileListGeneratorBase> g(
       new cmFileListGeneratorCaseInsensitive(*this));
     return g;
   }
@@ -1820,7 +1899,7 @@ public:
 
 private:
   std::string Pattern;
-  virtual bool Search(std::string const& parent, cmFileList& lister)
+  bool Search(std::string const& parent, cmFileList& lister) CM_OVERRIDE
   {
     // Glob the set of matching files.
     std::string expr = parent;
@@ -1842,10 +1921,9 @@ private:
     }
     return false;
   }
-  virtual cmsys::auto_ptr<cmFileListGeneratorBase> Clone() const
+  CM_AUTO_PTR<cmFileListGeneratorBase> Clone() const CM_OVERRIDE
   {
-    cmsys::auto_ptr<cmFileListGeneratorBase> g(
-      new cmFileListGeneratorGlob(*this));
+    CM_AUTO_PTR<cmFileListGeneratorBase> g(new cmFileListGeneratorGlob(*this));
     return g;
   }
 };
@@ -1885,7 +1963,8 @@ bool cmFindPackageCommand::SearchPrefix(std::string const& prefix_in)
   {
     cmFindPackageFileList lister(this);
     lister / cmFileListGeneratorFixed(prefix) /
-      cmFileListGeneratorProject(this->Names);
+      cmFileListGeneratorProject(this->Names, this->SortOrder,
+                                 this->SortDirection);
     if (lister.Search()) {
       return true;
     }
@@ -1895,7 +1974,8 @@ bool cmFindPackageCommand::SearchPrefix(std::string const& prefix_in)
   {
     cmFindPackageFileList lister(this);
     lister / cmFileListGeneratorFixed(prefix) /
-      cmFileListGeneratorProject(this->Names) /
+      cmFileListGeneratorProject(this->Names, this->SortOrder,
+                                 this->SortDirection) /
       cmFileListGeneratorCaseInsensitive("cmake");
     if (lister.Search()) {
       return true;
@@ -1906,6 +1986,9 @@ bool cmFindPackageCommand::SearchPrefix(std::string const& prefix_in)
   std::vector<std::string> common;
   if (!this->LibraryArchitecture.empty()) {
     common.push_back("lib/" + this->LibraryArchitecture);
+  }
+  if (this->UseLib32Paths) {
+    common.push_back("lib32");
   }
   if (this->UseLib64Paths) {
     common.push_back("lib64");
@@ -1919,7 +2002,8 @@ bool cmFindPackageCommand::SearchPrefix(std::string const& prefix_in)
     lister / cmFileListGeneratorFixed(prefix) /
       cmFileListGeneratorEnumerate(common) /
       cmFileListGeneratorFixed("cmake") /
-      cmFileListGeneratorProject(this->Names);
+      cmFileListGeneratorProject(this->Names, this->SortOrder,
+                                 this->SortDirection);
     if (lister.Search()) {
       return true;
     }
@@ -1930,7 +2014,8 @@ bool cmFindPackageCommand::SearchPrefix(std::string const& prefix_in)
     cmFindPackageFileList lister(this);
     lister / cmFileListGeneratorFixed(prefix) /
       cmFileListGeneratorEnumerate(common) /
-      cmFileListGeneratorProject(this->Names);
+      cmFileListGeneratorProject(this->Names, this->SortOrder,
+                                 this->SortDirection);
     if (lister.Search()) {
       return true;
     }
@@ -1941,7 +2026,52 @@ bool cmFindPackageCommand::SearchPrefix(std::string const& prefix_in)
     cmFindPackageFileList lister(this);
     lister / cmFileListGeneratorFixed(prefix) /
       cmFileListGeneratorEnumerate(common) /
-      cmFileListGeneratorProject(this->Names) /
+      cmFileListGeneratorProject(this->Names, this->SortOrder,
+                                 this->SortDirection) /
+      cmFileListGeneratorCaseInsensitive("cmake");
+    if (lister.Search()) {
+      return true;
+    }
+  }
+
+  // PREFIX/(Foo|foo|FOO).*/(lib/ARCH|lib|share)/cmake/(Foo|foo|FOO).*/
+  {
+    cmFindPackageFileList lister(this);
+    lister / cmFileListGeneratorFixed(prefix) /
+      cmFileListGeneratorProject(this->Names, this->SortOrder,
+                                 this->SortDirection) /
+      cmFileListGeneratorEnumerate(common) /
+      cmFileListGeneratorFixed("cmake") /
+      cmFileListGeneratorProject(this->Names, this->SortOrder,
+                                 this->SortDirection);
+    if (lister.Search()) {
+      return true;
+    }
+  }
+
+  // PREFIX/(Foo|foo|FOO).*/(lib/ARCH|lib|share)/(Foo|foo|FOO).*/
+  {
+    cmFindPackageFileList lister(this);
+    lister / cmFileListGeneratorFixed(prefix) /
+      cmFileListGeneratorProject(this->Names, this->SortOrder,
+                                 this->SortDirection) /
+      cmFileListGeneratorEnumerate(common) /
+      cmFileListGeneratorProject(this->Names, this->SortOrder,
+                                 this->SortDirection);
+    if (lister.Search()) {
+      return true;
+    }
+  }
+
+  // PREFIX/(Foo|foo|FOO).*/(lib/ARCH|lib|share)/(Foo|foo|FOO).*/(cmake|CMake)/
+  {
+    cmFindPackageFileList lister(this);
+    lister / cmFileListGeneratorFixed(prefix) /
+      cmFileListGeneratorProject(this->Names, this->SortOrder,
+                                 this->SortDirection) /
+      cmFileListGeneratorEnumerate(common) /
+      cmFileListGeneratorProject(this->Names, this->SortOrder,
+                                 this->SortDirection) /
       cmFileListGeneratorCaseInsensitive("cmake");
     if (lister.Search()) {
       return true;

@@ -1,24 +1,21 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCPackIFWPackage.h"
 
+#include "CPack/cmCPackComponentGroup.h"
+#include "CPack/cmCPackGenerator.h"
+#include "CPack/cmCPackLog.h"
 #include "cmCPackIFWGenerator.h"
+#include "cmCPackIFWInstaller.h"
+#include "cmGeneratedFileStream.h"
+#include "cmSystemTools.h"
+#include "cmTimestamp.h"
+#include "cmXMLWriter.h"
 
-#include <CPack/cmCPackLog.h>
-
-#include <cmGeneratedFileStream.h>
-#include <cmTimestamp.h>
-#include <cmXMLWriter.h>
+#include <cmConfigure.h>
+#include <map>
+#include <sstream>
+#include <stddef.h>
 
 //----------------------------------------------------------------- Logger ---
 #ifdef cmCPackLogger
@@ -71,8 +68,9 @@ cmCPackIFWPackage::DependenceStruct::DependenceStruct(
 
 std::string cmCPackIFWPackage::DependenceStruct::NameWithCompare() const
 {
-  if (Compare.Type == CompareNone)
+  if (Compare.Type == CompareNone) {
     return Name;
+  }
 
   std::string result = Name;
 
@@ -95,15 +93,15 @@ std::string cmCPackIFWPackage::DependenceStruct::NameWithCompare() const
 
 //------------------------------------------------------ cmCPackIFWPackage ---
 cmCPackIFWPackage::cmCPackIFWPackage()
-  : Generator(0)
-  , Installer(0)
+  : Generator(CM_NULLPTR)
+  , Installer(CM_NULLPTR)
 {
 }
 
 const char* cmCPackIFWPackage::GetOption(const std::string& op) const
 {
-  const char* option = Generator ? Generator->GetOption(op) : 0;
-  return option && *option ? option : 0;
+  const char* option = Generator ? Generator->GetOption(op) : CM_NULLPTR;
+  return option && *option ? option : CM_NULLPTR;
 }
 
 bool cmCPackIFWPackage::IsOn(const std::string& op) const
@@ -128,8 +126,9 @@ bool cmCPackIFWPackage::IsVersionEqual(const char* version)
 
 std::string cmCPackIFWPackage::GetComponentName(cmCPackComponent* component)
 {
-  if (!component)
+  if (!component) {
     return "";
+  }
   const char* option =
     GetOption("CPACK_IFW_COMPONENT_" +
               cmsys::SystemTools::UpperCase(component->Name) + "_NAME");
@@ -144,6 +143,7 @@ void cmCPackIFWPackage::DefaultConfiguration()
   ReleaseDate = "";
   Script = "";
   Licenses.clear();
+  UserInterfaces.clear();
   SortingPriority = "";
   Default = "";
   Essential = "";
@@ -189,8 +189,9 @@ int cmCPackIFWPackage::ConfigureFromOptions()
 
 int cmCPackIFWPackage::ConfigureFromComponent(cmCPackComponent* component)
 {
-  if (!component)
+  if (!component) {
     return 0;
+  }
 
   // Restore defaul configuration
   DefaultConfiguration();
@@ -217,6 +218,12 @@ int cmCPackIFWPackage::ConfigureFromComponent(cmCPackComponent* component)
   // Script
   if (const char* option = GetOption(prefix + "SCRIPT")) {
     Script = option;
+  }
+
+  // User interfaces
+  if (const char* option = this->GetOption(prefix + "USER_INTERFACES")) {
+    UserInterfaces.clear();
+    cmSystemTools::ExpandListArgument(option, UserInterfaces);
   }
 
   // CMake dependencies
@@ -284,8 +291,9 @@ int cmCPackIFWPackage::ConfigureFromComponent(cmCPackComponent* component)
 
 int cmCPackIFWPackage::ConfigureFromGroup(cmCPackComponentGroup* group)
 {
-  if (!group)
+  if (!group) {
     return 0;
+  }
 
   // Restore defaul configuration
   DefaultConfiguration();
@@ -309,6 +317,12 @@ int cmCPackIFWPackage::ConfigureFromGroup(cmCPackComponentGroup* group)
   // Script
   if (const char* option = GetOption(prefix + "SCRIPT")) {
     Script = option;
+  }
+
+  // User interfaces
+  if (const char* option = this->GetOption(prefix + "USER_INTERFACES")) {
+    UserInterfaces.clear();
+    cmSystemTools::ExpandListArgument(option, UserInterfaces);
   }
 
   // Licenses
@@ -406,6 +420,23 @@ void cmCPackIFWPackage::GeneratePackageFile()
     xout.Element("Script", name);
   }
 
+  // User Interfaces (copy to meta dir)
+  std::vector<std::string> userInterfaces = UserInterfaces;
+  for (size_t i = 0; i < userInterfaces.size(); i++) {
+    std::string name = cmSystemTools::GetFilenameName(userInterfaces[i]);
+    std::string path = Directory + "/meta/" + name;
+    cmsys::SystemTools::CopyFileIfDifferent(userInterfaces[i].data(),
+                                            path.data());
+    userInterfaces[i] = name;
+  }
+  if (!userInterfaces.empty()) {
+    xout.StartElement("UserInterfaces");
+    for (size_t i = 0; i < userInterfaces.size(); i++) {
+      xout.Element("UserInterface", userInterfaces[i]);
+    }
+    xout.EndElement();
+  }
+
   // Dependencies
   std::set<DependenceStruct> compDepSet;
   for (std::set<DependenceStruct*>::iterator ait = AlienDependencies.begin();
@@ -418,7 +449,7 @@ void cmCPackIFWPackage::GeneratePackageFile()
   }
   // Write dependencies
   if (!compDepSet.empty()) {
-    std::stringstream dependencies;
+    std::ostringstream dependencies;
     std::set<DependenceStruct>::iterator it = compDepSet.begin();
     dependencies << it->NameWithCompare();
     ++it;
@@ -474,6 +505,7 @@ void cmCPackIFWPackage::GeneratePackageFile()
 
 void cmCPackIFWPackage::WriteGeneratedByToStrim(cmXMLWriter& xout)
 {
-  if (Generator)
+  if (Generator) {
     Generator->WriteGeneratedByToStrim(xout);
+  }
 }

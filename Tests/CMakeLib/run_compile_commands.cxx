@@ -1,5 +1,13 @@
 #include "cmSystemTools.h"
 
+#include <cmsys/FStream.hxx>
+#include <iostream>
+#include <map>
+#include <stdlib.h>
+#include <string>
+#include <utility>
+#include <vector>
+
 class CompileCommandParser
 {
 public:
@@ -18,7 +26,10 @@ public:
   };
   typedef std::vector<CommandType> TranslationUnitsType;
 
-  CompileCommandParser(std::ifstream* input) { this->Input = input; }
+  CompileCommandParser(std::istream& input)
+    : Input(input)
+  {
+  }
 
   void Parse()
   {
@@ -46,10 +57,12 @@ private:
   void ParseTranslationUnit()
   {
     this->Command = CommandType();
-    if (!Expect('{'))
+    if (!Expect('{')) {
       return;
-    if (Expect('}'))
+    }
+    if (Expect('}')) {
       return;
+    }
     do {
       ParseString();
       std::string name = this->String;
@@ -64,8 +77,9 @@ private:
   void ParseString()
   {
     this->String = "";
-    if (!Expect('"'))
+    if (!Expect('"')) {
       return;
+    }
     while (!Expect('"')) {
       Expect('\\');
       this->String.append(1, C);
@@ -84,8 +98,9 @@ private:
 
   void ExpectOrDie(char c, const std::string& message)
   {
-    if (!Expect(c))
+    if (!Expect(c)) {
       ErrorExit(std::string("'") + c + "' expected " + message + ".");
+    }
   }
 
   void NextNonWhitespace()
@@ -97,9 +112,10 @@ private:
 
   void Next()
   {
-    this->C = char(Input->get());
-    if (this->Input->bad())
+    this->C = char(Input.get());
+    if (this->Input.bad()) {
       ErrorExit("Unexpected end of file.");
+    }
   }
 
   void ErrorExit(const std::string& message)
@@ -118,13 +134,13 @@ private:
   TranslationUnitsType TranslationUnits;
   CommandType Command;
   std::string String;
-  std::ifstream* Input;
+  std::istream& Input;
 };
 
 int main()
 {
-  std::ifstream file("compile_commands.json");
-  CompileCommandParser parser(&file);
+  cmsys::ifstream file("compile_commands.json");
+  CompileCommandParser parser(file);
   parser.Parse();
   for (CompileCommandParser::TranslationUnitsType::const_iterator
          it = parser.GetTranslationUnits().begin(),
@@ -132,7 +148,8 @@ int main()
        it != end; ++it) {
     std::vector<std::string> command;
     cmSystemTools::ParseUnixCommandLine(it->at("command").c_str(), command);
-    if (!cmSystemTools::RunSingleCommand(command, 0, 0, 0,
+    if (!cmSystemTools::RunSingleCommand(command, CM_NULLPTR, CM_NULLPTR,
+                                         CM_NULLPTR,
                                          it->at("directory").c_str())) {
       std::cout << "ERROR: Failed to run command \"" << command[0] << "\""
                 << std::endl;

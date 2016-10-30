@@ -1,26 +1,25 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmInstallTargetGenerator.h"
 
 #include "cmComputeLinkInformation.h"
 #include "cmGeneratorExpression.h"
 #include "cmGeneratorTarget.h"
-#include "cmGeneratorTarget.h"
 #include "cmGlobalGenerator.h"
+#include "cmInstallType.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
+#include "cmState.h"
+#include "cmSystemTools.h"
+#include "cmTarget.h"
+#include "cm_auto_ptr.hxx"
 #include "cmake.h"
 
 #include <assert.h>
+#include <map>
+#include <set>
+#include <sstream>
+#include <utility>
 
 cmInstallTargetGenerator::cmInstallTargetGenerator(
   const std::string& targetName, const char* dest, bool implib,
@@ -30,7 +29,7 @@ cmInstallTargetGenerator::cmInstallTargetGenerator(
   : cmInstallGenerator(dest, configurations, component, message,
                        exclude_from_all)
   , TargetName(targetName)
-  , Target(0)
+  , Target(CM_NULLPTR)
   , FilePermissions(file_permissions)
   , ImportLibrary(implib)
   , Optional(optional)
@@ -142,13 +141,22 @@ void cmInstallTargetGenerator::GenerateScriptForConfig(
       if (this->Target->IsAppBundleOnApple()) {
         cmMakefile const* mf = this->Target->Target->GetMakefile();
 
+        // Get App Bundle Extension
+        const char* ext = this->Target->GetProperty("BUNDLE_EXTENSION");
+        if (!ext) {
+          ext = "app";
+        }
+
         // Install the whole app bundle directory.
         type = cmInstallType_DIRECTORY;
         literal_args += " USE_SOURCE_PERMISSIONS";
-        from1 += ".app";
+        from1 += ".";
+        from1 += ext;
 
         // Tweaks apply to the binary inside the bundle.
-        to1 += ".app/";
+        to1 += ".";
+        to1 += ext;
+        to1 += "/";
         if (!mf->PlatformIsAppleIos()) {
           to1 += "Contents/MacOS/";
         }
@@ -294,8 +302,8 @@ void cmInstallTargetGenerator::GenerateScriptForConfig(
                  &cmInstallTargetGenerator::PreReplacementTweaks);
 
   // Write code to install the target file.
-  const char* no_dir_permissions = 0;
-  const char* no_rename = 0;
+  const char* no_dir_permissions = CM_NULLPTR;
+  const char* no_rename = CM_NULLPTR;
   bool optional = this->Optional || this->ImportLibrary;
   this->AddInstallRule(os, this->GetDestination(config), type, filesFrom,
                        optional, this->FilePermissions.c_str(),
@@ -623,7 +631,7 @@ void cmInstallTargetGenerator::AddChrpathPatchRule(
     std::string darwin_major_version_s =
       mf->GetSafeDefinition("DARWIN_MAJOR_VERSION");
 
-    std::stringstream ss(darwin_major_version_s);
+    std::istringstream ss(darwin_major_version_s);
     int darwin_major_version;
     ss >> darwin_major_version;
     if (!ss.fail() && darwin_major_version <= 9 &&

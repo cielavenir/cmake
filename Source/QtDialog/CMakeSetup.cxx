@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "QCMake.h" // include to disable MS warnings
 
 #include "CMakeSetupDialog.h"
@@ -22,26 +13,34 @@
 #include <QString>
 #include <QTextCodec>
 #include <QTranslator>
+#include <QtPlugin>
 #include <cmsys/CommandLineArguments.hxx>
 #include <cmsys/Encoding.hxx>
 #include <cmsys/SystemTools.hxx>
 
-static const char* cmDocumentationName[][2] = { { 0,
+#include "cmSystemTools.h" // IWYU pragma: keep
+
+static const char* cmDocumentationName[][2] = { { CM_NULLPTR,
                                                   "  cmake-gui - CMake GUI." },
-                                                { 0, 0 } };
+                                                { CM_NULLPTR, CM_NULLPTR } };
 
 static const char* cmDocumentationUsage[][2] = {
-  { 0, "  cmake-gui [options]\n"
-       "  cmake-gui [options] <path-to-source>\n"
-       "  cmake-gui [options] <path-to-existing-build>" },
-  { 0, 0 }
+  { CM_NULLPTR, "  cmake-gui [options]\n"
+                "  cmake-gui [options] <path-to-source>\n"
+                "  cmake-gui [options] <path-to-existing-build>" },
+  { CM_NULLPTR, CM_NULLPTR }
 };
 
-static const char* cmDocumentationOptions[][2] = { { 0, 0 } };
+static const char* cmDocumentationOptions[]
+                                         [2] = { { CM_NULLPTR, CM_NULLPTR } };
 
 #if defined(Q_OS_MAC)
 static int cmOSXInstall(std::string dir);
 static void cmAddPluginPath();
+#endif
+
+#if defined(USE_QXcbIntegrationPlugin)
+Q_IMPORT_PLUGIN(QXcbIntegrationPlugin);
 #endif
 
 int main(int argc, char** argv)
@@ -101,11 +100,13 @@ int main(int argc, char** argv)
   QTextCodec::setCodecForLocale(utf8_codec);
 #endif
 
+#if QT_VERSION < 0x050000
   // clean out standard Qt paths for plugins, which we don't use anyway
   // when creating Mac bundles, it potentially causes problems
   foreach (QString p, QApplication::libraryPaths()) {
     QApplication::removeLibraryPath(p);
   }
+#endif
 
   // tell the cmake library where cmake is
   QDir cmExecDir(QApplication::applicationDirPath());

@@ -1,24 +1,29 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2015 Stephen Kelly <steveire@gmail.com>
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmState.h"
 
 #include "cmAlgorithms.h"
 #include "cmCacheManager.h"
 #include "cmCommand.h"
 #include "cmDefinitions.h"
+#include "cmListFileCache.h"
+#include "cmSystemTools.h"
+#include "cmTypeMacro.h"
 #include "cmVersion.h"
 #include "cmake.h"
 
+#include <algorithm>
 #include <assert.h>
+#include <cmsys/RegularExpression.hxx>
+#include <iterator>
+#include <stdio.h>
+#include <string.h>
+#include <utility>
+
+static std::string const kBINARY_DIR = "BINARY_DIR";
+static std::string const kBUILDSYSTEM_TARGETS = "BUILDSYSTEM_TARGETS";
+static std::string const kSOURCE_DIR = "SOURCE_DIR";
+static std::string const kSUBDIRECTORIES = "SUBDIRECTORIES";
 
 struct cmState::SnapshotDataType
 {
@@ -68,8 +73,6 @@ struct cmState::BuildsystemDirectoryStateType
   std::string Location;
   std::string OutputLocation;
 
-  std::vector<std::string> CurrentSourceDirectoryComponents;
-  std::vector<std::string> CurrentBinaryDirectoryComponents;
   // The top-most directories for relative path conversion.  Both the
   // source and destination location of a relative path conversion
   // must be underneath one of these directories (both under source or
@@ -86,6 +89,8 @@ struct cmState::BuildsystemDirectoryStateType
 
   std::vector<std::string> CompileOptions;
   std::vector<cmListFileBacktrace> CompileOptionsBacktraces;
+
+  std::vector<std::string> NormalTargetNames;
 
   std::string ProjectName;
 
@@ -135,12 +140,12 @@ const char* cmState::GetTargetTypeName(cmState::TargetType targetType)
       return "UNKNOWN_LIBRARY";
   }
   assert(0 && "Unexpected target type");
-  return 0;
+  return CM_NULLPTR;
 }
 
 const char* cmCacheEntryTypes[] = { "BOOL",          "PATH",     "FILEPATH",
                                     "STRING",        "INTERNAL", "STATIC",
-                                    "UNINITIALIZED", 0 };
+                                    "UNINITIALIZED", CM_NULLPTR };
 
 const char* cmState::CacheEntryTypeToString(cmState::CacheEntryType type)
 {
@@ -204,7 +209,7 @@ const char* cmState::GetCacheEntryValue(std::string const& key) const
 {
   cmCacheManager::CacheEntry* e = this->CacheManager->GetCacheEntry(key);
   if (!e) {
-    return 0;
+    return CM_NULLPTR;
   }
   return e->Value.c_str();
 }
@@ -246,13 +251,21 @@ void cmState::SetCacheEntryBoolProperty(std::string const& key,
   it.SetProperty(propertyName, value);
 }
 
+std::vector<std::string> cmState::GetCacheEntryPropertyList(
+  const std::string& key)
+{
+  cmCacheManager::CacheIterator it =
+    this->CacheManager->GetCacheIterator(key.c_str());
+  return it.GetPropertyList();
+}
+
 const char* cmState::GetCacheEntryProperty(std::string const& key,
                                            std::string const& propertyName)
 {
   cmCacheManager::CacheIterator it =
     this->CacheManager->GetCacheIterator(key.c_str());
   if (!it.PropertyExists(propertyName)) {
-    return 0;
+    return CM_NULLPTR;
   }
   return it.GetProperty(propertyName);
 }
@@ -288,7 +301,7 @@ void cmState::RemoveCacheEntryProperty(std::string const& key,
                                        std::string const& propertyName)
 {
   this->CacheManager->GetCacheIterator(key.c_str())
-    .SetProperty(propertyName, (void*)0);
+    .SetProperty(propertyName, (void*)CM_NULLPTR);
 }
 
 cmState::Snapshot cmState::Reset()
@@ -309,6 +322,7 @@ cmState::Snapshot cmState::Reset()
     it->CompileOptions.clear();
     it->CompileOptionsBacktraces.clear();
     it->DirectoryEnd = pos;
+    it->NormalTargetNames.clear();
     it->Properties.clear();
     it->Children.clear();
   }
@@ -366,7 +380,7 @@ cmPropertyDefinition const* cmState::GetPropertyDefinition(
       this->PropertyDefinitions.find(scope)->second;
     return &defs.find(name)->second;
   }
-  return 0;
+  return CM_NULLPTR;
 }
 
 bool cmState::IsPropertyDefined(const std::string& name,
@@ -483,7 +497,7 @@ void cmState::RemoveUnscriptableCommands()
 
 cmCommand* cmState::GetCommand(std::string const& name) const
 {
-  cmCommand* command = 0;
+  cmCommand* command = CM_NULLPTR;
   std::string sName = cmSystemTools::LowerCase(name);
   std::map<std::string, cmCommand*>::const_iterator pos =
     this->Commands.find(sName);
@@ -574,10 +588,6 @@ void cmState::SetSourceDirectory(std::string const& sourceDirectory)
 {
   this->SourceDirectory = sourceDirectory;
   cmSystemTools::ConvertToUnixSlashes(this->SourceDirectory);
-
-  cmSystemTools::SplitPath(
-    cmSystemTools::CollapseFullPath(this->SourceDirectory),
-    this->SourceDirectoryComponents);
 }
 
 const char* cmState::GetSourceDirectory() const
@@ -585,19 +595,10 @@ const char* cmState::GetSourceDirectory() const
   return this->SourceDirectory.c_str();
 }
 
-std::vector<std::string> const& cmState::GetSourceDirectoryComponents() const
-{
-  return this->SourceDirectoryComponents;
-}
-
 void cmState::SetBinaryDirectory(std::string const& binaryDirectory)
 {
   this->BinaryDirectory = binaryDirectory;
   cmSystemTools::ConvertToUnixSlashes(this->BinaryDirectory);
-
-  cmSystemTools::SplitPath(
-    cmSystemTools::CollapseFullPath(this->BinaryDirectory),
-    this->BinaryDirectoryComponents);
 }
 
 void cmState::SetWindowsShell(bool windowsShell)
@@ -673,11 +674,6 @@ unsigned int cmState::GetCacheMinorVersion() const
 const char* cmState::GetBinaryDirectory() const
 {
   return this->BinaryDirectory.c_str();
-}
-
-std::vector<std::string> const& cmState::GetBinaryDirectoryComponents() const
-{
-  return this->BinaryDirectoryComponents;
 }
 
 void cmState::Directory::ComputeRelativePathTopSource()
@@ -961,8 +957,6 @@ void cmState::Directory::SetCurrentSource(std::string const& dir)
   cmSystemTools::ConvertToUnixSlashes(loc);
   loc = cmSystemTools::CollapseFullPath(loc);
 
-  cmSystemTools::SplitPath(
-    loc, this->DirectoryState->CurrentSourceDirectoryComponents);
   this->ComputeRelativePathTopSource();
 
   this->Snapshot_.SetDefinition("CMAKE_CURRENT_SOURCE_DIR", loc);
@@ -980,8 +974,6 @@ void cmState::Directory::SetCurrentBinary(std::string const& dir)
   cmSystemTools::ConvertToUnixSlashes(loc);
   loc = cmSystemTools::CollapseFullPath(loc);
 
-  cmSystemTools::SplitPath(
-    loc, this->DirectoryState->CurrentBinaryDirectoryComponents);
   this->ComputeRelativePathTopBinary();
 
   this->Snapshot_.SetDefinition("CMAKE_CURRENT_BINARY_DIR", loc);
@@ -990,18 +982,6 @@ void cmState::Directory::SetCurrentBinary(std::string const& dir)
 void cmState::Snapshot::SetListFile(const std::string& listfile)
 {
   *this->Position->ExecutionListFile = listfile;
-}
-
-std::vector<std::string> const&
-cmState::Directory::GetCurrentSourceComponents() const
-{
-  return this->DirectoryState->CurrentSourceDirectoryComponents;
-}
-
-std::vector<std::string> const&
-cmState::Directory::GetCurrentBinaryComponents() const
-{
-  return this->DirectoryState->CurrentBinaryDirectoryComponents;
 }
 
 const char* cmState::Directory::GetRelativePathTopSource() const
@@ -1189,7 +1169,7 @@ void cmState::Snapshot::SetDefinition(std::string const& name,
 
 void cmState::Snapshot::RemoveDefinition(std::string const& name)
 {
-  this->Position->Vars->Set(name, 0);
+  this->Position->Vars->Set(name, CM_NULLPTR);
 }
 
 std::vector<std::string> cmState::Snapshot::UnusedKeys() const
@@ -1278,8 +1258,9 @@ void cmState::Snapshot::SetDefaultDefinitions()
   this->SetDefinition("CMAKE_HOST_UNIX", "1");
 #endif
 #if defined(__CYGWIN__)
-  if (cmSystemTools::IsOn(
-        cmSystemTools::GetEnv("CMAKE_LEGACY_CYGWIN_WIN32"))) {
+  std::string legacy;
+  if (cmSystemTools::GetEnv("CMAKE_LEGACY_CYGWIN_WIN32", legacy) &&
+      cmSystemTools::IsOn(legacy.c_str())) {
     this->SetDefinition("WIN32", "1");
     this->SetDefinition("CMAKE_HOST_WIN32", "1");
   }
@@ -1684,7 +1665,32 @@ const char* cmState::Directory::GetProperty(const std::string& prop,
       return parent.GetDirectory().GetCurrentSource();
     }
     return "";
-  } else if (prop == "LISTFILE_STACK") {
+  }
+  if (prop == kBINARY_DIR) {
+    output = this->GetCurrentBinary();
+    return output.c_str();
+  }
+  if (prop == kSOURCE_DIR) {
+    output = this->GetCurrentSource();
+    return output.c_str();
+  }
+  if (prop == kSUBDIRECTORIES) {
+    std::vector<std::string> child_dirs;
+    std::vector<cmState::Snapshot> const& children =
+      this->DirectoryState->Children;
+    for (std::vector<cmState::Snapshot>::const_iterator ci = children.begin();
+         ci != children.end(); ++ci) {
+      child_dirs.push_back(ci->GetDirectory().GetCurrentSource());
+    }
+    output = cmJoin(child_dirs, ";");
+    return output.c_str();
+  }
+  if (prop == kBUILDSYSTEM_TARGETS) {
+    output = cmJoin(this->DirectoryState->NormalTargetNames, ";");
+    return output.c_str();
+  }
+
+  if (prop == "LISTFILE_STACK") {
     std::vector<std::string> listFiles;
     cmState::Snapshot snp = this->Snapshot_;
     while (snp.IsValid()) {
@@ -1694,10 +1700,12 @@ const char* cmState::Directory::GetProperty(const std::string& prop,
     std::reverse(listFiles.begin(), listFiles.end());
     output = cmJoin(listFiles, ";");
     return output.c_str();
-  } else if (prop == "CACHE_VARIABLES") {
+  }
+  if (prop == "CACHE_VARIABLES") {
     output = cmJoin(this->Snapshot_.State->GetCacheEntryKeys(), ";");
     return output.c_str();
-  } else if (prop == "VARIABLES") {
+  }
+  if (prop == "VARIABLES") {
     std::vector<std::string> res = this->Snapshot_.ClosureKeys();
     std::vector<std::string> cacheKeys =
       this->Snapshot_.State->GetCacheEntryKeys();
@@ -1705,13 +1713,16 @@ const char* cmState::Directory::GetProperty(const std::string& prop,
     std::sort(res.begin(), res.end());
     output = cmJoin(res, ";");
     return output.c_str();
-  } else if (prop == "INCLUDE_DIRECTORIES") {
+  }
+  if (prop == "INCLUDE_DIRECTORIES") {
     output = cmJoin(this->GetIncludeDirectoriesEntries(), ";");
     return output.c_str();
-  } else if (prop == "COMPILE_OPTIONS") {
+  }
+  if (prop == "COMPILE_OPTIONS") {
     output = cmJoin(this->GetCompileOptionsEntries(), ";");
     return output.c_str();
-  } else if (prop == "COMPILE_DEFINITIONS") {
+  }
+  if (prop == "COMPILE_DEFINITIONS") {
     output = cmJoin(this->GetCompileDefinitionsEntries(), ";");
     return output.c_str();
   }
@@ -1743,6 +1754,11 @@ std::vector<std::string> cmState::Directory::GetPropertyKeys() const
     keys.push_back(it->first);
   }
   return keys;
+}
+
+void cmState::Directory::AddNormalTargetName(std::string const& name)
+{
+  this->DirectoryState->NormalTargetNames.push_back(name);
 }
 
 bool operator==(const cmState::Snapshot& lhs, const cmState::Snapshot& rhs)

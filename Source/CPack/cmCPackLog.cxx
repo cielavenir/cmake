@@ -1,19 +1,11 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCPackLog.h"
 
 #include "cmGeneratedFileStream.h"
 #include "cmSystemTools.h"
+
+#include <iostream>
 
 cmCPackLog::cmCPackLog()
 {
@@ -28,13 +20,13 @@ cmCPackLog::cmCPackLog()
   this->DefaultOutput = &std::cout;
   this->DefaultError = &std::cerr;
 
-  this->LogOutput = 0;
+  this->LogOutput = CM_NULLPTR;
   this->LogOutputCleanup = false;
 }
 
 cmCPackLog::~cmCPackLog()
 {
-  this->SetLogOutputStream(0);
+  this->SetLogOutputStream(CM_NULLPTR);
 }
 
 void cmCPackLog::SetLogOutputStream(std::ostream* os)
@@ -48,13 +40,13 @@ void cmCPackLog::SetLogOutputStream(std::ostream* os)
 
 bool cmCPackLog::SetLogOutputFile(const char* fname)
 {
-  cmGeneratedFileStream* cg = 0;
+  cmGeneratedFileStream* cg = CM_NULLPTR;
   if (fname) {
     cg = new cmGeneratedFileStream(fname);
   }
   if (cg && !*cg) {
     delete cg;
-    cg = 0;
+    cg = CM_NULLPTR;
   }
   this->SetLogOutputStream(cg);
   if (!cg) {

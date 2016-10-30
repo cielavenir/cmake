@@ -44,9 +44,15 @@ else()
 
 endif()
 
+# -- RCC only
 add_executable(rcconly rcconly.cpp second_resource.qrc)
 set_property(TARGET rcconly PROPERTY AUTORCC ON)
 target_link_libraries(rcconly ${QT_QTCORE_TARGET})
+
+# -- RCC empty
+add_executable(rcc_empty rcc_empty.cpp rcc_empty_resource.qrc)
+set_property(TARGET rcc_empty PROPERTY AUTORCC ON)
+target_link_libraries(rcc_empty ${QT_QTCORE_TARGET})
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -109,6 +115,10 @@ set_target_properties(
   PROPERTIES
   AUTOMOC TRUE
 )
+
+# Test AUTOMOC and AUTORCC on source files with the same name
+# but in different subdirectories
+add_subdirectory(sameName)
 
 include(GenerateExportHeader)
 # The order is relevant here. B depends on A, and B headers depend on A

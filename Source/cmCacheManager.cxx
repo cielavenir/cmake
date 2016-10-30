@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCacheManager.h"
 
 #include "cmGeneratedFileStream.h"
@@ -16,10 +7,12 @@
 #include "cmVersion.h"
 #include "cmake.h"
 
-#include <cmsys/Directory.hxx>
+#include <algorithm>
 #include <cmsys/FStream.hxx>
 #include <cmsys/Glob.hxx>
-#include <cmsys/RegularExpression.hxx>
+#include <sstream>
+#include <stdio.h>
+#include <string.h>
 
 cmCacheManager::cmCacheManager()
 {
@@ -71,8 +64,9 @@ bool cmCacheManager::LoadCache(const std::string& path, bool internal,
     while (*realbuffer != '0' &&
            (*realbuffer == ' ' || *realbuffer == '\t' || *realbuffer == '\r' ||
             *realbuffer == '\n')) {
-      if (*realbuffer == '\n')
+      if (*realbuffer == '\n') {
         lineno++;
+      }
       realbuffer++;
     }
     // skip blank lines and comment lines
@@ -178,7 +172,7 @@ bool cmCacheManager::LoadCache(const std::string& path, bool internal,
 }
 
 const char* cmCacheManager::PersistentProperties[] = { "ADVANCED", "MODIFIED",
-                                                       "STRINGS", 0 };
+                                                       "STRINGS", CM_NULLPTR };
 
 bool cmCacheManager::ReadPropertyEntry(std::string const& entryKey,
                                        CacheEntry& e)
@@ -446,7 +440,7 @@ cmCacheManager::CacheEntry* cmCacheManager::GetCacheEntry(
   if (i != this->Cache.end()) {
     return &i->second;
   }
-  return 0;
+  return CM_NULLPTR;
 }
 
 cmCacheManager::CacheIterator cmCacheManager::GetCacheIterator(const char* key)
@@ -461,7 +455,7 @@ const char* cmCacheManager::GetInitializedCacheValue(
   if (i != this->Cache.end() && i->second.Initialized) {
     return i->second.Value.c_str();
   }
-  return 0;
+  return CM_NULLPTR;
 }
 
 void cmCacheManager::PrintCache(std::ostream& out) const
@@ -539,6 +533,11 @@ void cmCacheManager::CacheIterator::Next()
   }
 }
 
+std::vector<std::string> cmCacheManager::CacheIterator::GetPropertyList() const
+{
+  return this->GetEntry().GetPropertyList();
+}
+
 void cmCacheManager::CacheIterator::SetValue(const char* value)
 {
   if (this->IsAtEnd()) {
@@ -558,12 +557,18 @@ bool cmCacheManager::CacheIterator::GetValueAsBool() const
   return cmSystemTools::IsOn(this->GetEntry().Value.c_str());
 }
 
+std::vector<std::string> cmCacheManager::CacheEntry::GetPropertyList() const
+{
+  return this->Properties.GetPropertyList();
+}
+
 const char* cmCacheManager::CacheEntry::GetProperty(
   const std::string& prop) const
 {
   if (prop == "TYPE") {
     return cmState::CacheEntryTypeToString(this->Type);
-  } else if (prop == "VALUE") {
+  }
+  if (prop == "VALUE") {
     return this->Value.c_str();
   }
   return this->Properties.GetPropertyValue(prop);
@@ -605,7 +610,7 @@ const char* cmCacheManager::CacheIterator::GetProperty(
   if (!this->IsAtEnd()) {
     return this->GetEntry().GetProperty(prop);
   }
-  return 0;
+  return CM_NULLPTR;
 }
 
 void cmCacheManager::CacheIterator::SetProperty(const std::string& p,
@@ -642,5 +647,5 @@ void cmCacheManager::CacheIterator::SetProperty(const std::string& p, bool v)
 bool cmCacheManager::CacheIterator::PropertyExists(
   const std::string& prop) const
 {
-  return this->GetProperty(prop) ? true : false;
+  return this->GetProperty(prop) != CM_NULLPTR;
 }

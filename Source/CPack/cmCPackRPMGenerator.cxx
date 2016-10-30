@@ -1,18 +1,17 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCPackRPMGenerator.h"
 
+#include "cmCPackComponentGroup.h"
+#include "cmCPackGenerator.h"
 #include "cmCPackLog.h"
 #include "cmSystemTools.h"
+
+#include <algorithm>
+#include <map>
+#include <ostream>
+#include <utility>
+#include <vector>
 
 cmCPackRPMGenerator::cmCPackRPMGenerator()
 {
@@ -121,7 +120,7 @@ int cmCPackRPMGenerator::PackageComponents(bool ignoreGroup)
     for (compIt = this->Components.begin(); compIt != this->Components.end();
          ++compIt) {
       // Does the component belong to a group?
-      if (compIt->second.Group == NULL) {
+      if (compIt->second.Group == CM_NULLPTR) {
         cmCPackLogger(
           cmCPackLog::LOG_VERBOSE, "Component <"
             << compIt->second.Name
@@ -215,24 +214,16 @@ int cmCPackRPMGenerator::PackageFiles()
     // There will be 1 package for each component group
     // however one may require to ignore component group and
     // in this case you'll get 1 package for each component.
-    else {
-      return PackageComponents(componentPackageMethod ==
-                               ONE_PACKAGE_PER_COMPONENT);
-    }
+    return PackageComponents(componentPackageMethod ==
+                             ONE_PACKAGE_PER_COMPONENT);
   }
   // CASE 3 : NON COMPONENT package.
-  else {
-    return PackageComponentsAllInOne("");
-  }
+  return PackageComponentsAllInOne("");
 }
 
 bool cmCPackRPMGenerator::SupportsComponentInstallation() const
 {
-  if (IsOn("CPACK_RPM_COMPONENT_INSTALL")) {
-    return true;
-  } else {
-    return false;
-  }
+  return IsOn("CPACK_RPM_COMPONENT_INSTALL");
 }
 
 std::string cmCPackRPMGenerator::GetComponentInstallDirNameSuffix(
@@ -249,9 +240,8 @@ std::string cmCPackRPMGenerator::GetComponentInstallDirNameSuffix(
   // the current COMPONENT belongs to.
   std::string groupVar =
     "CPACK_COMPONENT_" + cmSystemTools::UpperCase(componentName) + "_GROUP";
-  if (NULL != GetOption(groupVar)) {
+  if (CM_NULLPTR != GetOption(groupVar)) {
     return std::string(GetOption(groupVar));
-  } else {
-    return componentName;
   }
+  return componentName;
 }

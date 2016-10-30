@@ -1,17 +1,10 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmDefinitions.h"
 
 #include <assert.h>
+#include <set>
+#include <utility>
 
 cmDefinitions::Def cmDefinitions::NoDef;
 
@@ -41,7 +34,7 @@ const char* cmDefinitions::Get(const std::string& key, StackIter begin,
                                StackIter end)
 {
   Def const& def = cmDefinitions::GetInternal(key, begin, end, false);
-  return def.Exists ? def.c_str() : 0;
+  return def.Exists ? def.c_str() : CM_NULLPTR;
 }
 
 void cmDefinitions::Raise(const std::string& key, StackIter begin,

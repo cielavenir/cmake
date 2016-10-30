@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmOutputRequiredFilesCommand.h"
 
 #include "cmAlgorithms.h"
@@ -28,7 +19,7 @@ public:
    */
   cmDependInformation()
     : DependDone(false)
-    , SourceFile(0)
+    , SourceFile(CM_NULLPTR)
   {
   }
 
@@ -154,7 +145,7 @@ public:
    */
   const cmDependInformation* FindDependencies(const char* file)
   {
-    cmDependInformation* info = this->GetDependInformation(file, 0);
+    cmDependInformation* info = this->GetDependInformation(file, CM_NULLPTR);
     this->GenerateDependInformation(info);
     return info;
   }
@@ -203,7 +194,7 @@ protected:
             message += includeFile;
             message += " for file ";
             message += info->FullPath.c_str();
-            cmSystemTools::Error(message.c_str(), 0);
+            cmSystemTools::Error(message.c_str(), CM_NULLPTR);
           }
           continue;
         }
@@ -307,10 +298,10 @@ protected:
     // If dependencies are already done, stop now.
     if (info->DependDone) {
       return;
-    } else {
-      // Make sure we don't visit the same file more than once.
-      info->DependDone = true;
     }
+    // Make sure we don't visit the same file more than once.
+    info->DependDone = true;
+
     const char* path = info->FullPath.c_str();
     if (!path) {
       cmSystemTools::Error(
@@ -329,7 +320,7 @@ protected:
 
     // See if the cmSourceFile for it has any files specified as
     // dependency hints.
-    if (info->SourceFile != 0) {
+    if (info->SourceFile != CM_NULLPTR) {
 
       // Get the cmSourceFile corresponding to this.
       const cmSourceFile& cFile = *(info->SourceFile);
@@ -405,15 +396,14 @@ protected:
     if (result != this->DependInformationMap.end()) {
       // Found an instance, return it.
       return result->second;
-    } else {
-      // Didn't find an instance.  Create a new one and save it.
-      cmDependInformation* info = new cmDependInformation;
-      info->FullPath = fullPath;
-      info->PathOnly = cmSystemTools::GetFilenamePath(fullPath);
-      info->IncludeName = file;
-      this->DependInformationMap[fullPath] = info;
-      return info;
     }
+    // Didn't find an instance.  Create a new one and save it.
+    cmDependInformation* info = new cmDependInformation;
+    info->FullPath = fullPath;
+    info->PathOnly = cmSystemTools::GetFilenamePath(fullPath);
+    info->IncludeName = file;
+    this->DependInformationMap[fullPath] = info;
+    return info;
   }
 
   /**

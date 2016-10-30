@@ -1,22 +1,14 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
+#include "cmProcess.h"
 
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
-#include <cmProcess.h>
-
+#include <cmConfigure.h>
 #include <cmSystemTools.h>
+#include <iostream>
 
 cmProcess::cmProcess()
 {
-  this->Process = 0;
+  this->Process = CM_NULLPTR;
   this->Timeout = 0;
   this->TotalTime = 0;
   this->ExitValue = 0;
@@ -52,7 +44,7 @@ bool cmProcess::StartProcess()
        i != this->Arguments.end(); ++i) {
     this->ProcessArgs.push_back(i->c_str());
   }
-  this->ProcessArgs.push_back(0); // null terminate the list
+  this->ProcessArgs.push_back(CM_NULLPTR); // null terminate the list
   this->Process = cmsysProcess_New();
   cmsysProcess_SetCommand(this->Process, &*this->ProcessArgs.begin());
   if (!this->WorkingDirectory.empty()) {
@@ -124,10 +116,10 @@ int cmProcess::GetNextOutputLine(std::string& line, double timeout)
     int p = cmsysProcess_WaitForData(this->Process, &data, &length, &timeout);
     if (p == cmsysProcess_Pipe_Timeout) {
       return cmsysProcess_Pipe_Timeout;
-    } else if (p == cmsysProcess_Pipe_STDOUT) {
+    }
+    if (p == cmsysProcess_Pipe_STDOUT) {
       this->Output.insert(this->Output.end(), data, data + length);
-    } else // p == cmsysProcess_Pipe_None
-    {
+    } else { // p == cmsysProcess_Pipe_None
       // The process will provide no more data.
       break;
     }

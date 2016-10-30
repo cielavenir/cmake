@@ -1,28 +1,21 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCursesCacheEntryComposite.h"
 
-#include "../cmState.h"
-#include "../cmSystemTools.h"
-#include "../cmake.h"
 #include "cmCursesBoolWidget.h"
-#include "cmCursesDummyWidget.h"
 #include "cmCursesFilePathWidget.h"
 #include "cmCursesLabelWidget.h"
 #include "cmCursesOptionsWidget.h"
 #include "cmCursesPathWidget.h"
 #include "cmCursesStringWidget.h"
+#include "cmCursesWidget.h"
+#include "cmState.h"
+#include "cmSystemTools.h"
+#include "cmake.h"
 
 #include <assert.h>
+#include <cmConfigure.h>
+#include <vector>
 
 cmCursesCacheEntryComposite::cmCursesCacheEntryComposite(
   const std::string& key, int labelwidth, int entrywidth)
@@ -32,7 +25,7 @@ cmCursesCacheEntryComposite::cmCursesCacheEntryComposite(
 {
   this->Label = new cmCursesLabelWidget(this->LabelWidth, 1, 1, 1, key);
   this->IsNewLabel = new cmCursesLabelWidget(1, 1, 1, 1, " ");
-  this->Entry = 0;
+  this->Entry = CM_NULLPTR;
   this->Entry = new cmCursesStringWidget(this->EntryWidth, 1, 1, 1);
 }
 
@@ -50,7 +43,7 @@ cmCursesCacheEntryComposite::cmCursesCacheEntryComposite(
     this->IsNewLabel = new cmCursesLabelWidget(1, 1, 1, 1, " ");
   }
 
-  this->Entry = 0;
+  this->Entry = CM_NULLPTR;
   const char* value = cm->GetState()->GetCacheEntryValue(key);
   assert(value);
   switch (cm->GetState()->GetCacheEntryType(key)) {
@@ -110,7 +103,6 @@ const char* cmCursesCacheEntryComposite::GetValue()
 {
   if (this->Label) {
     return this->Label->GetValue();
-  } else {
-    return 0;
   }
+  return CM_NULLPTR;
 }

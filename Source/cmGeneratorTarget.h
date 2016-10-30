@@ -1,26 +1,28 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2012 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmGeneratorTarget_h
 #define cmGeneratorTarget_h
 
-#include "cmLinkItem.h"
+#include <cmConfigure.h>
 
+#include "cmLinkItem.h"
+#include "cmListFileCache.h"
+#include "cmPolicies.h"
+#include "cmState.h"
+
+#include <map>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
+class cmComputeLinkInformation;
 class cmCustomCommand;
 class cmGlobalGenerator;
 class cmLocalGenerator;
 class cmMakefile;
 class cmSourceFile;
 class cmTarget;
-class cmComputeLinkInformation;
 
 class cmGeneratorTarget
 {
@@ -215,7 +217,7 @@ public:
                                        bool contentOnly = true) const;
 
   /** @return the mac content directory for this target. */
-  std::string GetMacContentDirectory(const std::string& config = 0,
+  std::string GetMacContentDirectory(const std::string& config = CM_NULLPTR,
                                      bool implib = false) const;
 
   cmTarget* Target;
@@ -402,7 +404,7 @@ public:
   {
     SourceFileFlags()
       : Type(SourceFileTypeNormal)
-      , MacFolder(0)
+      , MacFolder(CM_NULLPTR)
     {
     }
     SourceFileFlags(SourceFileFlags const& r)
@@ -453,7 +455,7 @@ public:
   /** Convert the given GNU import library name (.dll.a) to a name with a new
       extension (.lib or ${CMAKE_IMPORT_LIBRARY_SUFFIX}).  */
   bool GetImplibGNUtoMS(std::string const& gnuName, std::string& out,
-                        const char* newExt = 0) const;
+                        const char* newExt = CM_NULLPTR) const;
 
   bool IsExecutableWithExports() const;
 
@@ -526,7 +528,16 @@ public:
   void GetTargetVersion(bool soversion, int& major, int& minor,
                         int& patch) const;
 
+  std::string GetFortranModuleDirectory(std::string const& working_dir) const;
+
 private:
+  void AddSourceCommon(const std::string& src);
+
+  std::string CreateFortranModuleDirectory(
+    std::string const& working_dir) const;
+  mutable bool FortranModuleDirectoryCreated;
+  mutable std::string FortranModuleDirectory;
+
   friend class cmTargetTraceDependencies;
   struct SourceEntry
   {

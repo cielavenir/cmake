@@ -1,25 +1,26 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmExportInstallFileGenerator.h"
 
 #include "cmAlgorithms.h"
 #include "cmExportSet.h"
 #include "cmExportSetMap.h"
 #include "cmGeneratedFileStream.h"
+#include "cmGeneratorExpression.h"
+#include "cmGeneratorTarget.h"
 #include "cmGlobalGenerator.h"
 #include "cmInstallExportGenerator.h"
 #include "cmInstallTargetGenerator.h"
 #include "cmLocalGenerator.h"
+#include "cmMakefile.h"
+#include "cmPolicies.h"
+#include "cmState.h"
+#include "cmSystemTools.h"
+#include "cmTarget.h"
 #include "cmTargetExport.h"
+
+#include <sstream>
+#include <utility>
 
 cmExportInstallFileGenerator::cmExportInstallFileGenerator(
   cmInstallExportGenerator* iegen)
@@ -65,55 +66,8 @@ bool cmExportInstallFileGenerator::GenerateMainFile(std::ostream& os)
     this->GenerateExpectedTargetsCode(os, expectedTargets);
   }
 
-  // Set an _IMPORT_PREFIX variable for import location properties
-  // to reference if they are relative to the install prefix.
-  std::string installPrefix =
-    this->IEGen->GetLocalGenerator()->GetMakefile()->GetSafeDefinition(
-      "CMAKE_INSTALL_PREFIX");
-  std::string const& expDest = this->IEGen->GetDestination();
-  if (cmSystemTools::FileIsFullPath(expDest)) {
-    // The export file is being installed to an absolute path so the
-    // package is not relocatable.  Use the configured install prefix.
-    /* clang-format off */
-    os <<
-      "# The installation prefix configured by this project.\n"
-      "set(_IMPORT_PREFIX \"" << installPrefix << "\")\n"
-      "\n";
-    /* clang-format on */
-  } else {
-    // Add code to compute the installation prefix relative to the
-    // import file location.
-    std::string absDest = installPrefix + "/" + expDest;
-    std::string absDestS = absDest + "/";
-    os << "# Compute the installation prefix relative to this file.\n"
-       << "get_filename_component(_IMPORT_PREFIX"
-       << " \"${CMAKE_CURRENT_LIST_FILE}\" PATH)\n";
-    if (cmHasLiteralPrefix(absDestS.c_str(), "/lib/") ||
-        cmHasLiteralPrefix(absDestS.c_str(), "/lib64/") ||
-        cmHasLiteralPrefix(absDestS.c_str(), "/usr/lib/") ||
-        cmHasLiteralPrefix(absDestS.c_str(), "/usr/lib64/")) {
-      // Handle "/usr move" symlinks created by some Linux distros.
-      /* clang-format off */
-      os <<
-        "# Use original install prefix when loaded through a\n"
-        "# cross-prefix symbolic link such as /lib -> /usr/lib.\n"
-        "get_filename_component(_realCurr \"${_IMPORT_PREFIX}\" REALPATH)\n"
-        "get_filename_component(_realOrig \"" << absDest << "\" REALPATH)\n"
-        "if(_realCurr STREQUAL _realOrig)\n"
-        "  set(_IMPORT_PREFIX \"" << absDest << "\")\n"
-        "endif()\n"
-        "unset(_realOrig)\n"
-        "unset(_realCurr)\n";
-      /* clang-format on */
-    }
-    std::string dest = expDest;
-    while (!dest.empty()) {
-      os << "get_filename_component(_IMPORT_PREFIX \"${_IMPORT_PREFIX}\" "
-            "PATH)\n";
-      dest = cmSystemTools::GetFilenamePath(dest);
-    }
-    os << "\n";
-  }
+  // Compute the relative import prefix for the file
+  this->GenerateImportPrefix(os);
 
   std::vector<std::string> missingTargets;
 
@@ -191,24 +145,9 @@ bool cmExportInstallFileGenerator::GenerateMainFile(std::ostream& os)
     this->GenerateRequiredCMakeVersion(os, "2.8.12");
   }
 
-  // Now load per-configuration properties for them.
-  /* clang-format off */
-  os << "# Load information for each installed configuration.\n"
-     << "get_filename_component(_DIR \"${CMAKE_CURRENT_LIST_FILE}\" PATH)\n"
-     << "file(GLOB CONFIG_FILES \"${_DIR}/"
-     << this->GetConfigImportFileGlob() << "\")\n"
-     << "foreach(f ${CONFIG_FILES})\n"
-     << "  include(${f})\n"
-     << "endforeach()\n"
-     << "\n";
-  /* clang-format on */
+  this->LoadConfigFiles(os);
 
-  // Cleanup the import prefix variable.
-  /* clang-format off */
-  os << "# Cleanup temporary variables.\n"
-     << "set(_IMPORT_PREFIX)\n"
-     << "\n";
-  /* clang-format on */
+  this->CleanupTemporaryVariables(os);
   this->GenerateImportedFileCheckLoop(os);
 
   bool result = true;
@@ -227,6 +166,86 @@ bool cmExportInstallFileGenerator::GenerateMainFile(std::ostream& os)
   this->GenerateMissingTargetsCheckCode(os, missingTargets);
 
   return result;
+}
+
+void cmExportInstallFileGenerator::GenerateImportPrefix(std::ostream& os)
+{
+  // Set an _IMPORT_PREFIX variable for import location properties
+  // to reference if they are relative to the install prefix.
+  std::string installPrefix =
+    this->IEGen->GetLocalGenerator()->GetMakefile()->GetSafeDefinition(
+      "CMAKE_INSTALL_PREFIX");
+  std::string const& expDest = this->IEGen->GetDestination();
+  if (cmSystemTools::FileIsFullPath(expDest)) {
+    // The export file is being installed to an absolute path so the
+    // package is not relocatable.  Use the configured install prefix.
+    /* clang-format off */
+    os <<
+      "# The installation prefix configured by this project.\n"
+      "set(_IMPORT_PREFIX \"" << installPrefix << "\")\n"
+      "\n";
+    /* clang-format on */
+  } else {
+    // Add code to compute the installation prefix relative to the
+    // import file location.
+    std::string absDest = installPrefix + "/" + expDest;
+    std::string absDestS = absDest + "/";
+    os << "# Compute the installation prefix relative to this file.\n"
+       << "get_filename_component(_IMPORT_PREFIX"
+       << " \"${CMAKE_CURRENT_LIST_FILE}\" PATH)\n";
+    if (cmHasLiteralPrefix(absDestS.c_str(), "/lib/") ||
+        cmHasLiteralPrefix(absDestS.c_str(), "/lib64/") ||
+        cmHasLiteralPrefix(absDestS.c_str(), "/usr/lib/") ||
+        cmHasLiteralPrefix(absDestS.c_str(), "/usr/lib64/")) {
+      // Handle "/usr move" symlinks created by some Linux distros.
+      /* clang-format off */
+      os <<
+        "# Use original install prefix when loaded through a\n"
+        "# cross-prefix symbolic link such as /lib -> /usr/lib.\n"
+        "get_filename_component(_realCurr \"${_IMPORT_PREFIX}\" REALPATH)\n"
+        "get_filename_component(_realOrig \"" << absDest << "\" REALPATH)\n"
+        "if(_realCurr STREQUAL _realOrig)\n"
+        "  set(_IMPORT_PREFIX \"" << absDest << "\")\n"
+        "endif()\n"
+        "unset(_realOrig)\n"
+        "unset(_realCurr)\n";
+      /* clang-format on */
+    }
+    std::string dest = expDest;
+    while (!dest.empty()) {
+      os << "get_filename_component(_IMPORT_PREFIX \"${_IMPORT_PREFIX}\" "
+            "PATH)\n";
+      dest = cmSystemTools::GetFilenamePath(dest);
+    }
+    os << "if(_IMPORT_PREFIX STREQUAL \"/\")\n"
+       << "  set(_IMPORT_PREFIX \"\")\n"
+       << "endif()\n"
+       << "\n";
+  }
+}
+
+void cmExportInstallFileGenerator::CleanupTemporaryVariables(std::ostream& os)
+{
+  /* clang-format off */
+  os << "# Cleanup temporary variables.\n"
+     << "set(_IMPORT_PREFIX)\n"
+     << "\n";
+  /* clang-format on */
+}
+
+void cmExportInstallFileGenerator::LoadConfigFiles(std::ostream& os)
+{
+  // Now load per-configuration properties for them.
+  /* clang-format off */
+  os << "# Load information for each installed configuration.\n"
+     << "get_filename_component(_DIR \"${CMAKE_CURRENT_LIST_FILE}\" PATH)\n"
+     << "file(GLOB CONFIG_FILES \"${_DIR}/"
+     << this->GetConfigImportFileGlob() << "\")\n"
+     << "foreach(f ${CONFIG_FILES})\n"
+     << "  include(${f})\n"
+     << "endforeach()\n"
+     << "\n";
+  /* clang-format on */
 }
 
 void cmExportInstallFileGenerator::ReplaceInstallPrefix(std::string& input)
@@ -468,7 +487,7 @@ void cmExportInstallFileGenerator::ComplainAboutMissingTarget(
 }
 
 std::string cmExportInstallFileGenerator::InstallNameDir(
-  cmGeneratorTarget* target, const std::string&)
+  cmGeneratorTarget* target, const std::string& /*config*/)
 {
   std::string install_name_dir;
 

@@ -1,30 +1,29 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmLocalGenerator_h
 #define cmLocalGenerator_h
 
-#include "cmStandardIncludes.h"
+#include <cmConfigure.h>
 
+#include "cmListFileCache.h"
 #include "cmOutputConverter.h"
+#include "cmPolicies.h"
 #include "cmState.h"
 #include "cmake.h"
 
-class cmMakefile;
-class cmGlobalGenerator;
-class cmGeneratorTarget;
-class cmTargetManifest;
-class cmSourceFile;
-class cmCustomCommand;
+#include <cm_kwiml.h>
+#include <iosfwd>
+#include <map>
+#include <set>
+#include <string.h>
+#include <string>
+#include <vector>
+
 class cmCustomCommandGenerator;
+class cmGeneratorTarget;
+class cmGlobalGenerator;
+class cmMakefile;
+class cmSourceFile;
 
 /** \class cmLocalGenerator
  * \brief Create required build files for a directory.
@@ -138,13 +137,15 @@ public:
    * Encode a list of preprocessor definitions for the compiler
    * command line.
    */
-  void AppendDefines(std::set<std::string>& defines, const char* defines_list);
-  void AppendDefines(std::set<std::string>& defines, std::string defines_list)
+  void AppendDefines(std::set<std::string>& defines,
+                     const char* defines_list) const;
+  void AppendDefines(std::set<std::string>& defines,
+                     std::string defines_list) const
   {
     this->AppendDefines(defines, defines_list.c_str());
   }
   void AppendDefines(std::set<std::string>& defines,
-                     const std::vector<std::string>& defines_vec);
+                     const std::vector<std::string>& defines_vec) const;
 
   /**
    * Join a set of defines into a definesString with a space separator.
@@ -200,7 +201,7 @@ public:
   void AddCompileDefinitions(std::set<std::string>& defines,
                              cmGeneratorTarget const* target,
                              const std::string& config,
-                             const std::string& lang);
+                             const std::string& lang) const;
 
   std::string GetProjectName() const;
 
@@ -298,9 +299,9 @@ public:
   std::string ConstructComment(cmCustomCommandGenerator const& ccg,
                                const char* default_comment = "");
   // Compute object file names.
-  std::string GetObjectFileNameWithoutTarget(const cmSourceFile& source,
-                                             std::string const& dir_max,
-                                             bool* hasSourceExtension = 0);
+  std::string GetObjectFileNameWithoutTarget(
+    const cmSourceFile& source, std::string const& dir_max,
+    bool* hasSourceExtension = CM_NULLPTR);
 
   /** Fill out the static linker flags for the given target.  */
   void GetStaticLibraryFlags(std::string& flags, std::string const& config,
@@ -308,14 +309,26 @@ public:
 
   /** Fill out these strings for the given target.  Libraries to link,
    *  flags, and linkflags. */
-  void GetTargetFlags(std::string& linkLibs, std::string& flags,
-                      std::string& linkFlags, std::string& frameworkPath,
-                      std::string& linkPath, cmGeneratorTarget* target,
-                      bool useWatcomQuote);
+  void GetTargetFlags(const std::string& config, std::string& linkLibs,
+                      std::string& flags, std::string& linkFlags,
+                      std::string& frameworkPath, std::string& linkPath,
+                      cmGeneratorTarget* target, bool useWatcomQuote);
+  void GetTargetDefines(cmGeneratorTarget const* target,
+                        std::string const& config, std::string const& lang,
+                        std::set<std::string>& defines) const;
+  void GetTargetCompileFlags(cmGeneratorTarget* target,
+                             std::string const& config,
+                             std::string const& lang, std::string& flags);
+
+  std::string GetFrameworkFlags(std::string const& l,
+                                std::string const& config,
+                                cmGeneratorTarget* target);
+  virtual std::string GetTargetFortranFlags(cmGeneratorTarget const* target,
+                                            std::string const& config);
 
   virtual void ComputeObjectFilenames(
     std::map<cmSourceFile const*, std::string>& mapping,
-    cmGeneratorTarget const* gt = 0);
+    cmGeneratorTarget const* gt = CM_NULLPTR);
 
   bool IsWindowsShell() const;
   bool IsWatcomWMake() const;
@@ -364,6 +377,7 @@ protected:
 
   cmMakefile* Makefile;
   cmState::Snapshot StateSnapshot;
+  cmListFileBacktrace DirectoryBacktrace;
   cmGlobalGenerator* GlobalGenerator;
   std::map<std::string, std::string> UniqueObjectNamesMap;
   std::string::size_type ObjectPathMax;

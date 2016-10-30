@@ -1,14 +1,5 @@
-#=============================================================================
-# CMake - Cross Platform Makefile Generator
-# Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
 # If the cmake version includes cpack, use it
 if(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
@@ -70,6 +61,9 @@ if(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
   # Components
   if(CMake_INSTALL_COMPONENTS)
     set(_CPACK_IFW_COMPONENTS_ALL cmake ctest cpack)
+    if(WIN32 AND NOT CYGWIN)
+        list(APPEND _CPACK_IFW_COMPONENTS_ALL cmcldeps)
+    endif()
     if(APPLE)
       list(APPEND _CPACK_IFW_COMPONENTS_ALL cmakexbuild)
     endif()
@@ -87,8 +81,10 @@ if(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
     endif()
     if(BUILD_QtDialog)
       list(APPEND _CPACK_IFW_COMPONENTS_ALL cmake-gui)
-      set(_CPACK_IFW_COMPONENT_CMAKE-GUI_LICENSES "set(CPACK_IFW_COMPONENT_CMAKE-GUI_LICENSES
-    \"LGPLv2.1\" \"${CMake_SOURCE_DIR}/Licenses/LGPLv2.1.txt\")")
+      if(USE_LGPL)
+        set(_CPACK_IFW_COMPONENT_CMAKE-GUI_LICENSES "set(CPACK_IFW_COMPONENT_CMAKE-GUI_LICENSES
+    \"LGPLv${USE_LGPL}\" \"${CMake_SOURCE_DIR}/Licenses/LGPLv${USE_LGPL}.txt\")")
+      endif()
     endif()
     if(SPHINX_MAN)
       list(APPEND _CPACK_IFW_COMPONENTS_ALL sphinx-man)
@@ -102,22 +98,31 @@ if(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
     if(SPHINX_QTHELP)
       list(APPEND _CPACK_IFW_COMPONENTS_ALL sphinx-qthelp)
     endif()
+    if(CMake_BUILD_DEVELOPER_REFERENCE)
+      if(CMake_BUILD_DEVELOPER_REFERENCE_HTML)
+        list(APPEND _CPACK_IFW_COMPONENTS_ALL cmake-developer-reference-html)
+      endif()
+      if(CMake_BUILD_DEVELOPER_REFERENCE_QTHELP)
+        list(APPEND _CPACK_IFW_COMPONENTS_ALL cmake-developer-reference-qthelp)
+      endif()
+    endif()
     set(_CPACK_IFW_COMPONENTS_CONFIGURATION "
   # Components
   set(CPACK_COMPONENTS_ALL \"${_CPACK_IFW_COMPONENTS_ALL}\")
   set(CPACK_COMPONENTS_GROUPING IGNORE)
 ")
   else()
-    if(BUILD_QtDialog AND CMake_GUI_DISTRIBUTE_WITH_Qt_LGPL)
+    if(BUILD_QtDialog AND USE_LGPL)
       set(_CPACK_IFW_ADDITIONAL_LICENSES
-        "\"LGPLv2.1\" \"${CMake_SOURCE_DIR}/Licenses/LGPLv2.1.txt\"")
+        "\"LGPLv${USE_LGPL}\" \"${CMake_SOURCE_DIR}/Licenses/LGPLv${USE_LGPL}.txt\"")
     endif()
   endif()
 
   # Components scripts configuration
   foreach(_script
     CMake
-    CMake.Documentation.SphinxHTML)
+    CMake.Documentation.SphinxHTML
+    CMake.DeveloperReference.HTML)
     configure_file("${CMake_SOURCE_DIR}/Source/QtIFW/${_script}.qs.in"
       "${CMake_BINARY_DIR}/${_script}.qs" @ONLY)
   endforeach()
@@ -130,6 +135,11 @@ if(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
     endif()
     if(SPHINX_HTML)
       set(_CPACK_IFW_SHORTCUT_OPTIONAL "${_CPACK_IFW_SHORTCUT_OPTIONAL}component.addOperation(\"CreateShortcut\", \"@TargetDir@/doc/cmake-${CMake_VERSION_MAJOR}.${CMake_VERSION_MINOR}/html/index.html\", \"@StartMenuDir@/CMake Documentation.lnk\");\n")
+    endif()
+    if(CMake_BUILD_DEVELOPER_REFERENCE)
+      if(CMake_BUILD_DEVELOPER_REFERENCE_HTML)
+      set(_CPACK_IFW_SHORTCUT_OPTIONAL "${_CPACK_IFW_SHORTCUT_OPTIONAL}component.addOperation(\"CreateShortcut\", \"@TargetDir@/doc/cmake-${CMake_VERSION_MAJOR}.${CMake_VERSION_MINOR}/developer-reference/html/index.html\", \"@StartMenuDir@/CMake Developer Reference.lnk\");\n")
+      endif()
     endif()
     configure_file("${CMake_SOURCE_DIR}/Source/QtIFW/installscript.qs.in"
       "${CMake_BINARY_DIR}/installscript.qs" @ONLY
@@ -166,34 +176,9 @@ if(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
   set(CPACK_PACKAGE_CONTACT "cmake@cmake.org")
 
   if(UNIX)
-    set(CPACK_STRIP_FILES "bin/ccmake;bin/cmake;bin/cpack;bin/ctest")
+    set(CPACK_STRIP_FILES "${CMAKE_BIN_DIR}/ccmake;${CMAKE_BIN_DIR}/cmake;${CMAKE_BIN_DIR}/cpack;${CMAKE_BIN_DIR}/ctest")
     set(CPACK_SOURCE_STRIP_FILES "")
     set(CPACK_PACKAGE_EXECUTABLES "ccmake" "CMake")
-  endif()
-
-  # cygwin specific packaging stuff
-  if(CYGWIN)
-    # setup the cygwin package name
-    set(CPACK_PACKAGE_NAME cmake)
-    # setup the name of the package for cygwin cmake-2.4.3
-    set(CPACK_PACKAGE_FILE_NAME
-      "${CPACK_PACKAGE_NAME}-${CMake_VERSION}")
-    # the source has the same name as the binary
-    set(CPACK_SOURCE_PACKAGE_FILE_NAME ${CPACK_PACKAGE_FILE_NAME})
-    # Create a cygwin version number in case there are changes for cygwin
-    # that are not reflected upstream in CMake
-    set(CPACK_CYGWIN_PATCH_NUMBER 1 CACHE STRING "patch number for CMake cygwin packages")
-    mark_as_advanced(CPACK_CYGWIN_PATCH_NUMBER)
-    # These files are required by the cmCPackCygwinSourceGenerator and the files
-    # put into the release tar files.
-    set(CPACK_CYGWIN_BUILD_SCRIPT
-      "${CMake_BINARY_DIR}/${CPACK_PACKAGE_FILE_NAME}-${CPACK_CYGWIN_PATCH_NUMBER}.sh")
-    set(CPACK_CYGWIN_PATCH_FILE
-      "${CMake_BINARY_DIR}/${CPACK_PACKAGE_FILE_NAME}-${CPACK_CYGWIN_PATCH_NUMBER}.patch")
-    # include the sub directory cmake file for cygwin that
-    # configures some files and adds some install targets
-    # this file uses some of the package file name variables
-    include(Utilities/Release/Cygwin/CMakeLists.txt)
   endif()
 
   set(CPACK_WIX_UPGRADE_GUID "8ffd1d72-b7f1-11e2-8ee5-00238bca4991")

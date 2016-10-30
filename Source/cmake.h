@@ -1,36 +1,31 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmake_h
 #define cmake_h
 
-#include "cmStandardIncludes.h"
+#include <cmConfigure.h>
 
-#include "cmCacheManager.h"
 #include "cmInstalledFile.h"
 #include "cmListFileCache.h"
 #include "cmState.h"
-#include "cmSystemTools.h"
 
-class cmGlobalGeneratorFactory;
-class cmGlobalGenerator;
-class cmLocalGenerator;
-class cmMakefile;
-class cmVariableWatch;
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
+#if defined(CMAKE_BUILD_WITH_CMAKE)
+#include "cm_jsoncpp_value.h"
+#endif
+
+class cmExternalMakefileProjectGeneratorFactory;
 class cmFileTimeComparison;
-class cmExternalMakefileProjectGenerator;
-class cmDocumentationSection;
-class cmTarget;
-class cmGeneratedFileStream;
+class cmGlobalGenerator;
+class cmGlobalGeneratorFactory;
+class cmMakefile;
+class cmMessenger;
+class cmVariableWatch;
+struct cmDocumentationEntry;
 
 /** \brief Represents a cmake invocation.
  *
@@ -103,7 +98,11 @@ public:
   struct GeneratorInfo
   {
     std::string name;
+    std::string baseName;
+    std::string extraName;
     bool supportsToolset;
+    bool supportsPlatform;
+    bool isAlias;
   };
 
   typedef std::map<std::string, cmInstalledFile> InstalledFilesMap;
@@ -112,6 +111,11 @@ public:
   cmake();
   /// Destructor
   ~cmake();
+
+#if defined(CMAKE_BUILD_WITH_CMAKE)
+  Json::Value ReportCapabilitiesJson(bool haveServerMode) const;
+#endif
+  std::string ReportCapabilities(bool haveServerMode) const;
 
   static const char* GetCMakeFilesDirectory() { return "/CMakeFiles"; }
   static const char* GetCMakeFilesDirectoryPostSlash()
@@ -179,11 +183,14 @@ public:
     return this->GlobalGenerator;
   }
 
+  ///! Return the full path to where the CMakeCache.txt file should be.
+  static std::string FindCacheFile(const std::string& binaryDir);
+
   ///! Return the global generator assigned to this instance of cmake
   void SetGlobalGenerator(cmGlobalGenerator*);
 
   ///! Get the names of the current registered generators
-  void GetRegisteredGenerators(std::vector<GeneratorInfo>& generators);
+  void GetRegisteredGenerators(std::vector<GeneratorInfo>& generators) const;
 
   ///! Set the name of the selected generator-specific platform.
   void SetGeneratorPlatform(std::string const& ts)
@@ -208,9 +215,6 @@ public:
   {
     return this->GeneratorToolset;
   }
-
-  ///! get the cmCachemManager used by this invocation of cmake
-  cmCacheManager* GetCacheManager() { return this->CacheManager; }
 
   const std::vector<std::string>& GetSourceExtensions() const
   {
@@ -253,7 +257,8 @@ public:
    *  number provided may be negative in cases where a message is
    *  to be displayed without any progress percentage.
    */
-  void SetProgressCallback(ProgressCallbackType f, void* clientData = 0);
+  void SetProgressCallback(ProgressCallbackType f,
+                           void* clientData = CM_NULLPTR);
 
   ///! this is called by generators to update the progress
   void UpdateProgress(const char* msg, float prog);
@@ -310,6 +315,14 @@ public:
   void SetTrace(bool b) { this->Trace = b; }
   bool GetTraceExpand() { return this->TraceExpand; }
   void SetTraceExpand(bool b) { this->TraceExpand = b; }
+  void AddTraceSource(std::string const& file)
+  {
+    this->TraceOnlyThisSources.push_back(file);
+  }
+  std::vector<std::string> const& GetTraceSources() const
+  {
+    return this->TraceOnlyThisSources;
+  }
   bool GetWarnUninitialized() { return this->WarnUninitialized; }
   void SetWarnUninitialized(bool b) { this->WarnUninitialized = b; }
   bool GetWarnUnused() { return this->WarnUnused; }
@@ -334,12 +347,14 @@ public:
     return this->CMakeEditCommand;
   }
 
+  cmMessenger* GetMessenger() const;
+
   /*
    * Get the state of the suppression of developer (author) warnings.
    * Returns false, by default, if developer warnings should be shown, true
    * otherwise.
    */
-  bool GetSuppressDevWarnings(cmMakefile const* mf = NULL);
+  bool GetSuppressDevWarnings() const;
   /*
    * Set the state of the suppression of developer (author) warnings.
    */
@@ -350,7 +365,7 @@ public:
    * Returns false, by default, if deprecated warnings should be shown, true
    * otherwise.
    */
-  bool GetSuppressDeprecatedWarnings(cmMakefile const* mf = NULL);
+  bool GetSuppressDeprecatedWarnings() const;
   /*
    * Set the state of the suppression of deprecated warnings.
    */
@@ -361,7 +376,7 @@ public:
    * Returns false, by default, if warnings should not be treated as errors,
    * true otherwise.
    */
-  bool GetDevWarningsAsErrors(cmMakefile const* mf = NULL);
+  bool GetDevWarningsAsErrors() const;
   /**
    * Set the state of treating developer (author) warnings as errors.
    */
@@ -372,7 +387,7 @@ public:
    * Returns false, by default, if warnings should not be treated as errors,
    * true otherwise.
    */
-  bool GetDeprecatedWarningsAsErrors(cmMakefile const* mf = NULL);
+  bool GetDeprecatedWarningsAsErrors() const;
   /**
    * Set the state of treating developer (author) warnings as errors.
    */
@@ -381,8 +396,7 @@ public:
   /** Display a message to the user.  */
   void IssueMessage(
     cmake::MessageType t, std::string const& text,
-    cmListFileBacktrace const& backtrace = cmListFileBacktrace(),
-    bool force = false);
+    cmListFileBacktrace const& backtrace = cmListFileBacktrace()) const;
 
   ///! run the --build option
   int Build(const std::string& dir, const std::string& target,
@@ -407,21 +421,16 @@ protected:
   void InitializeProperties();
   int HandleDeleteCacheVariables(const std::string& var);
 
-  typedef cmExternalMakefileProjectGenerator* (
-    *CreateExtraGeneratorFunctionType)();
-  typedef std::map<std::string, CreateExtraGeneratorFunctionType>
-    RegisteredExtraGeneratorsMap;
   typedef std::vector<cmGlobalGeneratorFactory*> RegisteredGeneratorsVector;
   RegisteredGeneratorsVector Generators;
-  RegisteredExtraGeneratorsMap ExtraGenerators;
+  typedef std::vector<cmExternalMakefileProjectGeneratorFactory*>
+    RegisteredExtraGeneratorsVector;
+  RegisteredExtraGeneratorsVector ExtraGenerators;
   void AddDefaultCommands();
   void AddDefaultGenerators();
   void AddDefaultExtraGenerators();
-  void AddExtraGenerator(const std::string& name,
-                         CreateExtraGeneratorFunctionType newFunction);
 
   cmGlobalGenerator* GlobalGenerator;
-  cmCacheManager* CacheManager;
   std::map<std::string, DiagLevel> DiagLevels;
   std::string GeneratorPlatform;
   std::string GeneratorToolset;
@@ -455,7 +464,6 @@ private:
   void operator=(const cmake&); // Not implemented.
   ProgressCallbackType ProgressCallback;
   void* ProgressCallbackClientData;
-  bool Verbose;
   bool InTryCompile;
   WorkingMode CurrentWorkingMode;
   bool DebugOutput;
@@ -483,6 +491,9 @@ private:
 
   cmState* State;
   cmState::Snapshot CurrentSnapshot;
+  cmMessenger* Messenger;
+
+  std::vector<std::string> TraceOnlyThisSources;
 
   void UpdateConversionPathTable();
 
@@ -493,15 +504,13 @@ private:
    * Convert a message type between a warning and an error, based on the state
    * of the error output CMake variables, in the cache.
    */
-  cmake::MessageType ConvertMessageType(cmake::MessageType t);
+  cmake::MessageType ConvertMessageType(cmake::MessageType t) const;
 
   /*
    * Check if messages of this type should be output, based on the state of the
    * warning and error output CMake variables, in the cache.
    */
-  bool IsMessageTypeVisible(cmake::MessageType t);
-
-  bool PrintMessagePreamble(cmake::MessageType t, std::ostream& msg);
+  bool IsMessageTypeVisible(cmake::MessageType t) const;
 };
 
 #define CMAKE_STANDARD_OPTIONS_TABLE                                          \

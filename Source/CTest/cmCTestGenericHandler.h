@@ -1,26 +1,22 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCTestGenericHandler_h
 #define cmCTestGenericHandler_h
 
-#include "cmObject.h"
+#include <cmConfigure.h>
 
 #include "cmCTest.h"
-#include "cmSystemTools.h" //OutputOption
+#include "cmObject.h"
+#include "cmSystemTools.h"
 
-class cmMakefile;
+#include <map>
+#include <stddef.h>
+#include <string>
+#include <vector>
+
 class cmCTestCommand;
 class cmGeneratedFileStream;
+class cmMakefile;
 
 /** \class cmCTestGenericHandler
  * \brief A superclass of all CTest Handlers
@@ -74,7 +70,7 @@ public:
    * Construct handler
    */
   cmCTestGenericHandler();
-  virtual ~cmCTestGenericHandler();
+  ~cmCTestGenericHandler() CM_OVERRIDE;
 
   typedef std::map<std::string, std::string> t_StringToString;
 

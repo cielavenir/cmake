@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmIfCommand.h"
 
 #include "cmOutputConverter.h"
@@ -46,8 +37,7 @@ bool cmIfFunctionBlocker::IsFunctionBlocked(const cmListFileFunction& lff,
     // if this is the endif for this if statement, then start executing
     if (!this->ScopeDepth) {
       // Remove the function blocker for this scope or bail.
-      cmsys::auto_ptr<cmFunctionBlocker> fb(
-        mf.RemoveFunctionBlocker(this, lff));
+      CM_AUTO_PTR<cmFunctionBlocker> fb(mf.RemoveFunctionBlocker(this, lff));
       if (!fb.get()) {
         return false;
       }
@@ -185,15 +175,14 @@ bool cmIfCommand::InvokeInitialPass(
     conditionEvaluator.IsTrue(expandedArguments, errorString, status);
 
   if (!errorString.empty()) {
-    std::string err = cmIfCommandError(expandedArguments);
+    std::string err = "if " + cmIfCommandError(expandedArguments);
     err += errorString;
     if (status == cmake::FATAL_ERROR) {
-      this->SetError(err);
+      this->Makefile->IssueMessage(cmake::FATAL_ERROR, err);
       cmSystemTools::SetFatalErrorOccured();
-      return false;
-    } else {
-      this->Makefile->IssueMessage(status, err);
+      return true;
     }
+    this->Makefile->IssueMessage(status, err);
   }
 
   cmIfFunctionBlocker* f = new cmIfFunctionBlocker();

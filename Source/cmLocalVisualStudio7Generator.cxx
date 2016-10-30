@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmLocalVisualStudio7Generator.h"
 
 #include "cmCustomCommandGenerator.h"
@@ -269,8 +260,8 @@ cmSourceFile* cmLocalVisualStudio7Generator::CreateVCProjBuildRule()
   args += this->GetBinaryDirectory();
   commandLine.push_back(args);
   commandLine.push_back("--check-stamp-file");
-  std::string stampFilename = this->Convert(
-    stampName.c_str(), cmOutputConverter::FULL, cmOutputConverter::SHELL);
+  std::string stampFilename = this->ConvertToOutputFormat(
+    cmSystemTools::CollapseFullPath(stampName), cmOutputConverter::SHELL);
   commandLine.push_back(stampFilename.c_str());
 
   std::vector<std::string> const& listFiles = this->Makefile->GetListFiles();
@@ -278,8 +269,8 @@ cmSourceFile* cmLocalVisualStudio7Generator::CreateVCProjBuildRule()
   cmCustomCommandLines commandLines;
   commandLines.push_back(commandLine);
   const char* no_working_directory = 0;
-  std::string fullpathStampName = this->Convert(
-    stampName.c_str(), cmOutputConverter::FULL, cmOutputConverter::UNCHANGED);
+  std::string fullpathStampName =
+    cmSystemTools::CollapseFullPath(stampName.c_str());
   this->Makefile->AddCustomCommandToOutput(
     fullpathStampName.c_str(), listFiles, makefileIn.c_str(), commandLines,
     comment.c_str(), no_working_directory, true);
@@ -683,7 +674,8 @@ void cmLocalVisualStudio7Generator::WriteConfiguration(
   }
 
   if (this->FortranProject) {
-    switch (this->GetFortranFormat(target->GetProperty("Fortran_FORMAT"))) {
+    switch (cmOutputConverter::GetFortranFormat(
+      target->GetProperty("Fortran_FORMAT"))) {
       case cmOutputConverter::FortranFormatFixed:
         flags += " -fixed";
         break;
@@ -787,8 +779,8 @@ void cmLocalVisualStudio7Generator::WriteConfiguration(
       target->GetProperty("Fortran_MODULE_DIRECTORY");
     std::string modDir;
     if (target_mod_dir) {
-      modDir = this->Convert(target_mod_dir, cmOutputConverter::START_OUTPUT,
-                             cmOutputConverter::UNCHANGED);
+      modDir = this->ConvertToRelativePath(this->GetCurrentBinaryDirectory(),
+                                           target_mod_dir);
     } else {
       modDir = ".";
     }
@@ -1012,7 +1004,8 @@ void cmLocalVisualStudio7Generator::OutputBuildTool(
     linkOptions.AddFlag("ModuleDefinitionFile", defFile.c_str());
   }
 
-  if (target->GetType() == cmState::SHARED_LIBRARY &&
+  if ((target->GetType() == cmState::SHARED_LIBRARY ||
+       target->IsExecutableWithExports()) &&
       this->Makefile->IsOn("CMAKE_SUPPORT_WINDOWS_EXPORT_ALL_SYMBOLS")) {
     if (target->GetPropertyAsBool("WINDOWS_EXPORT_ALL_SYMBOLS")) {
       linkOptions.AddFlag("ModuleDefinitionFile", "$(IntDir)/exportall.def");
@@ -1296,11 +1289,11 @@ void cmLocalVisualStudio7GeneratorInternals::OutputLibraries(
   std::ostream& fout, ItemVector const& libs)
 {
   cmLocalVisualStudio7Generator* lg = this->LocalGenerator;
+  std::string currentBinDir = lg->GetCurrentBinaryDirectory();
   for (ItemVector::const_iterator l = libs.begin(); l != libs.end(); ++l) {
     if (l->IsPath) {
       std::string rel =
-        lg->Convert(l->Value.c_str(), cmOutputConverter::START_OUTPUT,
-                    cmOutputConverter::UNCHANGED);
+        lg->ConvertToRelativePath(currentBinDir, l->Value.c_str());
       fout << lg->ConvertToXMLOutputPath(rel.c_str()) << " ";
     } else if (!l->Target ||
                l->Target->GetType() != cmState::INTERFACE_LIBRARY) {
@@ -1315,13 +1308,13 @@ void cmLocalVisualStudio7GeneratorInternals::OutputObjects(
   // VS < 8 does not support per-config source locations so we
   // list object library content on the link line instead.
   cmLocalVisualStudio7Generator* lg = this->LocalGenerator;
+  std::string currentBinDir = lg->GetCurrentBinaryDirectory();
   std::vector<std::string> objs;
   gt->UseObjectLibraries(objs, "");
   const char* sep = isep ? isep : "";
   for (std::vector<std::string>::const_iterator oi = objs.begin();
        oi != objs.end(); ++oi) {
-    std::string rel = lg->Convert(oi->c_str(), cmOutputConverter::START_OUTPUT,
-                                  cmOutputConverter::UNCHANGED);
+    std::string rel = lg->ConvertToRelativePath(currentBinDir, oi->c_str());
     fout << sep << lg->ConvertToXMLOutputPath(rel.c_str());
     sep = " ";
   }
@@ -1331,6 +1324,7 @@ void cmLocalVisualStudio7Generator::OutputLibraryDirectories(
   std::ostream& fout, std::vector<std::string> const& dirs)
 {
   const char* comma = "";
+  std::string currentBinDir = this->GetCurrentBinaryDirectory();
   for (std::vector<std::string>::const_iterator d = dirs.begin();
        d != dirs.end(); ++d) {
     // Remove any trailing slash and skip empty paths.
@@ -1345,8 +1339,7 @@ void cmLocalVisualStudio7Generator::OutputLibraryDirectories(
     // Switch to a relative path specification if it is shorter.
     if (cmSystemTools::FileIsFullPath(dir.c_str())) {
       std::string rel =
-        this->Convert(dir.c_str(), cmOutputConverter::START_OUTPUT,
-                      cmOutputConverter::UNCHANGED);
+        this->ConvertToRelativePath(currentBinDir, dir.c_str());
       if (rel.size() < dir.size()) {
         dir = rel;
       }
@@ -1474,7 +1467,8 @@ cmLocalVisualStudio7GeneratorFCInfo::cmLocalVisualStudio7GeneratorFCInfo(
       needfc = true;
     }
     if (lg->FortranProject) {
-      switch (lg->GetFortranFormat(sf.GetProperty("Fortran_FORMAT"))) {
+      switch (cmOutputConverter::GetFortranFormat(
+        sf.GetProperty("Fortran_FORMAT"))) {
         case cmOutputConverter::FortranFormatFixed:
           fc.CompileFlags = "-fixed " + fc.CompileFlags;
           needfc = true;
@@ -1686,12 +1680,12 @@ bool cmLocalVisualStudio7Generator::WriteGroup(
                                                       ppLang);
           }
           if (!fc.AdditionalDeps.empty()) {
-            fout << "\t\t\t\t\tAdditionalDependencies=\""
-                 << fc.AdditionalDeps.c_str() << "\"\n";
+            fout << "\t\t\t\t\tAdditionalDependencies=\"" << fc.AdditionalDeps
+                 << "\"\n";
           }
           if (!fc.ObjectName.empty()) {
-            fout << "\t\t\t\t\tObjectFile=\"$(IntDir)/"
-                 << fc.ObjectName.c_str() << "\"\n";
+            fout << "\t\t\t\t\tObjectFile=\"$(IntDir)/" << fc.ObjectName
+                 << "\"\n";
           }
           fout << "\t\t\t\t\t/>\n"
                << "\t\t\t\t</FileConfiguration>\n";
@@ -1834,7 +1828,8 @@ void cmLocalVisualStudio7Generator::OutputTargetRules(
   tool = this->FortranProject ? "VFPreLinkEventTool" : "VCPreLinkEventTool";
   event.Start(tool);
   bool addedPrelink = false;
-  if (target->GetType() == cmState::SHARED_LIBRARY &&
+  if ((target->GetType() == cmState::SHARED_LIBRARY ||
+       target->IsExecutableWithExports()) &&
       this->Makefile->IsOn("CMAKE_SUPPORT_WINDOWS_EXPORT_ALL_SYMBOLS")) {
     if (target->GetPropertyAsBool("WINDOWS_EXPORT_ALL_SYMBOLS")) {
       addedPrelink = true;
@@ -1848,7 +1843,7 @@ void cmLocalVisualStudio7Generator::OutputTargetRules(
   if (!addedPrelink) {
     event.Write(target->GetPreLinkCommands());
   }
-  cmsys::auto_ptr<cmCustomCommand> pcc(
+  CM_AUTO_PTR<cmCustomCommand> pcc(
     this->MaybeCreateImplibDir(target, configName, this->FortranProject));
   if (pcc.get()) {
     event.Write(*pcc);

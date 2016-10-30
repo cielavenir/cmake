@@ -1,27 +1,23 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCPackGenerator_h
 #define cmCPackGenerator_h
 
-#include "cmObject.h"
+#include <cmConfigure.h>
 
+#include "cmCPackComponentGroup.h"
+#include "cmObject.h"
 #include "cmSystemTools.h"
+#include "cmTypeMacro.h"
+
 #include <map>
+#include <sstream>
+#include <string>
 #include <vector>
 
-#include "cmCPackComponentGroup.h" // cmCPackComponent and friends
-// Forward declarations are insufficient since we use them in
-// std::map data members below...
+class cmCPackLog;
+class cmInstalledFile;
+class cmMakefile;
 
 #define cmCPackTypeMacro(klass, superclass)                                   \
   cmTypeMacro(klass, superclass);                                             \
@@ -45,10 +41,6 @@
 #undef cout
 #endif
 #define cout no_cout_use_cmCPack_Log
-
-class cmMakefile;
-class cmCPackLog;
-class cmInstalledFile;
 
 /** \class cmCPackGenerator
  * \brief A superclass of all CPack Generators
@@ -101,7 +93,7 @@ public:
    * Construct generator
    */
   cmCPackGenerator();
-  virtual ~cmCPackGenerator();
+  ~cmCPackGenerator() CM_OVERRIDE;
 
   //! Set and get the options
   void SetOption(const std::string& op, const char* value);
@@ -136,7 +128,7 @@ protected:
   cmInstalledFile const* GetInstalledFile(std::string const& name) const;
 
   virtual const char* GetOutputExtension() { return ".cpack"; }
-  virtual const char* GetOutputPostfix() { return 0; }
+  virtual const char* GetOutputPostfix() { return CM_NULLPTR; }
 
   /**
    * Prepare requested grouping kind from CPACK_xxx vars

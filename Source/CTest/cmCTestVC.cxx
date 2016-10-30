@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCTestVC.h"
 
 #include "cmCTest.h"
@@ -16,6 +7,10 @@
 #include "cmXMLWriter.h"
 
 #include <cmsys/Process.h>
+#include <sstream>
+#include <stdio.h>
+#include <time.h>
+#include <vector>
 
 cmCTestVC::cmCTestVC(cmCTest* ct, std::ostream& log)
   : CTest(ct)
@@ -65,7 +60,7 @@ bool cmCTestVC::InitialCheckout(const char* command)
        ai != args.end(); ++ai) {
     vc_co.push_back(ai->c_str());
   }
-  vc_co.push_back(0);
+  vc_co.push_back(CM_NULLPTR);
 
   // Run the initial checkout command and log its output.
   this->Log << "--- Begin Initial Checkout ---\n";
@@ -185,7 +180,7 @@ bool cmCTestVC::WriteXML(cmXMLWriter& xml)
   return result;
 }
 
-bool cmCTestVC::WriteXMLUpdates(cmXMLWriter&)
+bool cmCTestVC::WriteXMLUpdates(cmXMLWriter& /*unused*/)
 {
   cmCTestLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
              "* CTest cannot extract updates for this VCS tool.\n");

@@ -1,21 +1,12 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmIncludeCommand.h"
 
 // cmIncludeCommand
 bool cmIncludeCommand::InitialPass(std::vector<std::string> const& args,
                                    cmExecutionStatus&)
 {
-  if (args.size() < 1 || args.size() > 4) {
+  if (args.empty() || args.size() > 4) {
     this->SetError("called with wrong number of arguments.  "
                    "include() only takes one file.");
     return false;
@@ -77,7 +68,7 @@ bool cmIncludeCommand::InitialPass(std::vector<std::string> const& args,
 
   cmGlobalGenerator* gg = this->Makefile->GetGlobalGenerator();
   if (gg->IsExportedTargetsFile(fname_abs)) {
-    const char* modal = 0;
+    const char* modal = CM_NULLPTR;
     std::ostringstream e;
     cmake::MessageType messageType = cmake::AUTHOR_WARNING;
 

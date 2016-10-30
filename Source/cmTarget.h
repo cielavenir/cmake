@@ -1,43 +1,37 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmTarget_h
 #define cmTarget_h
 
-#include "cmStandardIncludes.h"
+#include <cmConfigure.h> // IWYU pragma: keep
 
+#include "cmAlgorithms.h"
 #include "cmCustomCommand.h"
 #include "cmListFileCache.h"
 #include "cmPolicies.h"
 #include "cmPropertyMap.h"
+#include "cmState.h"
+#include "cmTargetLinkLibraryType.h"
 
-#include <cmsys/auto_ptr.hxx>
+#include <iosfwd>
+#include <map>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
 #if defined(CMAKE_BUILD_WITH_CMAKE)
-#ifdef CMake_HAVE_CXX11_UNORDERED_MAP
+#ifdef CMake_HAVE_CXX_UNORDERED_MAP
 #include <unordered_map>
 #else
 #include <cmsys/hash_map.hxx>
 #endif
 #endif
 
-class cmake;
 class cmMakefile;
 class cmSourceFile;
-class cmGlobalGenerator;
-class cmListFileBacktrace;
-class cmTarget;
-class cmGeneratorTarget;
-class cmTargetTraceDependencies;
-
 class cmTargetInternals;
+
 class cmTargetInternalPointer
 {
 public:
@@ -60,7 +54,16 @@ private:
 class cmTarget
 {
 public:
-  cmTarget();
+  enum Visibility
+  {
+    VisibilityNormal,
+    VisibilityImported,
+    VisibilityImportedGlobally
+  };
+
+  cmTarget(std::string const& name, cmState::TargetType type, Visibility vis,
+           cmMakefile* mf);
+
   enum CustomCommandType
   {
     PRE_BUILD,
@@ -73,18 +76,10 @@ public:
    */
   cmState::TargetType GetType() const { return this->TargetTypeValue; }
 
-  /**
-   * Set the target type
-   */
-  void SetType(cmState::TargetType f, const std::string& name);
-
-  void MarkAsImported(bool global = false);
-
   ///! Set/Get the name of the target
   const std::string& GetName() const { return this->Name; }
 
-  ///! Set the cmMakefile that owns this target
-  void SetMakefile(cmMakefile* mf);
+  /** Get the cmMakefile that owns this target.  */
   cmMakefile* GetMakefile() const { return this->Makefile; }
 
 #define DECLARE_TARGET_POLICY(POLICY)                                         \
@@ -156,7 +151,7 @@ public:
   };
   bool PushTLLCommandTrace(TLLSignature signature,
                            cmListFileContext const& lfc);
-  void GetTllSignatureTraces(std::ostringstream& s, TLLSignature sig) const;
+  void GetTllSignatureTraces(std::ostream& s, TLLSignature sig) const;
 
   void MergeLinkLibraries(cmMakefile& mf, const std::string& selfname,
                           const LinkLibraryVectorType& libs);
@@ -195,7 +190,7 @@ public:
    * name as would be specified to the ADD_EXECUTABLE or UTILITY_SOURCE
    * commands. It is not a full path nor does it have an extension.
    */
-  void AddUtility(const std::string& u, cmMakefile* makefile = 0);
+  void AddUtility(const std::string& u, cmMakefile* makefile = CM_NULLPTR);
   ///! Get the utilities used by this target
   std::set<std::string> const& GetUtilities() const { return this->Utilities; }
   cmListFileBacktrace const* GetUtilityBacktrace(const std::string& u) const;
@@ -331,7 +326,7 @@ private:
 };
 
 #ifdef CMAKE_BUILD_WITH_CMAKE
-#ifdef CMake_HAVE_CXX11_UNORDERED_MAP
+#ifdef CMake_HAVE_CXX_UNORDERED_MAP
 typedef std::unordered_map<std::string, cmTarget> cmTargets;
 #else
 typedef cmsys::hash_map<std::string, cmTarget> cmTargets;

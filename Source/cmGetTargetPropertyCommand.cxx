@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmGetTargetPropertyCommand.h"
 
 // cmSetTargetPropertyCommand
@@ -24,22 +15,18 @@ bool cmGetTargetPropertyCommand::InitialPass(
   std::string prop;
   bool prop_exists = false;
 
-  if (args[2] == "ALIASED_TARGET") {
-    if (this->Makefile->IsAlias(targetName)) {
-      if (cmTarget* target = this->Makefile->FindTargetToUse(targetName)) {
-        prop = target->GetName();
+  if (cmTarget* tgt = this->Makefile->FindTargetToUse(targetName)) {
+    if (args[2] == "ALIASED_TARGET") {
+      if (this->Makefile->IsAlias(targetName)) {
+        prop = tgt->GetName();
         prop_exists = true;
       }
-    }
-  } else if (cmTarget* tgt = this->Makefile->FindTargetToUse(targetName)) {
-    cmTarget& target = *tgt;
-    const char* prop_cstr = 0;
-    if (!args[2].empty()) {
-      prop_cstr = target.GetProperty(args[2], this->Makefile);
-    }
-    if (prop_cstr) {
-      prop = prop_cstr;
-      prop_exists = true;
+    } else if (!args[2].empty()) {
+      const char* prop_cstr = tgt->GetProperty(args[2], this->Makefile);
+      if (prop_cstr) {
+        prop = prop_cstr;
+        prop_exists = true;
+      }
     }
   } else {
     bool issueMessage = false;

@@ -1,20 +1,12 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmGeneratedFileStream_h
 #define cmGeneratedFileStream_h
 
-#include "cmStandardIncludes.h"
+#include <cmConfigure.h>
 
 #include <cmsys/FStream.hxx>
+#include <string>
 
 // This is the first base class of cmGeneratedFileStream.  It will be
 // created before and destroyed after the ofstream portion and can
@@ -99,7 +91,7 @@ public:
    * file was successfully written before allowing the original to be
    * replaced.
    */
-  ~cmGeneratedFileStream();
+  ~cmGeneratedFileStream() CM_OVERRIDE;
 
   /**
    * Open an output file by name.  This should be used only with a

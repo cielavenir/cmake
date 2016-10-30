@@ -21,6 +21,7 @@
 #include <cmSystemTools.h>
 #include <cmsys/Encoding.hxx>
 
+#include <algorithm>
 #include <sstream>
 #include <windows.h>
 
@@ -213,7 +214,7 @@ static int process(const std::string& srcfilename, const std::string& dfile,
                                     dir.c_str(), cmSystemTools::OUTPUT_NONE);
 
   // process the include directives and output everything else
-  std::stringstream ss(output);
+  std::istringstream ss(output);
   std::string line;
   std::vector<std::string> includes;
   bool isFirstLine = true; // cl prints always first the source filename

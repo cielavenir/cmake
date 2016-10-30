@@ -1,32 +1,26 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2012 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmWIXSourceWriter.h"
 
 #include <CPack/cmCPackGenerator.h>
+
+#include <cmUuid.h>
 
 #include <windows.h>
 
 cmWIXSourceWriter::cmWIXSourceWriter(cmCPackLog* logger,
                                      std::string const& filename,
-                                     bool isIncludeFile)
+                                     GuidType componentGuidType,
+                                     RootElementType rootElementType)
   : Logger(logger)
   , File(filename.c_str())
   , State(DEFAULT)
   , SourceFilename(filename)
+  , ComponentGuidType(componentGuidType)
 {
   WriteXMLDeclaration();
 
-  if (isIncludeFile) {
+  if (rootElementType == INCLUDE_ELEMENT_ROOT) {
     BeginElement("Include");
   } else {
     BeginElement("Wix");
@@ -171,6 +165,19 @@ std::string cmWIXSourceWriter::CMakeEncodingToUtf8(std::string const& value)
 
   return std::string(&utf8[0], utf8.size());
 #endif
+}
+
+std::string cmWIXSourceWriter::CreateGuidFromComponentId(
+  std::string const& componentId)
+{
+  std::string guid = "*";
+  if (this->ComponentGuidType == CMAKE_GENERATED_GUID) {
+    std::string md5 = cmSystemTools::ComputeStringMD5(componentId);
+    cmUuid uuid;
+    std::vector<unsigned char> ns;
+    guid = uuid.FromMd5(ns, md5);
+  }
+  return guid;
 }
 
 void cmWIXSourceWriter::WriteXMLDeclaration()

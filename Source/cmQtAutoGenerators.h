@@ -1,23 +1,13 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2004-2011 Kitware, Inc.
-  Copyright 2011 Alexander Neundorf (neundorf@kde.org)
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmQtAutoGenerators_h
 #define cmQtAutoGenerators_h
 
-#include "cmStandardIncludes.h"
+#include <cmConfigure.h> // IWYU pragma: keep
 
 #include <list>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -51,7 +41,8 @@ private:
                   const std::string& uiOutputFile);
   bool GenerateQrcFiles();
   bool GenerateQrc(const std::string& qrcInputFile,
-                   const std::string& qrcOutputFile);
+                   const std::string& qrcOutputFile, bool unique_n);
+
   void ParseCppFile(
     const std::string& absFilename,
     const std::vector<std::string>& headerExtensions,
@@ -123,8 +114,9 @@ private:
   std::string CurrentCompileSettingsStr;
   std::string OldCompileSettingsStr;
 
+  std::string TargetBuildSubDir;
   std::string OutMocCppFilenameRel;
-  std::string OutMocCppFilename;
+  std::string OutMocCppFilenameAbs;
   std::list<std::string> MocIncludes;
   std::list<std::string> MocDefinitions;
   std::vector<std::string> MocOptions;

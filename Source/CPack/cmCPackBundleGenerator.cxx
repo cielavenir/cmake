@@ -1,15 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCPackBundleGenerator.h"
 
 #include "cmCPackLog.h"
@@ -232,12 +222,12 @@ int cmCPackBundleGenerator::SignBundle(const std::string& src_dir)
       temp_sign_file_cmd << this->GetOption("CPACK_APPLE_BUNDLE_ID");
       temp_sign_file_cmd << " \"";
       temp_sign_file_cmd << bundle_path;
-      temp_sign_file_cmd << it->c_str() << "\"";
+      temp_sign_file_cmd << *it << "\"";
 
       if (!this->RunCommand(temp_sign_file_cmd, &output)) {
-        cmCPackLogger(cmCPackLog::LOG_ERROR, "Error signing file:"
-                        << bundle_path << it->c_str() << std::endl
-                        << output << std::endl);
+        cmCPackLogger(cmCPackLog::LOG_ERROR,
+                      "Error signing file:" << bundle_path << *it << std::endl
+                                            << output << std::endl);
 
         return 0;
       }

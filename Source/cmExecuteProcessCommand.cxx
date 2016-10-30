@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmExecuteProcessCommand.h"
 
 #include "cmSystemTools.h"
@@ -31,7 +22,7 @@ void cmExecuteProcessCommandAppend(std::vector<char>& output, const char* data,
 bool cmExecuteProcessCommand::InitialPass(std::vector<std::string> const& args,
                                           cmExecutionStatus&)
 {
-  if (args.size() < 1) {
+  if (args.empty()) {
     this->SetError("called with incorrect number of arguments");
     return false;
   }
@@ -159,10 +150,9 @@ bool cmExecuteProcessCommand::InitialPass(std::vector<std::string> const& args,
     if (cmds[i].empty()) {
       this->SetError(" given COMMAND argument with no value.");
       return false;
-    } else {
-      // Add the null terminating pointer to the command argument list.
-      cmds[i].push_back(0);
     }
+    // Add the null terminating pointer to the command argument list.
+    cmds[i].push_back(CM_NULLPTR);
   }
 
   // Parse the timeout string.
@@ -228,7 +218,7 @@ bool cmExecuteProcessCommand::InitialPass(std::vector<std::string> const& args,
   int length;
   char* data;
   int p;
-  while ((p = cmsysProcess_WaitForData(cp, &data, &length, 0), p)) {
+  while ((p = cmsysProcess_WaitForData(cp, &data, &length, CM_NULLPTR), p)) {
     // Put the output in the right place.
     if (p == cmsysProcess_Pipe_STDOUT && !output_quiet) {
       if (output_variable.empty()) {
@@ -246,7 +236,7 @@ bool cmExecuteProcessCommand::InitialPass(std::vector<std::string> const& args,
   }
 
   // All output has been read.  Wait for the process to exit.
-  cmsysProcess_WaitForExit(cp, 0);
+  cmsysProcess_WaitForExit(cp, CM_NULLPTR);
 
   // Fix the text in the output strings.
   cmExecuteProcessCommandFixText(tempOutput, output_strip_trailing_whitespace);

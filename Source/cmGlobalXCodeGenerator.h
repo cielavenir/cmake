@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmGlobalXCodeGenerator_h
 #define cmGlobalXCodeGenerator_h
 
@@ -79,7 +70,7 @@ public:
 
   /** Return true if the generated build tree may contain multiple builds.
       i.e. "Can I build Debug and Release in the same tree?" */
-  virtual bool IsMultiConfig();
+  virtual bool IsMultiConfig() const;
 
   virtual bool SetGeneratorToolset(std::string const& ts, cmMakefile* mf);
   void AppendFlag(std::string& flags, std::string const& flag);
@@ -92,8 +83,7 @@ private:
   cmXCodeObject* CreateOrGetPBXGroup(cmGeneratorTarget* gtgt,
                                      cmSourceGroup* sg);
   cmXCodeObject* CreatePBXGroup(cmXCodeObject* parent, std::string name);
-  bool CreateGroups(cmLocalGenerator* root,
-                    std::vector<cmLocalGenerator*>& generators);
+  bool CreateGroups(std::vector<cmLocalGenerator*>& generators);
   std::string XCodeEscapePath(const std::string& p);
   std::string RelativeToSource(const char* p);
   std::string RelativeToBinary(const char* p);
@@ -242,7 +232,6 @@ private:
   std::string CurrentXCodeHackMakefile;
   std::string CurrentProject;
   std::set<std::string> TargetDoneSet;
-  std::vector<std::string> CurrentOutputDirectoryComponents;
   std::vector<std::string> ProjectSourceDirectoryComponents;
   std::vector<std::string> ProjectOutputDirectoryComponents;
   std::map<std::string, cmXCodeObject*> GroupMap;

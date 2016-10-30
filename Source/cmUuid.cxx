@@ -1,20 +1,11 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2014 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmUuid.h"
 
-#include <string.h>
-
 #include "cm_sha2.h"
+
 #include <cmsys/MD5.h>
+#include <string.h>
 
 cmUuid::cmUuid()
 {
@@ -180,13 +171,14 @@ bool cmUuid::IntFromHexDigit(char input, char& output) const
   if (input >= '0' && input <= '9') {
     output = char(input - '0');
     return true;
-  } else if (input >= 'a' && input <= 'f') {
+  }
+  if (input >= 'a' && input <= 'f') {
     output = char(input - 'a' + 0xA);
     return true;
-  } else if (input >= 'A' && input <= 'F') {
+  }
+  if (input >= 'A' && input <= 'F') {
     output = char(input - 'A' + 0xA);
     return true;
-  } else {
-    return false;
   }
+  return false;
 }

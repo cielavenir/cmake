@@ -1,14 +1,6 @@
-#=============================================================================
-# CMake - Cross Platform Makefile Generator
-# Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 include(CheckIncludeFile)
 # Check if we can build support for ELF parsing.
 if(CMAKE_CXX_PLATFORM_ID MATCHES "OpenBSD")
@@ -45,9 +37,21 @@ endif()
 
 set(EXECUTABLE_OUTPUT_PATH ${CMake_BIN_DIR})
 
-# ensure Unicode friendly APIs are used on Windows
 if(WIN32)
+  # ensure Unicode friendly APIs are used on Windows
   add_definitions(-DUNICODE -D_UNICODE)
+
+  # minimize windows.h content
+  add_definitions(-DWIN32_LEAN_AND_MEAN)
+endif()
+
+# configure the .dox.in file
+if(CMake_BUILD_DEVELOPER_REFERENCE)
+  configure_file(
+    "${CMake_SOURCE_DIR}/Source/dir.dox.in"
+    "${CMake_BINARY_DIR}/Source/dir.dox"
+    @ONLY
+    )
 endif()
 
 # configure the .h file
@@ -154,6 +158,7 @@ endif()
 #
 set(SRCS
   cmArchiveWrite.cxx
+  cmBase32.cxx
   cmBootstrapCommands1.cxx
   cmBootstrapCommands2.cxx
   cmCacheManager.cxx
@@ -208,10 +213,14 @@ set(SRCS
   cmExprLexer.cxx
   cmExprParser.cxx
   cmExprParserHelper.cxx
+  cmExportBuildAndroidMKGenerator.h
+  cmExportBuildAndroidMKGenerator.cxx
   cmExportBuildFileGenerator.h
   cmExportBuildFileGenerator.cxx
   cmExportFileGenerator.h
   cmExportFileGenerator.cxx
+  cmExportInstallAndroidMKGenerator.h
+  cmExportInstallAndroidMKGenerator.cxx
   cmExportInstallFileGenerator.h
   cmExportInstallFileGenerator.cxx
   cmExportTryCompileFileGenerator.h
@@ -238,6 +247,8 @@ set(SRCS
   cmFileLockPool.h
   cmFileLockResult.cxx
   cmFileLockResult.h
+  cmFilePathUuid.cxx
+  cmFilePathUuid.h
   cmFileTimeComparison.cxx
   cmFileTimeComparison.h
   cmFortranLexer.cxx
@@ -305,6 +316,8 @@ set(SRCS
   cmMakefileExecutableTargetGenerator.cxx
   cmMakefileLibraryTargetGenerator.cxx
   cmMakefileUtilityTargetGenerator.cxx
+  cmMessenger.cxx
+  cmMessenger.h
   cmOSXBundleGenerator.cxx
   cmOSXBundleGenerator.h
   cmOutputConverter.cxx
@@ -364,6 +377,7 @@ set(SRCS
   cmake.cxx
   cmake.h
 
+  cm_auto_ptr.hxx
   cm_get_date.h
   cm_get_date.c
   cm_sha2.h
@@ -474,6 +488,8 @@ if (WIN32)
       cmGlobalVisualStudio12Generator.cxx
       cmGlobalVisualStudio14Generator.h
       cmGlobalVisualStudio14Generator.cxx
+      cmGlobalVisualStudio15Generator.h
+      cmGlobalVisualStudio15Generator.cxx
       cmGlobalVisualStudioGenerator.cxx
       cmGlobalVisualStudioGenerator.h
       cmIDEFlagTable.h
@@ -529,11 +545,14 @@ set(SRCS ${SRCS}
   cmNinjaUtilityTargetGenerator.h
   )
 
+# Temporary variable for tools targets
+set(_tools)
+
 if(WIN32 AND NOT CYGWIN)
   set_source_files_properties(cmcldeps.cxx PROPERTIES COMPILE_DEFINITIONS _WIN32_WINNT=0x0501)
   add_executable(cmcldeps cmcldeps.cxx ${MANIFEST_FILE})
+  list(APPEND _tools cmcldeps)
   target_link_libraries(cmcldeps CMakeLib)
-  install(TARGETS cmcldeps DESTINATION bin)
 endif()
 
 foreach(v CURL_CA_BUNDLE CURL_CA_PATH)
@@ -562,6 +581,7 @@ target_link_libraries(CMakeLib cmsys
   ${CMAKE_TAR_LIBRARIES} ${CMAKE_COMPRESS_LIBRARIES}
   ${CMAKE_CURL_LIBRARIES}
   ${CMAKE_JSONCPP_LIBRARIES}
+  ${CMAKE_LIBUV_LIBRARIES}
   ${CMake_KWIML_LIBRARIES}
   )
 
@@ -717,7 +737,9 @@ if(APPLE)
     CPack/cmCPackBundleGenerator.cxx
     CPack/cmCPackDragNDropGenerator.cxx
     CPack/cmCPackOSXX11Generator.cxx
+    CPack/cmCPackPKGGenerator.cxx
     CPack/cmCPackPackageMakerGenerator.cxx
+    CPack/cmCPackProductBuildGenerator.cxx
     )
 endif()
 
@@ -743,6 +765,7 @@ endif()
 
 if(APPLE)
   add_executable(cmakexbuild cmakexbuild.cxx)
+  list(APPEND _tools cmakexbuild)
   target_link_libraries(cmakexbuild CMakeLib)
   add_executable(OSXScriptLauncher
     CPack/OSXScriptLauncher.cxx)
@@ -752,14 +775,30 @@ endif()
 
 # Build CMake executable
 add_executable(cmake cmakemain.cxx cmcmd.cxx cmcmd.h ${MANIFEST_FILE})
+list(APPEND _tools cmake)
 target_link_libraries(cmake CMakeLib)
+
+if(CMake_ENABLE_SERVER_MODE)
+  add_library(CMakeServerLib
+    cmFileMonitor.cxx cmFileMonitor.h
+    cmServer.cxx cmServer.h
+    cmServerConnection.cxx cmServerConnection.h
+    cmServerProtocol.cxx cmServerProtocol.h
+    )
+  target_link_libraries(CMakeServerLib CMakeLib)
+  set_property(SOURCE cmcmd.cxx APPEND PROPERTY COMPILE_DEFINITIONS HAVE_SERVER_MODE=1)
+
+  target_link_libraries(cmake CMakeServerLib)
+endif()
 
 # Build CTest executable
 add_executable(ctest ctest.cxx ${MANIFEST_FILE})
+list(APPEND _tools ctest)
 target_link_libraries(ctest CTestLib)
 
 # Build CPack executable
 add_executable(cpack CPack/cpack.cxx ${MANIFEST_FILE})
+list(APPEND _tools cpack)
 target_link_libraries(cpack CPackLib)
 
 # Curses GUI
@@ -778,15 +817,12 @@ include (${CMake_SOURCE_DIR}/Source/LocalUserOptions.cmake OPTIONAL)
 
 # Install tools
 
-set(_tools cmake ctest cpack)
-
-if(APPLE)
-  list(APPEND _tools cmakexbuild)
-endif()
-
 foreach(_tool ${_tools})
   CMake_OPTIONAL_COMPONENT(${_tool})
-  install(TARGETS ${_tool} DESTINATION bin ${COMPONENT})
+  install(TARGETS ${_tool} DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
 endforeach()
 
 install(FILES cmCPluginAPI.h DESTINATION ${CMAKE_DATA_DIR}/include)
+
+# Unset temporary variables
+unset(_tools)

@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmFindProgramCommand.h"
 
 #include <stdlib.h>
@@ -140,9 +131,8 @@ std::string cmFindProgramCommand::FindNormalProgram()
 {
   if (this->NamesPerDir) {
     return this->FindNormalProgramNamesPerDir();
-  } else {
-    return this->FindNormalProgramDirsPerName();
   }
+  return this->FindNormalProgramDirsPerName();
 }
 
 std::string cmFindProgramCommand::FindNormalProgramNamesPerDir()

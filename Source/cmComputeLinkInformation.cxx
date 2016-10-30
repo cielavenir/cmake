@@ -1,29 +1,26 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmComputeLinkInformation.h"
 
-#include "cmComputeLinkDepends.h"
-#include "cmOrderDirectories.h"
-
 #include "cmAlgorithms.h"
+#include "cmComputeLinkDepends.h"
 #include "cmGeneratorTarget.h"
 #include "cmGlobalGenerator.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
+#include "cmOrderDirectories.h"
 #include "cmOutputConverter.h"
+#include "cmPolicies.h"
 #include "cmState.h"
+#include "cmSystemTools.h"
+#include "cmTarget.h"
 #include "cmake.h"
 
+#include <algorithm>
 #include <ctype.h>
+#include <sstream>
+#include <string.h>
+#include <utility>
 
 //#define CM_COMPUTE_LINK_INFO_DEBUG
 
@@ -262,7 +259,7 @@ cmComputeLinkInformation::cmComputeLinkInformation(
     this->GlobalGenerator, target, "linker search path");
   this->OrderRuntimeSearchPath = new cmOrderDirectories(
     this->GlobalGenerator, target, "runtime search path");
-  this->OrderDependentRPath = 0;
+  this->OrderDependentRPath = CM_NULLPTR;
 
   // Get the language used for linking this target.
   this->LinkLanguage = this->Target->GetLinkerLanguage(config);
@@ -274,8 +271,7 @@ cmComputeLinkInformation::cmComputeLinkInformation(
 
   // Check whether we should use an import library for linking a target.
   this->UseImportLibrary =
-    this->Makefile->GetDefinition("CMAKE_IMPORT_LIBRARY_SUFFIX") ? true
-                                                                 : false;
+    this->Makefile->IsDefinitionSet("CMAKE_IMPORT_LIBRARY_SUFFIX");
 
   // Check whether we should skip dependencies on shared library files.
   this->LinkDependsNoShared =
@@ -284,7 +280,7 @@ cmComputeLinkInformation::cmComputeLinkInformation(
   // On platforms without import libraries there may be a special flag
   // to use when creating a plugin (module) that obtains symbols from
   // the program that will load it.
-  this->LoaderFlag = 0;
+  this->LoaderFlag = CM_NULLPTR;
   if (!this->UseImportLibrary &&
       this->Target->GetType() == cmState::MODULE_LIBRARY) {
     std::string loader_flag_var = "CMAKE_SHARED_MODULE_LOADER_";
@@ -562,7 +558,7 @@ void cmComputeLinkInformation::AddImplicitLinkInfo(std::string const& lang)
     for (std::vector<std::string>::const_iterator i = libsVec.begin();
          i != libsVec.end(); ++i) {
       if (this->ImplicitLinkLibs.find(*i) == this->ImplicitLinkLibs.end()) {
-        this->AddItem(*i, 0);
+        this->AddItem(*i, CM_NULLPTR);
       }
     }
   }
@@ -694,7 +690,7 @@ void cmComputeLinkInformation::AddSharedDepItem(std::string const& item,
 
   // Check if we need to include the dependent shared library in other
   // path ordering.
-  cmOrderDirectories* order = 0;
+  cmOrderDirectories* order = CM_NULLPTR;
   if (this->SharedDependencyMode == SharedDepModeLibDir &&
       !this->LinkWithRuntimePath /* AddLibraryRuntimeInfo adds it */) {
     // Add the item to the linker search path.
@@ -706,7 +702,7 @@ void cmComputeLinkInformation::AddSharedDepItem(std::string const& item,
   if (order) {
     if (tgt) {
       std::string soName = tgt->GetSOName(this->Config);
-      const char* soname = soName.empty() ? 0 : soName.c_str();
+      const char* soname = soName.empty() ? CM_NULLPTR : soName.c_str();
       order->AddRuntimeLibrary(lib, soname);
     } else {
       order->AddRuntimeLibrary(lib);
@@ -725,9 +721,9 @@ void cmComputeLinkInformation::ComputeLinkTypeInfo()
   this->LinkTypeEnabled = false;
 
   // Lookup link type selection flags.
-  const char* static_link_type_flag = 0;
-  const char* shared_link_type_flag = 0;
-  const char* target_type_str = 0;
+  const char* static_link_type_flag = CM_NULLPTR;
+  const char* shared_link_type_flag = CM_NULLPTR;
+  const char* target_type_str = CM_NULLPTR;
   switch (this->Target->GetType()) {
     case cmState::EXECUTABLE:
       target_type_str = "EXE";
@@ -1607,7 +1603,7 @@ void cmComputeLinkInformation::AddLibraryRuntimeInfo(
   // Try to get the soname of the library.  Only files with this name
   // could possibly conflict.
   std::string soName = target->GetSOName(this->Config);
-  const char* soname = soName.empty() ? 0 : soName.c_str();
+  const char* soname = soName.empty() ? CM_NULLPTR : soName.c_str();
 
   // Include this library in the runtime path ordering.
   this->OrderRuntimeSearchPath->AddRuntimeLibrary(fullPath, soname);
