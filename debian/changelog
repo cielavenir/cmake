@@ -1,4 +1,4 @@
-cmake (3.7.0~rc2-1) UNRELEASED; urgency=medium
+cmake (3.7.0~rc2-1) experimental; urgency=medium
 
   * New upstream release.
   * Drop CMakeParseImplicitLinkInfo_Exclude_libclang_rt.patch, fixed upstream.
@@ -6,7 +6,7 @@ cmake (3.7.0~rc2-1) UNRELEASED; urgency=medium
   * Add libuv1-dev to Build-Depends, required by new release.
   * Update Uploaders. (Closes: #840858)
 
- -- Felix Geyer <fgeyer@debian.org>  Thu, 20 Oct 2016 20:45:13 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 30 Oct 2016 23:21:54 +0100
 
 cmake (3.6.2-2) unstable; urgency=medium
 
