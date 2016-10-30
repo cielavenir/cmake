@@ -14,8 +14,8 @@ Forwarded: http://cmake.org/Bug/file_download.php?file_id=3629&type=bug
 --- a/Modules/FindBoost.cmake
 +++ b/Modules/FindBoost.cmake
 @@ -861,6 +861,22 @@ function(_Boost_MISSING_DEPENDENCIES com
-   set(${extravar} ${_boost_extra_components} PARENT_SCOPE)
- endfunction()
+   endif()
+ endmacro()
  
 +function(_Boost_consider_adding_pthreads _outvar)
 +  # On Unix platforms (excluding cygwin) add pthreads to Boost_LIBRARIES

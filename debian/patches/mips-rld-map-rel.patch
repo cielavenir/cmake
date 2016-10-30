@@ -12,19 +12,11 @@ cmSystemTools: rewrite RemoveRPath using DyanmicEntryList methods
 cmSystemTools, elf: handle DT_MIPS_RLD_REL_MAP in RemoveRPath
 elf: Remove GetDynamicEntryCount and ReadBytes methods
 
-Backported from upstream 3.8.0 commit:
-ea563a27a2042cfb3be33d0f74efecc7687b86bb
----
- Source/cmELF.cxx         | 225 ++++++++++++++++-------------------------------
- Source/cmELF.h           |  24 +++--
- Source/cmSystemTools.cxx |  72 ++++++++-------
- 3 files changed, 135 insertions(+), 186 deletions(-)
-
 diff --git a/Source/cmELF.cxx b/Source/cmELF.cxx
-index 26f1a44..9fe8a43 100644
+index 2d86674..0655da9 100644
 --- a/Source/cmELF.cxx
 +++ b/Source/cmELF.cxx
-@@ -134,18 +134,13 @@ public:
+@@ -132,18 +132,13 @@ public:
  
    // Forward to the per-class implementation.
    virtual unsigned int GetNumberOfSections() const = 0;
@@ -40,28 +32,29 @@ index 26f1a44..9fe8a43 100644
 -  {
 -    this->Stream.seekg(pos);
 -    this->Stream.read(buf, size);
--    return this->Stream ? true : false;
+-    return !this->Stream.fail();
 -  }
 -
    // Lookup the SONAME in the DYNAMIC section.
    StringEntry const* GetSOName()
    {
-@@ -246,10 +241,12 @@ public:
+@@ -246,10 +241,13 @@ public:
      return static_cast<unsigned int>(this->ELFHeader.e_shnum);
    }
  
 -  // Get the file position and size of a dynamic section entry.
--  virtual unsigned int GetDynamicEntryCount();
+-  unsigned int GetDynamicEntryCount() CM_OVERRIDE;
 +  // Get the file position of a dynamic section entry.
-   virtual unsigned long GetDynamicEntryPosition(int j);
+   unsigned long GetDynamicEntryPosition(int j) CM_OVERRIDE;
  
-+  virtual cmELF::DynamicEntryList GetDynamicEntries();
-+  virtual std::vector<char> EncodeDynamicEntries(const cmELF::DynamicEntryList&);
++  cmELF::DynamicEntryList GetDynamicEntries() CM_OVERRIDE;
++  std::vector<char> EncodeDynamicEntries(const cmELF::DynamicEntryList&)
++    CM_OVERRIDE;
 +
    // Lookup a string from the dynamic section with the given tag.
-   virtual StringEntry const* GetDynamicSectionString(unsigned int tag);
+   StringEntry const* GetDynamicSectionString(unsigned int tag) CM_OVERRIDE;
  
-@@ -289,6 +286,10 @@ public:
+@@ -289,6 +287,10 @@ public:
    }
  
  private:
@@ -72,7 +65,7 @@ index 26f1a44..9fe8a43 100644
    void ByteSwap(ELF_Ehdr& elf_header)
    {
      cmELFByteSwap(elf_header.e_type);
-@@ -323,121 +324,7 @@ private:
+@@ -323,121 +325,7 @@ private:
    void ByteSwap(ELF_Dyn& dyn)
    {
      cmELFByteSwap(dyn.d_tag);
@@ -195,7 +188,7 @@ index 26f1a44..9fe8a43 100644
    }
  
    bool FileTypeValid(ELF_Half et)
-@@ -635,30 +522,64 @@ bool cmELFInternalImpl<Types>::LoadDynamicSection()
+@@ -636,30 +524,64 @@ bool cmELFInternalImpl<Types>::LoadDynamicSection()
  }
  
  template <class Types>
@@ -272,7 +265,7 @@ index 26f1a44..9fe8a43 100644
  }
  
  template <class Types>
-@@ -751,6 +672,15 @@ cmELF::StringEntry const* cmELFInternalImpl<Types>::GetDynamicSectionString(
+@@ -752,6 +674,15 @@ cmELF::StringEntry const* cmELFInternalImpl<Types>::GetDynamicSectionString(
  //============================================================================
  // External class implementation.
  
@@ -286,10 +279,10 @@ index 26f1a44..9fe8a43 100644
 +#endif
 +
  cmELF::cmELF(const char* fname)
-   : Internal(0)
+   : Internal(CM_NULLPTR)
  {
-@@ -836,31 +766,32 @@ unsigned int cmELF::GetNumberOfSections() const
-   }
+@@ -839,28 +770,31 @@ unsigned int cmELF::GetNumberOfSections() const
+   return 0;
  }
  
 -unsigned int cmELF::GetDynamicEntryCount() const
@@ -298,9 +291,8 @@ index 26f1a44..9fe8a43 100644
    if (this->Valid()) {
 -    return this->Internal->GetDynamicEntryCount();
 +    return this->Internal->GetDynamicEntryPosition(index);
-   } else {
-     return 0;
    }
+   return 0;
  }
  
 -unsigned long cmELF::GetDynamicEntryPosition(int index) const
@@ -308,10 +300,9 @@ index 26f1a44..9fe8a43 100644
  {
    if (this->Valid()) {
 -    return this->Internal->GetDynamicEntryPosition(index);
--  } else {
--    return 0;
 +    return this->Internal->GetDynamicEntries();
    }
+-  return 0;
 +
 +  return cmELF::DynamicEntryList();
  }
@@ -322,30 +313,28 @@ index 26f1a44..9fe8a43 100644
  {
    if (this->Valid()) {
 -    return this->Internal->ReadBytes(pos, size, buf);
--  } else {
--    return false;
 +    return this->Internal->EncodeDynamicEntries(dentries);
    }
+-  return false;
 +
 +  return std::vector<char>();
  }
  
  bool cmELF::GetSOName(std::string& soname)
 diff --git a/Source/cmELF.h b/Source/cmELF.h
-index 80832ad..2ddce63 100644
+index 7e7c1d6..763a240 100644
 --- a/Source/cmELF.h
 +++ b/Source/cmELF.h
-@@ -12,6 +12,9 @@
- #ifndef cmELF_h
- #define cmELF_h
+@@ -7,6 +7,8 @@
  
+ #include <iosfwd>
+ #include <string>
 +#include <utility>
 +#include <vector>
-+
+ 
  #if !defined(CMAKE_USE_ELF_PARSER)
  #error "This file may be included only if CMAKE_USE_ELF_PARSER is enabled."
- #endif
-@@ -65,22 +68,27 @@ public:
+@@ -61,22 +63,27 @@ public:
      int IndexInSection;
    };
  
@@ -379,7 +368,7 @@ index 80832ad..2ddce63 100644
  
    /** Get the SONAME field if any.  */
    bool GetSOName(std::string& soname);
-@@ -95,6 +103,10 @@ public:
+@@ -91,6 +98,10 @@ public:
    /** Print human-readable information about the ELF file.  */
    void PrintInfo(std::ostream& os) const;
  
@@ -391,10 +380,10 @@ index 80832ad..2ddce63 100644
    friend class cmELFInternal;
    bool Valid() const;
 diff --git a/Source/cmSystemTools.cxx b/Source/cmSystemTools.cxx
-index 7dece47..bf50ef3 100644
+index 3d8fdf5..d800ef8 100644
 --- a/Source/cmSystemTools.cxx
 +++ b/Source/cmSystemTools.cxx
-@@ -2439,9 +2439,9 @@ bool cmSystemTools::RemoveRPath(std::string const& file, std::string* emsg,
+@@ -2518,9 +2518,9 @@ bool cmSystemTools::RemoveRPath(std::string const& file, std::string* emsg,
        std::swap(se[0], se[1]);
      }
  
@@ -407,7 +396,7 @@ index 7dece47..bf50ef3 100644
        // This should happen only for invalid ELF files where a DT_NULL
        // appears before the end of the table.
        if (emsg) {
-@@ -2457,40 +2457,46 @@ bool cmSystemTools::RemoveRPath(std::string const& file, std::string* emsg,
+@@ -2536,40 +2536,46 @@ bool cmSystemTools::RemoveRPath(std::string const& file, std::string* emsg,
        zeroSize[i] = se[i]->Size;
      }
  
@@ -484,6 +473,3 @@ index 7dece47..bf50ef3 100644
    }
  
    // Open the file for update.
--- 
-2.9.3
-
