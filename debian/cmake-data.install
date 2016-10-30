@@ -13,5 +13,6 @@ usr/share/man/man7/cmake-packages.7
 usr/share/man/man7/cmake-policies.7
 usr/share/man/man7/cmake-properties.7
 usr/share/man/man7/cmake-qt.7
+usr/share/man/man7/cmake-server.7
 usr/share/man/man7/cmake-toolchains.7
 usr/share/man/man7/cmake-variables.7
