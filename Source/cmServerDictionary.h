@@ -62,6 +62,7 @@ static const std::string kMESSAGE_KEY = "message";
 static const std::string kMINOR_KEY = "minor";
 static const std::string kNAME_KEY = "name";
 static const std::string kPATH_KEY = "path";
+static const std::string kPLATFORM_KEY = "platform";
 static const std::string kPROGRESS_CURRENT_KEY = "progressCurrent";
 static const std::string kPROGRESS_MAXIMUM_KEY = "progressMaximum";
 static const std::string kPROGRESS_MESSAGE_KEY = "progressMessage";
@@ -77,6 +78,7 @@ static const std::string kSUPPORTED_PROTOCOL_VERSIONS =
 static const std::string kSYSROOT_KEY = "sysroot";
 static const std::string kTARGETS_KEY = "targets";
 static const std::string kTITLE_KEY = "title";
+static const std::string kTOOLSET_KEY = "toolset";
 static const std::string kTRACE_EXPAND_KEY = "traceExpand";
 static const std::string kTRACE_KEY = "trace";
 static const std::string kTYPE_KEY = "type";
@@ -87,8 +89,8 @@ static const std::string kWARN_UNUSED_KEY = "warnUnused";
 static const std::string kWATCHED_DIRECTORIES_KEY = "watchedDirectories";
 static const std::string kWATCHED_FILES_KEY = "watchedFiles";
 
-static const std::string kSTART_MAGIC = "[== CMake Server ==[";
-static const std::string kEND_MAGIC = "]== CMake Server ==]";
+static const std::string kSTART_MAGIC = "[== \"CMake Server\" ==[";
+static const std::string kEND_MAGIC = "]== \"CMake Server\" ==]";
 
 static const std::string kRENAME_PROPERTY_VALUE = "rename";
 static const std::string kCHANGE_PROPERTY_VALUE = "change";
