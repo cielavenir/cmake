@@ -57,17 +57,17 @@ or using a named pipe (with the ``--pipe <NAMED_PIPE>`` parameter).
 When connecting to the server (via named pipe or by starting it in ``--debug``
 mode), the server will reply with a hello message::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"supportedProtocolVersions":[{"major":1,"minor":0}],"type":"hello"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 Messages sent to and from the process are wrapped in magic strings::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {
     ... some JSON message ...
   }
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 The server is now ready to accept further requests via the named pipe
 or stdin.
@@ -87,7 +87,7 @@ the response into the given filename.
 
 This is a response from the cmake server with "showStats" set to true::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {
     "cookie":"",
     "errorMessage":"Waiting for type \"handshake\".",
@@ -100,7 +100,7 @@ This is a response from the cmake server with "showStats" set to true::
       "totalTime":0.025995
     }
   }
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 The server has made a copy of this response into the file /tmp/error.txt and
 took 0.011 seconds to turn the JSON response into a string, and it took 0.025
@@ -137,9 +137,9 @@ contain values.
 
 Example::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"cookie":"zimtstern","inReplyTo":"handshake","type":"reply"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 
 Type "error"
@@ -150,9 +150,9 @@ contain an "errorMessage".
 
 Example::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"cookie":"","errorMessage":"Protocol version not supported.","inReplyTo":"handshake","type":"error"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 
 Type "progress"
@@ -181,9 +181,9 @@ box title.
 
 Example::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"cookie":"","message":"Something happened.","title":"Title Text","inReplyTo":"handshake","type":"message"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 
 Type "signal"
@@ -208,13 +208,13 @@ an influence on the build system is changed.
 
 The "dirty" signal may look like this::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {
     "cookie":"",
     "inReplyTo":"",
     "name":"dirty",
     "type":"signal"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 
 "fileChange" Signal
@@ -226,7 +226,7 @@ that was detected. Possible changes are "change" and "rename".
 
 The "fileChange" signal looks like this::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {
     "cookie":"",
     "inReplyTo":"",
@@ -234,7 +234,7 @@ The "fileChange" signal looks like this::
     "path":"/absolute/CMakeLists.txt",
     "properties":["change"],
     "type":"signal"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 
 Specific Message Types
@@ -250,13 +250,15 @@ This is the only message ever sent by the server that is not of type "reply",
 
 It will contain "supportedProtocolVersions" with an array of server protocol
 versions supported by the cmake server. These are JSON objects with "major" and
-"minor" keys containing non-negative integer values.
+"minor" keys containing non-negative integer values. Some versions may be marked
+as experimental. These will contain the "isExperimental" key set to true. Enabling
+these requires a special command line argument when starting the cmake server mode.
 
 Example::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"supportedProtocolVersions":[{"major":0,"minor":1}],"type":"hello"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 
 Type "handshake"
@@ -274,21 +276,23 @@ Protocol version 1.0 requires the following attributes to be set:
   * "sourceDirectory" with a path to the sources
   * "buildDirectory" with a path to the build directory
   * "generator" with the generator name
-  * "extraGenerator" (optional!) with the extra generator to be used.
+  * "extraGenerator" (optional!) with the extra generator to be used
+  * "platform" with the generator platform (if supported by the generator)
+  * "toolset" with the generator toolset (if supported by the generator)
 
 Example::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"cookie":"zimtstern","type":"handshake","protocolVersion":{"major":0},
    "sourceDirectory":"/home/code/cmake", "buildDirectory":"/tmp/testbuild",
    "generator":"Ninja"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 which will result in a response type "reply"::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"cookie":"zimtstern","inReplyTo":"handshake","type":"reply"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 indicating that the server is ready for action.
 
@@ -301,13 +305,13 @@ JSON structure with information on cmake state.
 
 Example::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"type":"globalSettings"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 which will result in a response type "reply"::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {
     "buildDirectory": "/tmp/test-build",
     "capabilities": {
@@ -344,7 +348,7 @@ which will result in a response type "reply"::
     "warnUnused": false,
     "warnUnusedCli": true
   }
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 
 Type "setGlobalSettings"
@@ -362,15 +366,15 @@ The server will respond with an empty reply message or an error.
 
 Example::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"type":"setGlobalSettings","debugOutput":true}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 CMake will reply to this with::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"inReplyTo":"setGlobalSettings","type":"reply"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 
 Type "configure"
@@ -389,34 +393,34 @@ cache handling that are passed to the cmake command line client.
 
 Example::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"type":"configure", "cacheArguments":["-Dsomething=else"]}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 CMake will reply like this (after reporting progress for some time)::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"cookie":"","inReplyTo":"configure","type":"reply"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 
 Type "compute"
 ^^^^^^^^^^^^^^
 
-This requist will generate build system files in the build directory and
+This request will generate build system files in the build directory and
 is only available after a project was successfully "configure"d.
 
 Example::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"type":"compute"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 CMake will reply (after reporting progress information)::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"cookie":"","inReplyTo":"compute","type":"reply"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 
 Type "codemodel"
@@ -426,8 +430,19 @@ The "codemodel" request can be used after a project was "compute"d successfully.
 
 It will list the complete project structure as it is known to cmake.
 
-The reply will contain a key "projects", which will contain a list of
-project objects, one for each (sub-)project defined in the cmake build system.
+The reply will contain a key "configurations", which will contain a list of
+configuration objects. Configuration objects are used to destinquish between
+different configurations the build directory might have enabled. While most
+generators only support one configuration, others might support several.
+
+Each configuration object can have the following keys:
+
+"name"
+  contains the name of the configuration. The name may be empty.
+"projects"
+  contains a list of project objects, one for each build project.
+
+Project objects define one (sub-)project defined in the cmake build system.
 
 Each project object can have the following keys:
 
@@ -437,19 +452,8 @@ Each project object can have the following keys:
   contains the current source directory
 "buildDirectory"
   contains the current build directory.
-"configurations"
-  contains a list of configuration objects.
-
-Configuration objects are used to destinquish between different
-configurations the build directory might have enabled. While most generators
-only support one configuration, others support several.
-
-Each configuration object can have the following keys:
-
-"name"
-  contains the name of the configuration. The name may be empty.
 "targets"
-  contains a list of target objects, one for each build target.
+  contains a list of build system target objects.
 
 Target objects define individual build targets for a certain configuration.
 
@@ -519,88 +523,53 @@ sourceDirectory of the target.
 
 Example::
 
-  [== CMake Server ==[
-  {"type":"project"}
-  ]== CMake Server ==]
+  [== "CMake Server" ==[
+  {"type":"codemodel"}
+  ]== "CMake Server" ==]
 
 CMake will reply::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {
-    "cookie":"",
-    "type":"reply",
-    "inReplyTo":"project",
-
-    "projects":
-    [
+    "configurations": [
       {
-        "name":"CMAKE_FORM",
-        "sourceDirectory":"/home/code/src/cmake/Source/CursesDialog/form"
-        "buildDirectory":"/tmp/cmake-build-test/Source/CursesDialog/form",
-        "configurations":
-        [
+        "name": "",
+        "projects": [
           {
-            "name":"",
-            "targets":
-            [
+            "buildDirectory": "/tmp/build/Source/CursesDialog/form",
+            "name": "CMAKE_FORM",
+            "sourceDirectory": "/home/code/src/cmake/Source/CursesDialog/form",
+            "targets": [
               {
-                "artifactDirectory":"/tmp/cmake/Source/CursesDialog/form",
-                "fileGroups":
-                [
+                "artifacts": [ "/tmp/build/Source/CursesDialog/form/libcmForm.a" ],
+                "buildDirectory": "/tmp/build/Source/CursesDialog/form",
+                "fileGroups": [
                   {
-                    "compileFlags":"  -std=gnu11",
-                    "defines":
-                    [
-                      "SOMETHING=1",
-                      "LIBARCHIVE_STATIC"
-                    ],
-                    "includePath":
-                    [
-                      { "path":"/tmp/cmake-build-test/Utilities" },
-                      { "isSystem": true, "path":"/usr/include/something" },
-                      ...
-                    ]
-                    "language":"C",
-                    "sources":
-                    [
-                      "fld_arg.c",
-                      ...
-                      "fty_regex.c"
-                    ]
+                    "compileFlags": "  -std=gnu11",
+                    "defines": [ "CURL_STATICLIB", "LIBARCHIVE_STATIC" ],
+                    "includePath": [ { "path": "/tmp/build/Utilities" }, <...> ],
+                    "isGenerated": false,
+                    "language": "C",
+                    "sources": [ "fld_arg.c", <...> ]
                   }
                 ],
-                "fullName":"libcmForm.a",
-                "linkerLanguage":"C",
-                "name":"cmForm",
-                "type":"STATIC_LIBRARY"
+                "fullName": "libcmForm.a",
+                "linkerLanguage": "C",
+                "name": "cmForm",
+                "sourceDirectory": "/home/code/src/cmake/Source/CursesDialog/form",
+                "type": "STATIC_LIBRARY"
               }
             ]
-          }
-        ],
-      },
-      ...
-    ]
+          },
+          <...>
+        ]
+      }
+    ],
+    "cookie": "",
+    "inReplyTo": "codemodel",
+    "type": "reply"
   }
-  ]== CMake Server ==]
-
-The output can be tailored to the specific needs via parameter passed when
-requesting "project" information.
-
-You can have a "depth" key, which accepts "project", "configuration" and
-"target" as string values. These cause the output to be trimmed at the
-appropriate depth of the output tree.
-
-You can also set "configurations" to an array of strings with configuration
-names to list. This will cause any configuration that is not listed to be
-trimmed from the output.
-
-Generated files can be included in the listing by setting "includeGeneratedFiles"
-to "true". This setting defaults to "false", so generated files are not
-listed by default.
-
-Finally you can limit the target types that are going to be listed. This is
-done by providing a list of target types as an array of strings to the
-"targetTypes" key.
+  ]== "CMake Server" ==]
 
 
 Type "cmakeInputs"
@@ -614,13 +583,13 @@ This request is only available after a project was successfully
 
 Example::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"type":"cmakeInputs"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 CMake will reply with the following information::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"buildFiles":
     [
       {"isCMake":true,"isTemporary":false,"sources":["/usr/lib/cmake/...", ... ]},
@@ -633,7 +602,7 @@ CMake will reply with the following information::
     "inReplyTo":"cmakeInputs",
     "type":"reply"
   }
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 All file names are either relative to the top level source directory or
 absolute.
@@ -652,13 +621,13 @@ list the cached configuration values.
 
 Example::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {"type":"cache"}
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 CMake will respond with the following output::
 
-  [== CMake Server ==[
+  [== "CMake Server" ==[
   {
     "cookie":"","inReplyTo":"cache","type":"reply",
     "cache":
@@ -674,7 +643,7 @@ CMake will respond with the following output::
         "value":"TEST"}
     ]
   }
-  ]== CMake Server ==]
+  ]== "CMake Server" ==]
 
 The output can be limited to a list of keys by passing an array of key names
 to the "keys" optional field of the "cache" request.
@@ -688,16 +657,16 @@ command will report on the files and directories watched.
 
 Example::
 
-  [== CMake Server ==]
+  [== "CMake Server" ==[
   {"type":"fileSystemWatchers"}
-  [== CMake Server ==]
+  ]== "CMake Server" ==]
 
 CMake will respond with the following output::
 
-  [== CMake Server ==]
+  [== "CMake Server" ==[
   {
     "cookie":"","inReplyTo":"fileSystemWatchers","type":"reply",
     "watchedFiles": [ "/absolute/path" ],
     "watchedDirectories": [ "/absolute" ]
   }
-  [== CMake Server ==]
+  ]== "CMake Server" ==]
