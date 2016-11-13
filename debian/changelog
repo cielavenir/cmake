@@ -1,6 +1,8 @@
 cmake (3.7.0-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Remove libjapser from the autopkgtest, the package has been removed
+    from the archive.
 
  -- Felix Geyer <fgeyer@debian.org>  Sat, 12 Nov 2016 11:56:24 +0100
 
