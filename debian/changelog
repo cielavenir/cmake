@@ -1,6 +1,7 @@
 cmake (3.7.1-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Don't try to link against libuv on hurd. (Closes: #844374)
 
  -- Felix Geyer <fgeyer@debian.org>  Sat, 03 Dec 2016 23:29:01 +0100
 

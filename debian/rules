@@ -32,6 +32,9 @@ $(BUILD_FLAGS_FILE) verify-build-flags:
 ifeq ($(filter stage1,$(DEB_BUILD_PROFILES)),)
 	$(call $(flag_action),BUILD_QtDialog,ON,"Build Qt GUI")
 endif
+ifeq ($(DEB_HOST_ARCH_OS),hurd)
+	$(call $(flag_action),CMAKE_USE_LIBUV,0,"Do not use libuv")
+endif
 #	$(call $(flag_action),BUILD_DOCUMENTATION,ON)
 
 $(BUILD_FLAGS_FILE): flag_action := set_build_flag
