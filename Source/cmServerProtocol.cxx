@@ -720,11 +720,15 @@ static Json::Value DumpTarget(cmGeneratorTarget* target,
 
   Json::Value result = Json::objectValue;
   result[kNAME_KEY] = target->GetName();
-
   result[kTYPE_KEY] = typeName;
-  result[kFULL_NAME_KEY] = target->GetFullName(config);
   result[kSOURCE_DIRECTORY_KEY] = lg->GetCurrentSourceDirectory();
   result[kBUILD_DIRECTORY_KEY] = lg->GetCurrentBinaryDirectory();
+
+  if (type == cmState::INTERFACE_LIBRARY) {
+    return result;
+  }
+
+  result[kFULL_NAME_KEY] = target->GetFullName(config);
 
   if (target->HaveWellDefinedOutputFiles()) {
     Json::Value artifacts = Json::arrayValue;
@@ -923,7 +927,7 @@ cmServerResponse cmServerProtocol1_0::ProcessConfigure(
   }
 
   // Make sure the types of cacheArguments matches (if given):
-  std::vector<std::string> cacheArgs;
+  std::vector<std::string> cacheArgs = { "unused" };
   bool cacheArgumentsError = false;
   const Json::Value passedArgs = request.Data[kCACHE_ARGUMENTS_KEY];
   if (!passedArgs.isNull()) {
@@ -983,6 +987,8 @@ cmServerResponse cmServerProtocol1_0::ProcessConfigure(
                                  "buildDirectory.");
     }
   }
+
+  cmSystemTools::ResetErrorOccuredFlag(); // Reset error state
 
   if (cm->AddCMakePaths() != 1) {
     return request.ReportError("Failed to set CMake paths.");
