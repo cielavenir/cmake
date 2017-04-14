@@ -20,12 +20,12 @@ all places.
 
 --- a/Source/kwsys/SystemInformation.cxx
 +++ b/Source/kwsys/SystemInformation.cxx
-@@ -123,7 +123,7 @@ typedef int siginfo_t;
- # endif
+@@ -108,7 +108,7 @@ typedef int siginfo_t;
+ #endif
  #endif
  
--#if defined(__linux) || defined (__sun) || defined(_SCO_DS)
-+#if defined(__linux) || defined (__sun) || defined(_SCO_DS) || defined(__GLIBC__) || defined(__GNU__)
- # include <fenv.h>
- # include <sys/socket.h>
- # include <netdb.h>
+-#if defined(__linux) || defined(__sun) || defined(_SCO_DS)
++#if defined(__linux) || defined(__sun) || defined(_SCO_DS) || defined(__GLIBC__) || defined(__GNU__)
+ #include <fenv.h>
+ #include <netdb.h>
+ #include <netinet/in.h>
