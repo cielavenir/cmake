@@ -3,7 +3,13 @@
 #ifndef cmAddCustomCommandCommand_h
 #define cmAddCustomCommandCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmAddCustomCommandCommand
  * \brief cmAddCustomCommandCommand defines a new command (rule) that can
@@ -30,8 +36,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "add_custom_command"; }
-
-  cmTypeMacro(cmAddCustomCommandCommand, cmCommand);
 
 protected:
   bool CheckOutputs(const std::vector<std::string>& outputs);

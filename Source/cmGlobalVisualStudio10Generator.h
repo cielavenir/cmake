@@ -4,6 +4,7 @@
 #define cmGlobalVisualStudio10Generator_h
 
 #include "cmGlobalVisualStudio8Generator.h"
+#include "cmVisualStudio10ToolsetOptions.h"
 
 /** \class cmGlobalVisualStudio10Generator
  * \brief Write a Unix makefiles.
@@ -22,6 +23,7 @@ public:
   virtual bool SetSystemName(std::string const& s, cmMakefile* mf);
   virtual bool SetGeneratorPlatform(std::string const& p, cmMakefile* mf);
   virtual bool SetGeneratorToolset(std::string const& ts, cmMakefile* mf);
+  virtual bool ParseGeneratorToolset(std::string const& ts, cmMakefile* mf);
 
   virtual void GenerateBuildCommand(
     std::vector<std::string>& makeCommand, const std::string& makeProgram,
@@ -47,6 +49,10 @@ public:
 
   /** The toolset name for the target platform.  */
   const char* GetPlatformToolset() const;
+  std::string const& GetPlatformToolsetString() const;
+
+  /** The toolset host architecture name (e.g. x64 for 64-bit host tools).  */
+  const char* GetPlatformToolsetHostArchitecture() const;
 
   /** Return the CMAKE_SYSTEM_NAME.  */
   std::string const& GetSystemName() const { return this->SystemName; }
@@ -80,9 +86,16 @@ public:
 
   virtual const char* GetToolsVersion() { return "4.0"; }
 
-  virtual void FindMakeProgram(cmMakefile*);
+  bool FindMakeProgram(cmMakefile* mf) CM_OVERRIDE;
 
   static std::string GetInstalledNsightTegraVersion();
+
+  cmIDEFlagTable const* GetClFlagTable() const;
+  cmIDEFlagTable const* GetCSharpFlagTable() const;
+  cmIDEFlagTable const* GetRcFlagTable() const;
+  cmIDEFlagTable const* GetLibFlagTable() const;
+  cmIDEFlagTable const* GetLinkFlagTable() const;
+  cmIDEFlagTable const* GetMasmFlagTable() const;
 
 protected:
   virtual void Generate();
@@ -101,11 +114,18 @@ protected:
   std::string const& GetMSBuildCommand();
 
   std::string GeneratorToolset;
+  std::string GeneratorToolsetHostArchitecture;
   std::string DefaultPlatformToolset;
   std::string WindowsTargetPlatformVersion;
   std::string SystemName;
   std::string SystemVersion;
   std::string NsightTegraVersion;
+  cmIDEFlagTable const* DefaultClFlagTable;
+  cmIDEFlagTable const* DefaultCSharpFlagTable;
+  cmIDEFlagTable const* DefaultLibFlagTable;
+  cmIDEFlagTable const* DefaultLinkFlagTable;
+  cmIDEFlagTable const* DefaultMasmFlagTable;
+  cmIDEFlagTable const* DefaultRcFlagTable;
   bool SystemIsWindowsCE;
   bool SystemIsWindowsPhone;
   bool SystemIsWindowsStore;
@@ -129,6 +149,7 @@ private:
 
   std::string MSBuildCommand;
   bool MSBuildCommandInitialized;
+  cmVisualStudio10ToolsetOptions ToolsetOptions;
   virtual std::string FindMSBuildCommand();
   virtual std::string FindDevEnvCommand();
   virtual std::string GetVSMakeProgram() { return this->GetMSBuildCommand(); }

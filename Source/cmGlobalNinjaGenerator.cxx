@@ -2,6 +2,17 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmGlobalNinjaGenerator.h"
 
+#include <algorithm>
+#include <cm_jsoncpp_reader.h>
+#include <cm_jsoncpp_value.h>
+#include <cm_jsoncpp_writer.h>
+#include <cmsys/FStream.hxx>
+#include <ctype.h>
+#include <functional>
+#include <iterator>
+#include <sstream>
+#include <stdio.h>
+
 #include "cmAlgorithms.h"
 #include "cmDocumentationEntry.h"
 #include "cmFortranParser.h"
@@ -11,8 +22,12 @@
 #include "cmLocalGenerator.h"
 #include "cmLocalNinjaGenerator.h"
 #include "cmMakefile.h"
+#include "cmNinjaLinkLineComputer.h"
 #include "cmOutputConverter.h"
 #include "cmState.h"
+#include "cmStateDirectory.h"
+#include "cmStateSnapshot.h"
+#include "cmStateTypes.h"
 #include "cmSystemTools.h"
 #include "cmTarget.h"
 #include "cmTargetDepend.h"
@@ -20,19 +35,16 @@
 #include "cm_auto_ptr.hxx"
 #include "cmake.h"
 
-#include "cm_jsoncpp_reader.h"
-#include "cm_jsoncpp_writer.h"
-
-#include <algorithm>
-#include <ctype.h>
-#include <functional>
-#include <iterator>
-#include <sstream>
-#include <stdio.h>
+class cmLinkLineComputer;
 
 const char* cmGlobalNinjaGenerator::NINJA_BUILD_FILE = "build.ninja";
 const char* cmGlobalNinjaGenerator::NINJA_RULES_FILE = "rules.ninja";
 const char* cmGlobalNinjaGenerator::INDENT = "  ";
+#ifdef _WIN32
+std::string const cmGlobalNinjaGenerator::SHELL_NOOP = "cd .";
+#else
+std::string const cmGlobalNinjaGenerator::SHELL_NOOP = ":";
+#endif
 
 void cmGlobalNinjaGenerator::Indent(std::ostream& os, int count)
 {
@@ -62,6 +74,14 @@ void cmGlobalNinjaGenerator::WriteComment(std::ostream& os,
     lpos = rpos + 1;
   }
   os << "# " << comment.substr(lpos) << "\n\n";
+}
+
+cmLinkLineComputer* cmGlobalNinjaGenerator::CreateLinkLineComputer(
+  cmOutputConverter* outputConverter, cmStateDirectory /* stateDir */) const
+{
+  return new cmNinjaLinkLineComputer(
+    outputConverter,
+    this->LocalGenerators[0]->GetStateSnapshot().GetDirectory(), this);
 }
 
 std::string cmGlobalNinjaGenerator::EncodeRuleName(std::string const& name)
@@ -116,7 +136,7 @@ std::string cmGlobalNinjaGenerator::EncodeLiteral(const std::string& lit)
 
 std::string cmGlobalNinjaGenerator::EncodePath(const std::string& path)
 {
-  std::string result = path;
+  std::string result = path; // NOLINT(clang-tidy)
 #ifdef _WIN32
   if (this->IsGCCOnWindows())
     std::replace(result.begin(), result.end(), '\\', '/');
@@ -269,7 +289,7 @@ void cmGlobalNinjaGenerator::WriteCustomCommandBuild(
   bool restat, const cmNinjaDeps& outputs, const cmNinjaDeps& deps,
   const cmNinjaDeps& orderOnly)
 {
-  std::string cmd = command;
+  std::string cmd = command; // NOLINT(clang-tidy)
 #ifdef _WIN32
   if (cmd.empty())
     // TODO Shouldn't an empty command be handled by ninja?
@@ -487,6 +507,18 @@ cmLocalGenerator* cmGlobalNinjaGenerator::CreateLocalGenerator(cmMakefile* mf)
   return new cmLocalNinjaGenerator(this, mf);
 }
 
+codecvt::Encoding cmGlobalNinjaGenerator::GetMakefileEncoding() const
+{
+#ifdef _WIN32
+  // Ninja on Windows does not support non-ANSI characters.
+  // https://github.com/ninja-build/ninja/issues/1195
+  return codecvt::ANSI;
+#else
+  // No encoding conversion needed on other platforms.
+  return codecvt::None;
+#endif
+}
+
 void cmGlobalNinjaGenerator::GetDocumentation(cmDocumentationEntry& entry)
 {
   entry.Name = cmGlobalNinjaGenerator::GetActualName();
@@ -544,20 +576,32 @@ void cmGlobalNinjaGenerator::Generate()
   this->CloseBuildFileStream();
 }
 
-void cmGlobalNinjaGenerator::FindMakeProgram(cmMakefile* mf)
+bool cmGlobalNinjaGenerator::FindMakeProgram(cmMakefile* mf)
 {
-  this->cmGlobalGenerator::FindMakeProgram(mf);
+  if (!this->cmGlobalGenerator::FindMakeProgram(mf)) {
+    return false;
+  }
   if (const char* ninjaCommand = mf->GetDefinition("CMAKE_MAKE_PROGRAM")) {
     this->NinjaCommand = ninjaCommand;
     std::vector<std::string> command;
     command.push_back(this->NinjaCommand);
     command.push_back("--version");
     std::string version;
-    cmSystemTools::RunSingleCommand(command, &version, CM_NULLPTR, CM_NULLPTR,
-                                    CM_NULLPTR, cmSystemTools::OUTPUT_NONE);
+    std::string error;
+    if (!cmSystemTools::RunSingleCommand(command, &version, &error, CM_NULLPTR,
+                                         CM_NULLPTR,
+                                         cmSystemTools::OUTPUT_NONE)) {
+      mf->IssueMessage(cmake::FATAL_ERROR, "Running\n '" +
+                         cmJoin(command, "' '") + "'\n"
+                                                  "failed with:\n " +
+                         error);
+      cmSystemTools::SetFatalErrorOccured();
+      return false;
+    }
     this->NinjaVersion = cmSystemTools::TrimWhitespace(version);
     this->CheckNinjaFeatures();
   }
+  return true;
 }
 
 void cmGlobalNinjaGenerator::CheckNinjaFeatures()
@@ -745,7 +789,8 @@ void cmGlobalNinjaGenerator::OpenBuildFileStream()
 
   // Get a stream where to generate things.
   if (!this->BuildFileStream) {
-    this->BuildFileStream = new cmGeneratedFileStream(buildFilePath.c_str());
+    this->BuildFileStream = new cmGeneratedFileStream(
+      buildFilePath.c_str(), false, this->GetMakefileEncoding());
     if (!this->BuildFileStream) {
       // An error message is generated by the constructor if it cannot
       // open the file.
@@ -782,7 +827,8 @@ void cmGlobalNinjaGenerator::OpenRulesFileStream()
 
   // Get a stream where to generate things.
   if (!this->RulesFileStream) {
-    this->RulesFileStream = new cmGeneratedFileStream(rulesFilePath.c_str());
+    this->RulesFileStream = new cmGeneratedFileStream(
+      rulesFilePath.c_str(), false, this->GetMakefileEncoding());
     if (!this->RulesFileStream) {
       // An error message is generated by the constructor if it cannot
       // open the file.
@@ -830,7 +876,8 @@ static void EnsureTrailingSlash(std::string& path)
 #endif
 }
 
-std::string cmGlobalNinjaGenerator::ConvertToNinjaPath(const std::string& path)
+std::string cmGlobalNinjaGenerator::ConvertToNinjaPath(
+  const std::string& path) const
 {
   cmLocalNinjaGenerator* ng =
     static_cast<cmLocalNinjaGenerator*>(this->LocalGenerators[0]);
@@ -932,17 +979,17 @@ void cmGlobalNinjaGenerator::AppendTargetOutputs(
   bool realname = target->IsFrameworkOnApple();
 
   switch (target->GetType()) {
-    case cmState::EXECUTABLE:
-    case cmState::SHARED_LIBRARY:
-    case cmState::STATIC_LIBRARY:
-    case cmState::MODULE_LIBRARY: {
+    case cmStateEnums::EXECUTABLE:
+    case cmStateEnums::SHARED_LIBRARY:
+    case cmStateEnums::STATIC_LIBRARY:
+    case cmStateEnums::MODULE_LIBRARY: {
       outputs.push_back(this->ConvertToNinjaPath(
         target->GetFullPath(configName, false, realname)));
       break;
     }
-    case cmState::OBJECT_LIBRARY:
-    case cmState::GLOBAL_TARGET:
-    case cmState::UTILITY: {
+    case cmStateEnums::OBJECT_LIBRARY:
+    case cmStateEnums::GLOBAL_TARGET:
+    case cmStateEnums::UTILITY: {
       std::string path =
         target->GetLocalGenerator()->GetCurrentBinaryDirectory() +
         std::string("/") + target->GetName();
@@ -958,7 +1005,7 @@ void cmGlobalNinjaGenerator::AppendTargetOutputs(
 void cmGlobalNinjaGenerator::AppendTargetDepends(
   cmGeneratorTarget const* target, cmNinjaDeps& outputs)
 {
-  if (target->GetType() == cmState::GLOBAL_TARGET) {
+  if (target->GetType() == cmStateEnums::GLOBAL_TARGET) {
     // These depend only on other CMake-provided targets, e.g. "all".
     std::set<std::string> const& utils = target->GetUtilities();
     for (std::set<std::string>::const_iterator i = utils.begin();
@@ -973,7 +1020,7 @@ void cmGlobalNinjaGenerator::AppendTargetDepends(
     cmTargetDependSet const& targetDeps = this->GetTargetDirectDepends(target);
     for (cmTargetDependSet::const_iterator i = targetDeps.begin();
          i != targetDeps.end(); ++i) {
-      if ((*i)->GetType() == cmState::INTERFACE_LIBRARY) {
+      if ((*i)->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
         continue;
       }
       this->AppendTargetOutputs(*i, outs);
@@ -1010,7 +1057,7 @@ void cmGlobalNinjaGenerator::ComputeTargetDependsClosure(
   cmTargetDependSet const& targetDeps = this->GetTargetDirectDepends(target);
   for (cmTargetDependSet::const_iterator i = targetDeps.begin();
        i != targetDeps.end(); ++i) {
-    if ((*i)->GetType() == cmState::INTERFACE_LIBRARY) {
+    if ((*i)->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
       continue;
     }
     if (depends.insert(*i).second) {
@@ -1078,11 +1125,13 @@ void cmGlobalNinjaGenerator::WriteFolderTargets(std::ostream& os)
            lg->GetGeneratorTargets().begin();
          ti != lg->GetGeneratorTargets().end(); ++ti) {
       cmGeneratorTarget const* gt = *ti;
-      cmState::TargetType const type = gt->GetType();
-      if ((type == cmState::EXECUTABLE || type == cmState::STATIC_LIBRARY ||
-           type == cmState::SHARED_LIBRARY ||
-           type == cmState::MODULE_LIBRARY ||
-           type == cmState::OBJECT_LIBRARY || type == cmState::UTILITY) &&
+      cmStateEnums::TargetType const type = gt->GetType();
+      if ((type == cmStateEnums::EXECUTABLE ||
+           type == cmStateEnums::STATIC_LIBRARY ||
+           type == cmStateEnums::SHARED_LIBRARY ||
+           type == cmStateEnums::MODULE_LIBRARY ||
+           type == cmStateEnums::OBJECT_LIBRARY ||
+           type == cmStateEnums::UTILITY) &&
           !gt->GetPropertyAsBool("EXCLUDE_FROM_ALL")) {
         targetsPerFolder[currentBinaryFolder].push_back(gt->GetName());
       }
@@ -1090,9 +1139,9 @@ void cmGlobalNinjaGenerator::WriteFolderTargets(std::ostream& os)
 
     // The directory-level rule should depend on the directory-level
     // rules of the subdirectories.
-    std::vector<cmState::Snapshot> const& children =
+    std::vector<cmStateSnapshot> const& children =
       lg->GetStateSnapshot().GetChildren();
-    for (std::vector<cmState::Snapshot>::const_iterator stateIt =
+    for (std::vector<cmStateSnapshot>::const_iterator stateIt =
            children.begin();
          stateIt != children.end(); ++stateIt) {
       std::string const currentBinaryDir =
@@ -1409,7 +1458,8 @@ void cmGlobalNinjaGenerator::InitOutputPathPrefix()
   EnsureTrailingSlash(this->OutputPathPrefix);
 }
 
-std::string cmGlobalNinjaGenerator::NinjaOutputPath(std::string const& path)
+std::string cmGlobalNinjaGenerator::NinjaOutputPath(
+  std::string const& path) const
 {
   if (!this->HasOutputPathPrefix() || cmSystemTools::FileIsFullPath(path)) {
     return path;
@@ -1642,8 +1692,7 @@ bool cmGlobalNinjaGenerator::WriteDyndepFile(
 {
   // Setup path conversions.
   {
-    cmState::Snapshot snapshot =
-      this->GetCMakeInstance()->GetCurrentSnapshot();
+    cmStateSnapshot snapshot = this->GetCMakeInstance()->GetCurrentSnapshot();
     snapshot.GetDirectory().SetCurrentSource(dir_cur_src);
     snapshot.GetDirectory().SetCurrentBinary(dir_cur_bld);
     snapshot.GetDirectory().SetRelativePathTopSource(dir_top_src.c_str());

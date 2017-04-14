@@ -8,6 +8,11 @@
 // include sys/stat.h after sys/types.h
 #include <sys/stat.h>
 
+#include "cmMakefile.h"
+#include "cmSystemTools.h"
+
+class cmExecutionStatus;
+
 // cmLibraryCommand
 bool cmWriteFileCommand::InitialPass(std::vector<std::string> const& args,
                                      cmExecutionStatus&)
@@ -60,7 +65,7 @@ bool cmWriteFileCommand::InitialPass(std::vector<std::string> const& args,
                        overwrite ? std::ios::out : std::ios::app);
   if (!file) {
     std::string error = "Internal CMake error when trying to open file: ";
-    error += fileName.c_str();
+    error += fileName;
     error += " for writing.";
     this->SetError(error);
     return false;

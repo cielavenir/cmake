@@ -2,6 +2,11 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmContinueCommand.h"
 
+#include "cmExecutionStatus.h"
+#include "cmMakefile.h"
+#include "cmSystemTools.h"
+#include "cmake.h"
+
 // cmContinueCommand
 bool cmContinueCommand::InitialPass(std::vector<std::string> const& args,
                                     cmExecutionStatus& status)

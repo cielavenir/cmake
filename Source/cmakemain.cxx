@@ -12,12 +12,16 @@
 #include "cmGlobalGenerator.h"
 #include "cmMakefile.h"
 #include "cmState.h"
+#include "cmStateTypes.h"
 #include "cmSystemTools.h"
 #include "cmake.h"
 #include "cmcmd.h"
 
 #include <cmConfigure.h>
 #include <cmsys/Encoding.hxx>
+#if defined(_WIN32) && defined(CMAKE_BUILD_WITH_CMAKE)
+#include <cmsys/ConsoleBuf.hxx>
+#endif
 #include <iostream>
 #include <string.h>
 #include <string>
@@ -153,6 +157,13 @@ static void cmakemainProgressCallback(const char* m, float prog,
 
 int main(int ac, char const* const* av)
 {
+#if defined(_WIN32) && defined(CMAKE_BUILD_WITH_CMAKE)
+  // Replace streambuf so we can output Unicode to console
+  cmsys::ConsoleBuf::Manager consoleOut(std::cout);
+  consoleOut.SetUTF8Pipes();
+  cmsys::ConsoleBuf::Manager consoleErr(std::cerr, true);
+  consoleErr.SetUTF8Pipes();
+#endif
   cmsys::Encoding::CommandLineArguments args =
     cmsys::Encoding::CommandLineArguments::Main(ac, av);
   ac = args.argc();
@@ -292,9 +303,9 @@ int do_cmake(int ac, char const* const* av)
     std::vector<std::string> keys = cm.GetState()->GetCacheEntryKeys();
     for (std::vector<std::string>::const_iterator it = keys.begin();
          it != keys.end(); ++it) {
-      cmState::CacheEntryType t = cm.GetState()->GetCacheEntryType(*it);
-      if (t != cmState::INTERNAL && t != cmState::STATIC &&
-          t != cmState::UNINITIALIZED) {
+      cmStateEnums::CacheEntryType t = cm.GetState()->GetCacheEntryType(*it);
+      if (t != cmStateEnums::INTERNAL && t != cmStateEnums::STATIC &&
+          t != cmStateEnums::UNINITIALIZED) {
         const char* advancedProp =
           cm.GetState()->GetCacheEntryProperty(*it, "ADVANCED");
         if (list_all_cached || !advancedProp) {
@@ -398,6 +409,8 @@ static int do_build(int ac, char const* const* av)
   }
 
   cmake cm;
+  cmSystemTools::SetMessageCallback(cmakemainMessageCallback, (void*)&cm);
+  cm.SetProgressCallback(cmakemainProgressCallback, (void*)&cm);
   return cm.Build(dir, target, config, nativeOptions, clean);
 #endif
 }

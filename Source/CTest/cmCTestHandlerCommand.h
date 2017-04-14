@@ -6,7 +6,6 @@
 #include <cmConfigure.h>
 
 #include "cmCTestCommand.h"
-#include "cmTypeMacro.h"
 
 #include <stddef.h>
 #include <string>
@@ -32,8 +31,6 @@ public:
   bool InitialPass(std::vector<std::string> const& args,
                    cmExecutionStatus& status) CM_OVERRIDE;
 
-  cmTypeMacro(cmCTestHandlerCommand, cmCTestCommand);
-
   enum
   {
     ct_NONE,
@@ -47,6 +44,8 @@ public:
 
 protected:
   virtual cmCTestGenericHandler* InitializeHandler() = 0;
+
+  virtual void ProcessAdditionalValues(cmCTestGenericHandler* handler);
 
   // Command argument handling.
   virtual bool CheckArgumentKeyword(std::string const& arg);

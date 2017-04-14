@@ -127,6 +127,7 @@ void cmCTestMemCheckHandler::Initialize()
   this->MemoryTesterOptions.clear();
   this->MemoryTesterStyle = UNKNOWN;
   this->MemoryTesterOutputFile = "";
+  this->DefectCount = 0;
 }
 
 int cmCTestMemCheckHandler::PreProcessHandler()
@@ -279,6 +280,11 @@ void cmCTestMemCheckHandler::PopulateCustomVectors(cmMakefile* mf)
                                      this->Quiet);
 }
 
+int cmCTestMemCheckHandler::GetDefectCount()
+{
+  return this->DefectCount;
+}
+
 void cmCTestMemCheckHandler::GenerateDartOutput(cmXMLWriter& xml)
 {
   if (!this->CTest->GetProduceXML()) {
@@ -298,6 +304,9 @@ void cmCTestMemCheckHandler::GenerateDartOutput(cmXMLWriter& xml)
       break;
     case cmCTestMemCheckHandler::ADDRESS_SANITIZER:
       xml.Attribute("Checker", "AddressSanitizer");
+      break;
+    case cmCTestMemCheckHandler::LEAK_SANITIZER:
+      xml.Attribute("Checker", "LeakSanitizer");
       break;
     case cmCTestMemCheckHandler::THREAD_SANITIZER:
       xml.Attribute("Checker", "ThreadSanitizer");
@@ -323,10 +332,8 @@ void cmCTestMemCheckHandler::GenerateDartOutput(cmXMLWriter& xml)
   }
   xml.EndElement(); // TestList
   cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
-                     "-- Processing memory checking output: ", this->Quiet);
+                     "-- Processing memory checking output:\n", this->Quiet);
   size_t total = this->TestResults.size();
-  size_t step = total / 10;
-  size_t current = 0;
   for (cc = 0; cc < this->TestResults.size(); cc++) {
     cmCTestTestResult* result = &this->TestResults[cc];
     std::string memcheckstr;
@@ -341,20 +348,31 @@ void cmCTestMemCheckHandler::GenerateDartOutput(cmXMLWriter& xml)
       static_cast<size_t>(this->CustomMaximumFailedTestOutputSize));
     this->WriteTestResultHeader(xml, result);
     xml.StartElement("Results");
+    int memoryErrors = 0;
     for (std::vector<int>::size_type kk = 0; kk < memcheckresults.size();
          ++kk) {
       if (memcheckresults[kk]) {
         xml.StartElement("Defect");
         xml.Attribute("type", this->ResultStringsLong[kk]);
         xml.Content(memcheckresults[kk]);
+        memoryErrors += memcheckresults[kk];
         xml.EndElement(); // Defect
       }
       this->GlobalResults[kk] += memcheckresults[kk];
     }
     xml.EndElement(); // Results
-
+    if (memoryErrors > 0) {
+      const int maxTestNameWidth = this->CTest->GetMaxTestNameWidth();
+      std::string outname = result->Name + " ";
+      outname.resize(maxTestNameWidth + 4, '.');
+      cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT, cc + 1
+                           << "/" << total << " MemCheck: #"
+                           << result->TestCount << ": " << outname
+                           << "   Defects: " << memoryErrors << std::endl,
+                         this->Quiet);
+    }
     xml.StartElement("Log");
-    if (this->CTest->ShouldCompressMemCheckOutput()) {
+    if (this->CTest->ShouldCompressTestOutput()) {
       this->CTest->CompressString(memcheckstr);
       xml.Attribute("compression", "gzip");
       xml.Attribute("encoding", "base64");
@@ -363,23 +381,22 @@ void cmCTestMemCheckHandler::GenerateDartOutput(cmXMLWriter& xml)
     xml.EndElement(); // Log
 
     this->WriteTestResultFooter(xml, result);
-    if (current < cc) {
-      cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT, "#" << std::flush,
-                         this->Quiet);
-      current += step;
-    }
   }
-  cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT, std::endl, this->Quiet);
+  cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
+                     "MemCheck log files can be found here: "
+                     "( * corresponds to test number)"
+                       << std::endl,
+                     this->Quiet);
+  std::string output = this->MemoryTesterOutputFile;
+  cmSystemTools::ReplaceString(output, "??", "*");
+  cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT, output << std::endl,
+                     this->Quiet);
   cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
                      "Memory checking results:" << std::endl, this->Quiet);
   xml.StartElement("DefectList");
   for (cc = 0; cc < this->GlobalResults.size(); cc++) {
     if (this->GlobalResults[cc]) {
-#ifdef cerr
-#undef cerr
-#endif
       std::cerr.width(35);
-#define cerr no_cerr
       cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
                          this->ResultStringsLong[cc]
                            << " - " << this->GlobalResults[cc] << std::endl,
@@ -442,6 +459,12 @@ bool cmCTestMemCheckHandler::InitializeMemoryChecking()
       "AddressSanitizer") {
     this->MemoryTester = this->CTest->GetCTestConfiguration("CMakeCommand");
     this->MemoryTesterStyle = cmCTestMemCheckHandler::ADDRESS_SANITIZER;
+    this->LogWithPID = true; // even if we give the log file the pid is added
+  }
+  if (this->CTest->GetCTestConfiguration("MemoryCheckType") ==
+      "LeakSanitizer") {
+    this->MemoryTester = this->CTest->GetCTestConfiguration("CMakeCommand");
+    this->MemoryTesterStyle = cmCTestMemCheckHandler::LEAK_SANITIZER;
     this->LogWithPID = true; // even if we give the log file the pid is added
   }
   if (this->CTest->GetCTestConfiguration("MemoryCheckType") ==
@@ -572,6 +595,7 @@ bool cmCTestMemCheckHandler::InitializeMemoryChecking()
     }
     // these are almost the same but the env var used is different
     case cmCTestMemCheckHandler::ADDRESS_SANITIZER:
+    case cmCTestMemCheckHandler::LEAK_SANITIZER:
     case cmCTestMemCheckHandler::THREAD_SANITIZER:
     case cmCTestMemCheckHandler::MEMORY_SANITIZER:
     case cmCTestMemCheckHandler::UB_SANITIZER: {
@@ -583,12 +607,24 @@ bool cmCTestMemCheckHandler::InitializeMemoryChecking()
       this->MemoryTesterDynamicOptions.push_back("-E");
       this->MemoryTesterDynamicOptions.push_back("env");
       std::string envVar;
-      std::string extraOptions =
-        this->CTest->GetCTestConfiguration("MemoryCheckSanitizerOptions");
+      std::string extraOptions;
+      std::string suppressionsOption;
+      if (!this->CTest->GetCTestConfiguration("MemoryCheckSanitizerOptions")
+             .empty()) {
+        extraOptions = ":" +
+          this->CTest->GetCTestConfiguration("MemoryCheckSanitizerOptions");
+      }
+      if (!this->CTest->GetCTestConfiguration("MemoryCheckSuppressionFile")
+             .empty()) {
+        suppressionsOption = ":suppressions=" +
+          this->CTest->GetCTestConfiguration("MemoryCheckSuppressionFile");
+      }
       if (this->MemoryTesterStyle ==
           cmCTestMemCheckHandler::ADDRESS_SANITIZER) {
         envVar = "ASAN_OPTIONS";
-        extraOptions += " detect_leaks=1";
+      } else if (this->MemoryTesterStyle ==
+                 cmCTestMemCheckHandler::LEAK_SANITIZER) {
+        envVar = "LSAN_OPTIONS";
       } else if (this->MemoryTesterStyle ==
                  cmCTestMemCheckHandler::THREAD_SANITIZER) {
         envVar = "TSAN_OPTIONS";
@@ -599,9 +635,12 @@ bool cmCTestMemCheckHandler::InitializeMemoryChecking()
                  cmCTestMemCheckHandler::UB_SANITIZER) {
         envVar = "UBSAN_OPTIONS";
       }
+      // Quote log_path with single quotes; see
+      // https://bugs.chromium.org/p/chromium/issues/detail?id=467936
       std::string outputFile =
-        envVar + "=log_path=\"" + this->MemoryTesterOutputFile + "\" ";
-      this->MemoryTesterEnvironmentVariable = outputFile + extraOptions;
+        envVar + "=log_path='" + this->MemoryTesterOutputFile + "'";
+      this->MemoryTesterEnvironmentVariable =
+        outputFile + suppressionsOption + extraOptions;
       break;
     }
     default:
@@ -630,6 +669,7 @@ bool cmCTestMemCheckHandler::ProcessMemCheckOutput(const std::string& str,
     case cmCTestMemCheckHandler::PURIFY:
       return this->ProcessMemCheckPurifyOutput(str, log, results);
     case cmCTestMemCheckHandler::ADDRESS_SANITIZER:
+    case cmCTestMemCheckHandler::LEAK_SANITIZER:
     case cmCTestMemCheckHandler::THREAD_SANITIZER:
     case cmCTestMemCheckHandler::MEMORY_SANITIZER:
     case cmCTestMemCheckHandler::UB_SANITIZER:
@@ -665,6 +705,9 @@ bool cmCTestMemCheckHandler::ProcessMemCheckSanitizerOutput(
   switch (this->MemoryTesterStyle) {
     case cmCTestMemCheckHandler::ADDRESS_SANITIZER:
       regex = "ERROR: AddressSanitizer: (.*) on.*";
+      break;
+    case cmCTestMemCheckHandler::LEAK_SANITIZER:
+      // use leakWarning regex
       break;
     case cmCTestMemCheckHandler::THREAD_SANITIZER:
       regex = "WARNING: ThreadSanitizer: (.*) \\(pid=.*\\)";
@@ -706,6 +749,7 @@ bool cmCTestMemCheckHandler::ProcessMemCheckSanitizerOutput(
     ostr << *i << std::endl;
   }
   log = ostr.str();
+  this->DefectCount += defects;
   return defects == 0;
 }
 bool cmCTestMemCheckHandler::ProcessMemCheckPurifyOutput(
@@ -747,6 +791,7 @@ bool cmCTestMemCheckHandler::ProcessMemCheckPurifyOutput(
   }
 
   log = ostr.str();
+  this->DefectCount += defects;
   return defects == 0;
 }
 
@@ -882,6 +927,7 @@ bool cmCTestMemCheckHandler::ProcessMemCheckValgrindOutput(
                        << (cmSystemTools::GetTime() - sttime) << std::endl,
                      this->Quiet);
   log = ostr.str();
+  this->DefectCount += defects;
   return defects == 0;
 }
 
@@ -927,9 +973,9 @@ bool cmCTestMemCheckHandler::ProcessMemCheckBoundsCheckerOutput(
     // only put the output of Bounds Checker if there were
     // errors or leaks detected
     log = parser.Log;
-    return false;
   }
-  return true;
+  this->DefectCount += defects;
+  return defects == 0;
 }
 
 // PostProcessTest memcheck results

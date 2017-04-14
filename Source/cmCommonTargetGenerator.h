@@ -4,15 +4,13 @@
 #define cmCommonTargetGenerator_h
 
 #include <cmConfigure.h> // IWYU pragma: keep
-
-#include "cmOutputConverter.h"
-
 #include <map>
 #include <string>
 #include <vector>
 
 class cmGeneratorTarget;
 class cmGlobalCommonGenerator;
+class cmLinkLineComputer;
 class cmLocalCommonGenerator;
 class cmMakefile;
 class cmSourceFile;
@@ -37,7 +35,8 @@ protected:
   bool GetFeatureAsBool(const std::string& feature);
 
   // Helper to add flag for windows .def file.
-  void AddModuleDefinitionFlag(std::string& flags);
+  void AddModuleDefinitionFlag(cmLinkLineComputer* linkLineComputer,
+                               std::string& flags);
 
   cmGeneratorTarget* GeneratorTarget;
   cmMakefile* Makefile;
@@ -67,6 +66,7 @@ protected:
   std::string GetManifests();
 
   std::vector<std::string> GetLinkedTargetDirectories() const;
+  std::string ComputeTargetCompilePDB() const;
 };
 
 #endif

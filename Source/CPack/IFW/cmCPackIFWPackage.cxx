@@ -29,7 +29,7 @@
       Generator->Logger->Log(logType, __FILE__, __LINE__,                     \
                              cmCPackLog_msg.str().c_str());                   \
     }                                                                         \
-  } while (0)
+  } while (false)
 
 //---------------------------------------------------------- CompareStruct ---
 cmCPackIFWPackage::CompareStruct::CompareStruct()
@@ -62,6 +62,13 @@ cmCPackIFWPackage::DependenceStruct::DependenceStruct(
   } else if ((pos = dependence.find('>')) != std::string::npos) {
     Compare.Type = CompareGreater;
     Compare.Value = dependence.substr(pos + 1);
+  } else if ((pos = dependence.find('-')) != std::string::npos) {
+    Compare.Type = CompareNone;
+    Compare.Value = dependence.substr(pos + 1);
+  }
+  size_t dashPos = dependence.find('-');
+  if (dashPos != std::string::npos) {
+    pos = dashPos;
   }
   Name = pos == std::string::npos ? dependence : dependence.substr(0, pos);
 }
@@ -73,6 +80,10 @@ std::string cmCPackIFWPackage::DependenceStruct::NameWithCompare() const
   }
 
   std::string result = Name;
+
+  if (Compare.Type != CompareNone || !Compare.Value.empty()) {
+    result += "-";
+  }
 
   if (Compare.Type == CompareLessOrEqual) {
     result += "<=";
@@ -107,6 +118,16 @@ const char* cmCPackIFWPackage::GetOption(const std::string& op) const
 bool cmCPackIFWPackage::IsOn(const std::string& op) const
 {
   return Generator ? Generator->IsOn(op) : false;
+}
+
+bool cmCPackIFWPackage::IsSetToOff(const std::string& op) const
+{
+  return Generator ? Generator->IsSetToOff(op) : false;
+}
+
+bool cmCPackIFWPackage::IsSetToEmpty(const std::string& op) const
+{
+  return Generator ? Generator->IsSetToEmpty(op) : false;
 }
 
 bool cmCPackIFWPackage::IsVersionLess(const char* version)
@@ -144,11 +165,14 @@ void cmCPackIFWPackage::DefaultConfiguration()
   Script = "";
   Licenses.clear();
   UserInterfaces.clear();
+  Translations.clear();
   SortingPriority = "";
+  UpdateText = "";
   Default = "";
   Essential = "";
   Virtual = "";
   ForcedInstallation = "";
+  RequiresAdminRights = "";
 }
 
 // Defaul configuration (all in one package)
@@ -235,24 +259,6 @@ int cmCPackIFWPackage::ConfigureFromComponent(cmCPackComponent* component)
     }
   }
 
-  // QtIFW dependencies
-  if (const char* option = this->GetOption(prefix + "DEPENDS")) {
-    std::vector<std::string> deps;
-    cmSystemTools::ExpandListArgument(option, deps);
-    for (std::vector<std::string>::iterator dit = deps.begin();
-         dit != deps.end(); ++dit) {
-      DependenceStruct dep(*dit);
-      if (!Generator->Packages.count(dep.Name)) {
-        bool hasDep = Generator->DependentPackages.count(dep.Name) > 0;
-        DependenceStruct& depRef = Generator->DependentPackages[dep.Name];
-        if (!hasDep) {
-          depRef = dep;
-        }
-        AlienDependencies.insert(&depRef);
-      }
-    }
-  }
-
   // Licenses
   if (const char* option = this->GetOption(prefix + "LICENSES")) {
     Licenses.clear();
@@ -270,6 +276,11 @@ int cmCPackIFWPackage::ConfigureFromComponent(cmCPackComponent* component)
   // Priority
   if (const char* option = this->GetOption(prefix + "PRIORITY")) {
     SortingPriority = option;
+    cmCPackLogger(
+      cmCPackLog::LOG_WARNING, "The \"PRIORITY\" option is set "
+        << "for component \"" << component->Name << "\", but there option is "
+        << "deprecated. Please use \"SORTING_PRIORITY\" option instead."
+        << std::endl);
   }
 
   // Default
@@ -286,7 +297,7 @@ int cmCPackIFWPackage::ConfigureFromComponent(cmCPackComponent* component)
   // ForcedInstallation
   ForcedInstallation = component->IsRequired ? "true" : "false";
 
-  return 1;
+  return ConfigureFromPrefix(prefix);
 }
 
 int cmCPackIFWPackage::ConfigureFromGroup(cmCPackComponentGroup* group)
@@ -342,9 +353,15 @@ int cmCPackIFWPackage::ConfigureFromGroup(cmCPackComponentGroup* group)
   // Priority
   if (const char* option = this->GetOption(prefix + "PRIORITY")) {
     SortingPriority = option;
+    cmCPackLogger(
+      cmCPackLog::LOG_WARNING, "The \"PRIORITY\" option is set "
+        << "for component group \"" << group->Name
+        << "\", but there option is "
+        << "deprecated. Please use \"SORTING_PRIORITY\" option instead."
+        << std::endl);
   }
 
-  return 1;
+  return ConfigureFromPrefix(prefix);
 }
 
 int cmCPackIFWPackage::ConfigureFromGroup(const std::string& groupName)
@@ -380,6 +397,157 @@ int cmCPackIFWPackage::ConfigureFromGroup(const std::string& groupName)
   return ConfigureFromGroup(&group);
 }
 
+// Common options for components and groups
+int cmCPackIFWPackage::ConfigureFromPrefix(const std::string& prefix)
+{
+  // Temporary variable for full option name
+  std::string option;
+
+  // Display name
+  option = prefix + "DISPLAY_NAME";
+  if (IsSetToEmpty(option)) {
+    DisplayName.clear();
+  } else if (const char* value = GetOption(option)) {
+    DisplayName = value;
+  }
+
+  // Description
+  option = prefix + "DESCRIPTION";
+  if (IsSetToEmpty(option)) {
+    Description.clear();
+  } else if (const char* value = GetOption(option)) {
+    Description = value;
+  }
+
+  // Release date
+  option = prefix + "RELEASE_DATE";
+  if (IsSetToEmpty(option)) {
+    ReleaseDate.clear();
+  } else if (const char* value = GetOption(option)) {
+    ReleaseDate = value;
+  }
+
+  // Sorting priority
+  option = prefix + "SORTING_PRIORITY";
+  if (IsSetToEmpty(option)) {
+    SortingPriority.clear();
+  } else if (const char* value = GetOption(option)) {
+    SortingPriority = value;
+  }
+
+  // Update text
+  option = prefix + "UPDATE_TEXT";
+  if (IsSetToEmpty(option)) {
+    UpdateText.clear();
+  } else if (const char* value = GetOption(option)) {
+    UpdateText = value;
+  }
+
+  // Translations
+  option = prefix + "TRANSLATIONS";
+  if (IsSetToEmpty(option)) {
+    Translations.clear();
+  } else if (const char* value = this->GetOption(option)) {
+    Translations.clear();
+    cmSystemTools::ExpandListArgument(value, Translations);
+  }
+
+  // QtIFW dependencies
+  std::vector<std::string> deps;
+  option = prefix + "DEPENDS";
+  if (const char* value = this->GetOption(option)) {
+    cmSystemTools::ExpandListArgument(value, deps);
+  }
+  option = prefix + "DEPENDENCIES";
+  if (const char* value = this->GetOption(option)) {
+    cmSystemTools::ExpandListArgument(value, deps);
+  }
+  for (std::vector<std::string>::iterator dit = deps.begin();
+       dit != deps.end(); ++dit) {
+    DependenceStruct dep(*dit);
+    if (Generator->Packages.count(dep.Name)) {
+      cmCPackIFWPackage& depPkg = Generator->Packages[dep.Name];
+      dep.Name = depPkg.Name;
+    }
+    bool hasDep = Generator->DependentPackages.count(dep.Name) > 0;
+    DependenceStruct& depRef = Generator->DependentPackages[dep.Name];
+    if (!hasDep) {
+      depRef = dep;
+    }
+    AlienDependencies.insert(&depRef);
+  }
+
+  // Automatic dependency on
+  option = prefix + "AUTO_DEPEND_ON";
+  if (IsSetToEmpty(option)) {
+    AlienAutoDependOn.clear();
+  } else if (const char* value = this->GetOption(option)) {
+    std::vector<std::string> depsOn;
+    cmSystemTools::ExpandListArgument(value, depsOn);
+    for (std::vector<std::string>::iterator dit = depsOn.begin();
+         dit != depsOn.end(); ++dit) {
+      DependenceStruct dep(*dit);
+      if (Generator->Packages.count(dep.Name)) {
+        cmCPackIFWPackage& depPkg = Generator->Packages[dep.Name];
+        dep.Name = depPkg.Name;
+      }
+      bool hasDep = Generator->DependentPackages.count(dep.Name) > 0;
+      DependenceStruct& depRef = Generator->DependentPackages[dep.Name];
+      if (!hasDep) {
+        depRef = dep;
+      }
+      AlienAutoDependOn.insert(&depRef);
+    }
+  }
+
+  // Visibility
+  option = prefix + "VIRTUAL";
+  if (IsSetToEmpty(option)) {
+    Virtual.clear();
+  } else if (IsOn(option)) {
+    Virtual = "true";
+  }
+
+  // Default selection
+  option = prefix + "DEFAULT";
+  if (IsSetToEmpty(option)) {
+    Default.clear();
+  } else if (const char* value = GetOption(option)) {
+    std::string lowerValue = cmsys::SystemTools::LowerCase(value);
+    if (lowerValue.compare("true") == 0) {
+      Default = "true";
+    } else if (lowerValue.compare("false") == 0) {
+      Default = "false";
+    } else if (lowerValue.compare("script") == 0) {
+      Default = "script";
+    } else {
+      Default = value;
+    }
+  }
+
+  // Forsed installation
+  option = prefix + "FORCED_INSTALLATION";
+  if (IsSetToEmpty(option)) {
+    ForcedInstallation.clear();
+  } else if (IsOn(option)) {
+    ForcedInstallation = "true";
+  } else if (IsSetToOff(option)) {
+    ForcedInstallation = "false";
+  }
+
+  // Requires admin rights
+  option = prefix + "REQUIRES_ADMIN_RIGHTS";
+  if (IsSetToEmpty(option)) {
+    RequiresAdminRights.clear();
+  } else if (IsOn(option)) {
+    RequiresAdminRights = "true";
+  } else if (IsSetToOff(option)) {
+    RequiresAdminRights = "false";
+  }
+
+  return 1;
+}
+
 void cmCPackIFWPackage::GeneratePackageFile()
 {
   // Lazy directory initialization
@@ -403,6 +571,12 @@ void cmCPackIFWPackage::GeneratePackageFile()
 
   xout.Element("DisplayName", DisplayName);
   xout.Element("Description", Description);
+
+  // Update text
+  if (!UpdateText.empty()) {
+    xout.Element("UpdateText", UpdateText);
+  }
+
   xout.Element("Name", Name);
   xout.Element("Version", Version);
 
@@ -437,6 +611,23 @@ void cmCPackIFWPackage::GeneratePackageFile()
     xout.EndElement();
   }
 
+  // Translations (copy to meta dir)
+  std::vector<std::string> translations = Translations;
+  for (size_t i = 0; i < translations.size(); i++) {
+    std::string name = cmSystemTools::GetFilenameName(translations[i]);
+    std::string path = Directory + "/meta/" + name;
+    cmsys::SystemTools::CopyFileIfDifferent(translations[i].data(),
+                                            path.data());
+    translations[i] = name;
+  }
+  if (!translations.empty()) {
+    xout.StartElement("Translations");
+    for (size_t i = 0; i < translations.size(); i++) {
+      xout.Element("Translation", translations[i]);
+    }
+    xout.EndElement();
+  }
+
   // Dependencies
   std::set<DependenceStruct> compDepSet;
   for (std::set<DependenceStruct*>::iterator ait = AlienDependencies.begin();
@@ -460,6 +651,25 @@ void cmCPackIFWPackage::GeneratePackageFile()
     xout.Element("Dependencies", dependencies.str());
   }
 
+  // Automatic dependency on
+  std::set<DependenceStruct> compAutoDepSet;
+  for (std::set<DependenceStruct*>::iterator ait = AlienAutoDependOn.begin();
+       ait != AlienAutoDependOn.end(); ++ait) {
+    compAutoDepSet.insert(*(*ait));
+  }
+  // Write automatic dependency on
+  if (!compAutoDepSet.empty()) {
+    std::ostringstream dependencies;
+    std::set<DependenceStruct>::iterator it = compAutoDepSet.begin();
+    dependencies << it->NameWithCompare();
+    ++it;
+    while (it != compAutoDepSet.end()) {
+      dependencies << "," << it->NameWithCompare();
+      ++it;
+    }
+    xout.Element("AutoDependOn", dependencies.str());
+  }
+
   // Licenses (copy to meta dir)
   std::vector<std::string> licenses = Licenses;
   for (size_t i = 1; i < licenses.size(); i += 2) {
@@ -481,6 +691,10 @@ void cmCPackIFWPackage::GeneratePackageFile()
 
   if (!ForcedInstallation.empty()) {
     xout.Element("ForcedInstallation", ForcedInstallation);
+  }
+
+  if (!RequiresAdminRights.empty()) {
+    xout.Element("RequiresAdminRights", RequiresAdminRights);
   }
 
   if (!Virtual.empty()) {

@@ -3,7 +3,12 @@
 #ifndef cmFindFileCommand_h
 #define cmFindFileCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+
 #include "cmFindPathCommand.h"
+
+class cmCommand;
 
 /** \class cmFindFileCommand
  * \brief Define a command to search for an executable program.
@@ -22,8 +27,6 @@ public:
    */
   cmCommand* Clone() CM_OVERRIDE { return new cmFindFileCommand; }
   std::string GetName() const CM_OVERRIDE { return "find_file"; }
-
-  cmTypeMacro(cmFindFileCommand, cmFindPathCommand);
 };
 
 #endif

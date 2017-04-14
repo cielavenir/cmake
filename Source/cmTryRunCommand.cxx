@@ -2,8 +2,17 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmTryRunCommand.h"
 
-#include "cmTryCompileCommand.h"
 #include <cmsys/FStream.hxx>
+#include <stdio.h>
+#include <string.h>
+
+#include "cmMakefile.h"
+#include "cmState.h"
+#include "cmStateTypes.h"
+#include "cmSystemTools.h"
+#include "cmake.h"
+
+class cmExecutionStatus;
 
 // cmTryRunCommand
 bool cmTryRunCommand::InitialPass(std::vector<std::string> const& argv,
@@ -77,8 +86,9 @@ bool cmTryRunCommand::InitialPass(std::vector<std::string> const& argv,
 
   // although they could be used together, don't allow it, because
   // using OUTPUT_VARIABLE makes crosscompiling harder
-  if (this->OutputVariable.size() && (!this->RunOutputVariable.empty() ||
-                                      !this->CompileOutputVariable.empty())) {
+  if (!this->OutputVariable.empty() &&
+      (!this->RunOutputVariable.empty() ||
+       !this->CompileOutputVariable.empty())) {
     cmSystemTools::Error(
       "You cannot use OUTPUT_VARIABLE together with COMPILE_OUTPUT_VARIABLE "
       "or RUN_OUTPUT_VARIABLE. Please use only COMPILE_OUTPUT_VARIABLE and/or "
@@ -189,7 +199,8 @@ void cmTryRunCommand::RunExecutable(const std::string& runArgs,
     strcpy(retChar, "FAILED_TO_RUN");
   }
   this->Makefile->AddCacheDefinition(this->RunResultVariable, retChar,
-                                     "Result of TRY_RUN", cmState::INTERNAL);
+                                     "Result of TRY_RUN",
+                                     cmStateEnums::INTERNAL);
 }
 
 /* This is only used when cross compiling. Instead of running the
@@ -231,7 +242,7 @@ void cmTryRunCommand::DoNotRunExecutable(const std::string& runArgs,
     comment += detailsString;
     this->Makefile->AddCacheDefinition(this->RunResultVariable,
                                        "PLEASE_FILL_OUT-FAILED_TO_RUN",
-                                       comment.c_str(), cmState::STRING);
+                                       comment.c_str(), cmStateEnums::STRING);
 
     cmState* state = this->Makefile->GetState();
     const char* existingValue =
@@ -254,9 +265,9 @@ void cmTryRunCommand::DoNotRunExecutable(const std::string& runArgs,
         "would have printed on stdout and stderr on its target platform.\n";
       comment += detailsString;
 
-      this->Makefile->AddCacheDefinition(internalRunOutputName,
-                                         "PLEASE_FILL_OUT-NOTFOUND",
-                                         comment.c_str(), cmState::STRING);
+      this->Makefile->AddCacheDefinition(
+        internalRunOutputName, "PLEASE_FILL_OUT-NOTFOUND", comment.c_str(),
+        cmStateEnums::STRING);
       cmState* state = this->Makefile->GetState();
       const char* existing = state->GetCacheEntryValue(internalRunOutputName);
       if (existing) {

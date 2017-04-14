@@ -5,6 +5,7 @@
 #include "CMakeSetupDialog.h"
 #include "cmAlgorithms.h"
 #include "cmDocumentation.h"
+#include "cmDocumentationEntry.h"
 #include "cmVersion.h"
 #include "cmake.h"
 #include <QApplication>
@@ -17,6 +18,7 @@
 #include <cmsys/CommandLineArguments.hxx>
 #include <cmsys/Encoding.hxx>
 #include <cmsys/SystemTools.hxx>
+#include <iostream>
 
 #include "cmSystemTools.h" // IWYU pragma: keep
 
@@ -95,10 +97,8 @@ int main(int argc, char** argv)
 
   setlocale(LC_NUMERIC, "C");
 
-#if defined(CMAKE_ENCODING_UTF8)
   QTextCodec* utf8_codec = QTextCodec::codecForName("UTF-8");
   QTextCodec::setCodecForLocale(utf8_codec);
-#endif
 
 #if QT_VERSION < 0x050000
   // clean out standard Qt paths for plugins, which we don't use anyway

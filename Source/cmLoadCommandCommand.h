@@ -3,7 +3,13 @@
 #ifndef cmLoadCommandCommand_h
 #define cmLoadCommandCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 class cmLoadCommandCommand : public cmCommand
 {
@@ -12,7 +18,6 @@ public:
   bool InitialPass(std::vector<std::string> const& args,
                    cmExecutionStatus& status) CM_OVERRIDE;
   std::string GetName() const CM_OVERRIDE { return "load_command"; }
-  cmTypeMacro(cmLoadCommandCommand, cmCommand);
 };
 
 #endif

@@ -3,7 +3,13 @@
 #ifndef cmEnableTestingCommand_h
 #define cmEnableTestingCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmEnableTestingCommand
  * \brief Enable testing for this directory and below.
@@ -37,8 +43,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "enable_testing"; }
-
-  cmTypeMacro(cmEnableTestingCommand, cmCommand);
 };
 
 #endif

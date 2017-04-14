@@ -3,12 +3,17 @@
 #ifndef cmUseMangledMesaCommand_h
 #define cmUseMangledMesaCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 class cmUseMangledMesaCommand : public cmCommand
 {
 public:
-  cmTypeMacro(cmUseMangledMesaCommand, cmCommand);
   cmCommand* Clone() CM_OVERRIDE { return new cmUseMangledMesaCommand; }
   bool InitialPass(std::vector<std::string> const& args,
                    cmExecutionStatus& status) CM_OVERRIDE;

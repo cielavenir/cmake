@@ -3,7 +3,13 @@
 #ifndef cmLinkDirectoriesCommand_h
 #define cmLinkDirectoriesCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmLinkDirectoriesCommand
  * \brief Define a list of directories containing files to link.
@@ -32,8 +38,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "link_directories"; }
-
-  cmTypeMacro(cmLinkDirectoriesCommand, cmCommand);
 
 private:
   void AddLinkDir(std::string const& dir);

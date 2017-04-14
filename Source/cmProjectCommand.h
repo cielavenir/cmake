@@ -3,7 +3,13 @@
 #ifndef cmProjectCommand_h
 #define cmProjectCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmProjectCommand
  * \brief Specify the name for this build project.
@@ -32,8 +38,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "project"; }
-
-  cmTypeMacro(cmProjectCommand, cmCommand);
 };
 
 #endif

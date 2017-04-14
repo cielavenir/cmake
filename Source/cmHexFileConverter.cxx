@@ -2,8 +2,11 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmHexFileConverter.h"
 
+#include <cmConfigure.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "cmSystemTools.h"
 
 #define INTEL_HEX_MIN_LINE_LENGTH (1 + 8 + 2)
 #define INTEL_HEX_MAX_LINE_LENGTH (1 + 8 + (256 * 2) + 2)
@@ -204,7 +207,7 @@ bool cmHexFileConverter::TryConvert(const char* inFileName,
     } else if (type == IntelHex) {
       success = ConvertIntelHexLine(buf, outFile);
     }
-    if (success == false) {
+    if (!success) {
       break;
     }
   }

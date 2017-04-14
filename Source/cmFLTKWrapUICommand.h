@@ -3,7 +3,14 @@
 #ifndef cmFLTKWrapUICommand_h
 #define cmFLTKWrapUICommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
+class cmSourceFile;
 
 /** \class cmFLTKWrapUICommand
  * \brief Create .h and .cxx files rules for FLTK user interfaces files
@@ -14,8 +21,6 @@
 class cmFLTKWrapUICommand : public cmCommand
 {
 public:
-  cmTypeMacro(cmFLTKWrapUICommand, cmCommand);
-
   /**
    * This is a virtual constructor for the command.
    */

@@ -3,8 +3,15 @@
 #include "cmGlobalVisualStudio14Generator.h"
 
 #include "cmAlgorithms.h"
+#include "cmDocumentationEntry.h"
 #include "cmLocalVisualStudio10Generator.h"
 #include "cmMakefile.h"
+#include "cmVS140CLFlagTable.h"
+#include "cmVS140CSharpFlagTable.h"
+#include "cmVS14LibFlagTable.h"
+#include "cmVS14LinkFlagTable.h"
+#include "cmVS14MASMFlagTable.h"
+#include "cmVS14RCFlagTable.h"
 
 static const char vs14generatorName[] = "Visual Studio 14 2015";
 
@@ -83,6 +90,12 @@ cmGlobalVisualStudio14Generator::cmGlobalVisualStudio14Generator(
     "ProductDir",
     vc14Express, cmSystemTools::KeyWOW64_32);
   this->DefaultPlatformToolset = "v140";
+  this->DefaultClFlagTable = cmVS140CLFlagTable;
+  this->DefaultCSharpFlagTable = cmVS140CSharpFlagTable;
+  this->DefaultLibFlagTable = cmVS14LibFlagTable;
+  this->DefaultLinkFlagTable = cmVS14LinkFlagTable;
+  this->DefaultMasmFlagTable = cmVS14MASMFlagTable;
+  this->DefaultRcFlagTable = cmVS14RCFlagTable;
   this->Version = VS14;
 }
 

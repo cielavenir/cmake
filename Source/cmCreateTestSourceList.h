@@ -3,7 +3,14 @@
 #ifndef cmCreateTestSourceList_h
 #define cmCreateTestSourceList_h
 
+#include <cmConfigure.h>
+
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmCreateTestSourceList
  * \brief Test driver generation command
@@ -29,8 +36,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "create_test_sourcelist"; }
-
-  cmTypeMacro(cmCreateTestSourceList, cmCommand);
 };
 
 #endif

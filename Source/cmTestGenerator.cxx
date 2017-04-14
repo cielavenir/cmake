@@ -2,20 +2,19 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmTestGenerator.h"
 
+#include <map>
+#include <ostream>
+#include <utility>
+
 #include "cmGeneratorExpression.h"
 #include "cmGeneratorTarget.h"
 #include "cmLocalGenerator.h"
 #include "cmOutputConverter.h"
 #include "cmProperty.h"
 #include "cmPropertyMap.h"
-#include "cmState.h"
+#include "cmStateTypes.h"
 #include "cmSystemTools.h"
 #include "cmTest.h"
-#include "cm_auto_ptr.hxx"
-
-#include <map>
-#include <ostream>
-#include <utility>
 
 cmTestGenerator::cmTestGenerator(
   cmTest* test, std::vector<std::string> const& configurations)
@@ -77,7 +76,7 @@ void cmTestGenerator::GenerateScriptForConfig(std::ostream& os,
   // be translated.
   std::string exe = command[0];
   cmGeneratorTarget* target = this->LG->FindGeneratorTargetToUse(exe);
-  if (target && target->GetType() == cmState::EXECUTABLE) {
+  if (target && target->GetType() == cmStateEnums::EXECUTABLE) {
     // Use the target file on disk.
     exe = target->GetFullPath(config);
 

@@ -4,6 +4,7 @@
 
 #include <CPack/cmCPackComponentGroup.h>
 #include <CPack/cmCPackLog.h>
+#include <algorithm>
 #include <cmCryptoHash.h>
 #include <cmGeneratedFileStream.h>
 #include <cmInstalledFile.h>
@@ -410,8 +411,7 @@ void cmCPackWIXGenerator::AddDefinition(cmWIXSourceWriter& source,
   std::ostringstream tmp;
   tmp << name << "=\"" << value << '"';
 
-  source.AddProcessingInstruction(
-    "define", cmWIXSourceWriter::CMakeEncodingToUtf8(tmp.str()));
+  source.AddProcessingInstruction("define", tmp.str());
 }
 
 bool cmCPackWIXGenerator::CreateWiXSourceFiles()
@@ -1061,8 +1061,8 @@ std::string cmCPackWIXGenerator::CreateNewIdForPath(std::string const& path)
 std::string cmCPackWIXGenerator::CreateHashedId(
   std::string const& path, std::string const& normalizedFilename)
 {
-  CM_AUTO_PTR<cmCryptoHash> sha1 = cmCryptoHash::New("SHA1");
-  std::string hash = sha1->HashString(path.c_str());
+  cmCryptoHash sha1(cmCryptoHash::AlgoSHA1);
+  std::string const hash = sha1.HashString(path);
 
   std::string identifier;
   identifier += hash.substr(0, 7) + "_";

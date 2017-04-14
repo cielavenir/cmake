@@ -6,7 +6,6 @@
 #include <cmConfigure.h>
 
 #include "cmCTestHandlerCommand.h"
-#include "cmTypeMacro.h"
 
 #include <string>
 #include <vector>
@@ -46,8 +45,6 @@ public:
 
   bool InitialPass(std::vector<std::string> const& args,
                    cmExecutionStatus& status) CM_OVERRIDE;
-
-  cmTypeMacro(cmCTestBuildCommand, cmCTestHandlerCommand);
 
   cmGlobalGenerator* GlobalGenerator;
 

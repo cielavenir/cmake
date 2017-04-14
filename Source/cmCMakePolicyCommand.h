@@ -3,7 +3,13 @@
 #ifndef cmCMakePolicyCommand_h
 #define cmCMakePolicyCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmCMakePolicyCommand
  * \brief Set how CMake should handle policies
@@ -35,8 +41,6 @@ public:
     * The name of the command as specified in CMakeList.txt.
     */
   std::string GetName() const CM_OVERRIDE { return "cmake_policy"; }
-
-  cmTypeMacro(cmCMakePolicyCommand, cmCommand);
 
 private:
   bool HandleSetMode(std::vector<std::string> const& args);

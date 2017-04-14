@@ -3,7 +3,13 @@
 #ifndef cmIncludeExternalMSProjectCommand_h
 #define cmIncludeExternalMSProjectCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmIncludeExternalMSProjectCommand
  * \brief Specify an external MS project file for inclusion in the workspace.
@@ -37,8 +43,6 @@ public:
   {
     return "include_external_msproject";
   }
-
-  cmTypeMacro(cmIncludeExternalMSProjectCommand, cmCommand);
 };
 
 #endif

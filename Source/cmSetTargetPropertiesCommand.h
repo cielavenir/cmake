@@ -3,7 +3,14 @@
 #ifndef cmSetTargetsPropertiesCommand_h
 #define cmSetTargetsPropertiesCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
+class cmMakefile;
 
 class cmSetTargetPropertiesCommand : public cmCommand
 {
@@ -28,8 +35,6 @@ public:
   static bool SetOneTarget(const std::string& tname,
                            std::vector<std::string>& propertyPairs,
                            cmMakefile* mf);
-
-  cmTypeMacro(cmSetTargetPropertiesCommand, cmCommand);
 };
 
 #endif

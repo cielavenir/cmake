@@ -3,9 +3,13 @@
 #ifndef cmQTWrapUICommand_h
 #define cmQTWrapUICommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
 
-#include "cmSourceFile.h"
+class cmExecutionStatus;
 
 /** \class cmQTWrapUICommand
  * \brief Create .h and .cxx files rules for Qt user interfaces files
@@ -15,7 +19,6 @@
 class cmQTWrapUICommand : public cmCommand
 {
 public:
-  cmTypeMacro(cmQTWrapUICommand, cmCommand);
   /**
    * This is a virtual constructor for the command.
    */

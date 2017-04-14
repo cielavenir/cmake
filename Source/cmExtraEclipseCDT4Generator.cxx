@@ -2,20 +2,6 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmExtraEclipseCDT4Generator.h"
 
-#include "cmGeneratedFileStream.h"
-#include "cmGeneratorExpression.h"
-#include "cmGeneratorTarget.h"
-#include "cmGlobalGenerator.h"
-#include "cmLocalGenerator.h"
-#include "cmMakefile.h"
-#include "cmOutputConverter.h"
-#include "cmSourceFile.h"
-#include "cmSourceGroup.h"
-#include "cmState.h"
-#include "cmSystemTools.h"
-#include "cmXMLWriter.h"
-#include "cmake.h"
-
 #include <algorithm>
 #include <assert.h>
 #include <cmsys/RegularExpression.hxx>
@@ -23,6 +9,20 @@
 #include <sstream>
 #include <stdio.h>
 #include <utility>
+
+#include "cmGeneratedFileStream.h"
+#include "cmGeneratorExpression.h"
+#include "cmGeneratorTarget.h"
+#include "cmGlobalGenerator.h"
+#include "cmLocalGenerator.h"
+#include "cmMakefile.h"
+#include "cmSourceFile.h"
+#include "cmSourceGroup.h"
+#include "cmState.h"
+#include "cmStateTypes.h"
+#include "cmSystemTools.h"
+#include "cmXMLWriter.h"
+#include "cmake.h"
 
 static void AppendAttribute(cmXMLWriter& xml, const char* keyval)
 {
@@ -230,7 +230,7 @@ void cmExtraEclipseCDT4Generator::AddEnvVar(std::ostream& out,
     // in the cache
     valueToUse = envVarValue;
     mf->AddCacheDefinition(cacheEntryName, valueToUse.c_str(),
-                           cacheEntryName.c_str(), cmState::STRING, true);
+                           cacheEntryName.c_str(), cmStateEnums::STRING, true);
     mf->GetCMakeInstance()->SaveCache(lg->GetBinaryDirectory());
   } else if (!envVarSet && cacheValue != CM_NULLPTR) {
     // It is already in the cache, but not in the env, so use it from the cache
@@ -245,7 +245,8 @@ void cmExtraEclipseCDT4Generator::AddEnvVar(std::ostream& out,
     if (valueToUse.find(envVarValue) == std::string::npos) {
       valueToUse = envVarValue;
       mf->AddCacheDefinition(cacheEntryName, valueToUse.c_str(),
-                             cacheEntryName.c_str(), cmState::STRING, true);
+                             cacheEntryName.c_str(), cmStateEnums::STRING,
+                             true);
       mf->GetCMakeInstance()->SaveCache(lg->GetBinaryDirectory());
     }
   }
@@ -482,13 +483,14 @@ void cmExtraEclipseCDT4Generator::CreateLinksForTargets(cmXMLWriter& xml)
       std::string linkName2 = linkName;
       linkName2 += "/";
       switch ((*ti)->GetType()) {
-        case cmState::EXECUTABLE:
-        case cmState::STATIC_LIBRARY:
-        case cmState::SHARED_LIBRARY:
-        case cmState::MODULE_LIBRARY:
-        case cmState::OBJECT_LIBRARY: {
+        case cmStateEnums::EXECUTABLE:
+        case cmStateEnums::STATIC_LIBRARY:
+        case cmStateEnums::SHARED_LIBRARY:
+        case cmStateEnums::MODULE_LIBRARY:
+        case cmStateEnums::OBJECT_LIBRARY: {
           const char* prefix =
-            ((*ti)->GetType() == cmState::EXECUTABLE ? "[exe] " : "[lib] ");
+            ((*ti)->GetType() == cmStateEnums::EXECUTABLE ? "[exe] "
+                                                          : "[lib] ");
           linkName2 += prefix;
           linkName2 += (*ti)->GetName();
           this->AppendLinkedResource(xml, linkName2, "virtual:/virtual",
@@ -701,6 +703,14 @@ void cmExtraEclipseCDT4Generator::CreateCProjectFile() const
    * Also on the cdt-dev list didn't bring any information:
    * http://web.archiveorange.com/archive/v/B4NlJDNIpYoOS1SbxFNy
    * Alex */
+  // include subprojects directory to the src pathentry
+  // eclipse cdt indexer uses this entries as reference to index source files
+  if (this->GenerateLinkedResources) {
+    xml.StartElement("pathentry");
+    xml.Attribute("kind", "src");
+    xml.Attribute("path", "[Subprojects]");
+    xml.EndElement();
+  }
 
   for (std::vector<std::string>::const_iterator it =
          this->SrcLinkedResources.begin();
@@ -912,14 +922,14 @@ void cmExtraEclipseCDT4Generator::CreateCProjectFile() const
          ti != targets.end(); ++ti) {
       std::string targetName = (*ti)->GetName();
       switch ((*ti)->GetType()) {
-        case cmState::GLOBAL_TARGET: {
+        case cmStateEnums::GLOBAL_TARGET: {
           // Only add the global targets from CMAKE_BINARY_DIR,
           // not from the subdirs
           if (subdir.empty()) {
             this->AppendTarget(xml, targetName, make, makeArgs, subdir, ": ");
           }
         } break;
-        case cmState::UTILITY:
+        case cmStateEnums::UTILITY:
           // Add all utility targets, except the Nightly/Continuous/
           // Experimental-"sub"targets as e.g. NightlyStart
           if (((targetName.find("Nightly") == 0) &&
@@ -933,13 +943,14 @@ void cmExtraEclipseCDT4Generator::CreateCProjectFile() const
 
           this->AppendTarget(xml, targetName, make, makeArgs, subdir, ": ");
           break;
-        case cmState::EXECUTABLE:
-        case cmState::STATIC_LIBRARY:
-        case cmState::SHARED_LIBRARY:
-        case cmState::MODULE_LIBRARY:
-        case cmState::OBJECT_LIBRARY: {
+        case cmStateEnums::EXECUTABLE:
+        case cmStateEnums::STATIC_LIBRARY:
+        case cmStateEnums::SHARED_LIBRARY:
+        case cmStateEnums::MODULE_LIBRARY:
+        case cmStateEnums::OBJECT_LIBRARY: {
           const char* prefix =
-            ((*ti)->GetType() == cmState::EXECUTABLE ? "[exe] " : "[lib] ");
+            ((*ti)->GetType() == cmStateEnums::EXECUTABLE ? "[exe] "
+                                                          : "[lib] ");
           this->AppendTarget(xml, targetName, make, makeArgs, subdir, prefix);
           std::string fastTarget = targetName;
           fastTarget += "/fast";

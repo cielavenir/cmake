@@ -2,11 +2,16 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmExecuteProcessCommand.h"
 
+#include <cmsys/Process.h>
+#include <ctype.h> /* isspace */
+#include <sstream>
+#include <stdio.h>
+
+#include "cmMakefile.h"
+#include "cmProcessOutput.h"
 #include "cmSystemTools.h"
 
-#include <cmsys/Process.h>
-
-#include <ctype.h> /* isspace */
+class cmExecutionStatus;
 
 static bool cmExecuteProcessCommandIsWhitespace(char c)
 {
@@ -42,6 +47,7 @@ bool cmExecuteProcessCommand::InitialPass(std::vector<std::string> const& args,
   std::string error_variable;
   std::string result_variable;
   std::string working_directory;
+  cmProcessOutput::Encoding encoding = cmProcessOutput::None;
   for (size_t i = 0; i < args.size(); ++i) {
     if (args[i] == "COMMAND") {
       doing_command = true;
@@ -123,6 +129,14 @@ bool cmExecuteProcessCommand::InitialPass(std::vector<std::string> const& args,
     } else if (args[i] == "ERROR_STRIP_TRAILING_WHITESPACE") {
       doing_command = false;
       error_strip_trailing_whitespace = true;
+    } else if (args[i] == "ENCODING") {
+      doing_command = false;
+      if (++i < args.size()) {
+        encoding = cmProcessOutput::FindEncoding(args[i]);
+      } else {
+        this->SetError(" called with no value for ENCODING.");
+        return false;
+      }
     } else if (doing_command) {
       cmds[command_index].push_back(args[i].c_str());
     } else {
@@ -218,25 +232,43 @@ bool cmExecuteProcessCommand::InitialPass(std::vector<std::string> const& args,
   int length;
   char* data;
   int p;
+  cmProcessOutput processOutput(encoding);
+  std::string strdata;
   while ((p = cmsysProcess_WaitForData(cp, &data, &length, CM_NULLPTR), p)) {
     // Put the output in the right place.
     if (p == cmsysProcess_Pipe_STDOUT && !output_quiet) {
       if (output_variable.empty()) {
-        cmSystemTools::Stdout(data, length);
+        processOutput.DecodeText(data, length, strdata, 1);
+        cmSystemTools::Stdout(strdata.c_str(), strdata.size());
       } else {
         cmExecuteProcessCommandAppend(tempOutput, data, length);
       }
     } else if (p == cmsysProcess_Pipe_STDERR && !error_quiet) {
       if (error_variable.empty()) {
-        cmSystemTools::Stderr(data, length);
+        processOutput.DecodeText(data, length, strdata, 2);
+        cmSystemTools::Stderr(strdata.c_str(), strdata.size());
       } else {
         cmExecuteProcessCommandAppend(tempError, data, length);
       }
     }
   }
+  if (!output_quiet && output_variable.empty()) {
+    processOutput.DecodeText(std::string(), strdata, 1);
+    if (!strdata.empty()) {
+      cmSystemTools::Stdout(strdata.c_str(), strdata.size());
+    }
+  }
+  if (!error_quiet && error_variable.empty()) {
+    processOutput.DecodeText(std::string(), strdata, 2);
+    if (!strdata.empty()) {
+      cmSystemTools::Stderr(strdata.c_str(), strdata.size());
+    }
+  }
 
   // All output has been read.  Wait for the process to exit.
   cmsysProcess_WaitForExit(cp, CM_NULLPTR);
+  processOutput.DecodeText(tempOutput, tempOutput);
+  processOutput.DecodeText(tempError, tempError);
 
   // Fix the text in the output strings.
   cmExecuteProcessCommandFixText(tempOutput, output_strip_trailing_whitespace);

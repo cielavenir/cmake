@@ -6,7 +6,6 @@
 #include <cmConfigure.h>
 
 #include "cmCTestGenericHandler.h"
-#include "cmTypeMacro.h"
 
 #include <string>
 #include <utility>
@@ -19,7 +18,7 @@
 class cmCTestUpdateHandler : public cmCTestGenericHandler
 {
 public:
-  cmTypeMacro(cmCTestUpdateHandler, cmCTestGenericHandler);
+  typedef cmCTestGenericHandler Superclass;
 
   /*
    * The main entry point for this class

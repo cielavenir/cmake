@@ -3,7 +3,13 @@
 #ifndef cmWriteFileCommand_h
 #define cmWriteFileCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmWriteFileCommand
  * \brief Writes a message to a file
@@ -33,8 +39,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "write_file"; }
-
-  cmTypeMacro(cmWriteFileCommand, cmCommand);
 };
 
 #endif

@@ -2,15 +2,22 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmExportCommand.h"
 
-#include "cmGeneratedFileStream.h"
-#include "cmGlobalGenerator.h"
-#include "cmake.h"
-
-#include <cmsys/Encoding.hxx>
 #include <cmsys/RegularExpression.hxx>
+#include <map>
+#include <sstream>
 
 #include "cmExportBuildAndroidMKGenerator.h"
 #include "cmExportBuildFileGenerator.h"
+#include "cmExportSetMap.h"
+#include "cmGeneratedFileStream.h"
+#include "cmGlobalGenerator.h"
+#include "cmMakefile.h"
+#include "cmStateTypes.h"
+#include "cmSystemTools.h"
+#include "cmTarget.h"
+#include "cmake.h"
+
+class cmExecutionStatus;
 
 #if defined(__HAIKU__)
 #include <FindDirectory.h>
@@ -141,14 +148,14 @@ bool cmExportCommand::InitialPass(std::vector<std::string> const& args,
       }
 
       if (cmTarget* target = gg->FindTarget(*currentTarget)) {
-        if (target->GetType() == cmState::OBJECT_LIBRARY) {
+        if (target->GetType() == cmStateEnums::OBJECT_LIBRARY) {
           std::ostringstream e;
           e << "given OBJECT library \"" << *currentTarget
             << "\" which may not be exported.";
           this->SetError(e.str());
           return false;
         }
-        if (target->GetType() == cmState::UTILITY) {
+        if (target->GetType() == cmStateEnums::UTILITY) {
           this->SetError("given custom target \"" + *currentTarget +
                          "\" which may not be exported.");
           return false;
@@ -271,6 +278,7 @@ bool cmExportCommand::HandlePackage(std::vector<std::string> const& args)
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <windows.h>
+
 #undef GetCurrentDirectory
 void cmExportCommand::ReportRegistryError(std::string const& msg,
                                           std::string const& key, long err)

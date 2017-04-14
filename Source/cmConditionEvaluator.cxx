@@ -2,9 +2,21 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmConditionEvaluator.h"
 
+#include <algorithm>
+#include <cmConfigure.h>
+#include <cmsys/RegularExpression.hxx>
+#include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "cmAlgorithms.h"
-#include "cmOutputConverter.h"
+#include "cmMakefile.h"
+#include "cmState.h"
 #include "cmSystemTools.h"
+
+class cmCommand;
+class cmTest;
 
 static std::string const keyAND = "AND";
 static std::string const keyCOMMAND = "COMMAND";
@@ -221,7 +233,7 @@ bool cmConditionEvaluator::GetBooleanValue(
     double d = strtod(arg.c_str(), &end);
     if (*end == '\0') {
       // The whole string is a number.  Use C conversion to bool.
-      return d ? true : false;
+      return static_cast<bool>(d);
     }
   }
 
@@ -443,7 +455,7 @@ bool cmConditionEvaluator::HandleLevel1(cmArgumentList& newArgs, std::string&,
       if (this->IsKeyword(keyCOMMAND, *arg) && argP1 != newArgs.end()) {
         cmCommand* command =
           this->Makefile.GetState()->GetCommand(argP1->c_str());
-        this->HandlePredicate(command ? true : false, reducible, arg, newArgs,
+        this->HandlePredicate(command != CM_NULLPTR, reducible, arg, newArgs,
                               argP1, argP2);
       }
       // does a policy exist
@@ -455,7 +467,7 @@ bool cmConditionEvaluator::HandleLevel1(cmArgumentList& newArgs, std::string&,
       // does a target exist
       if (this->IsKeyword(keyTARGET, *arg) && argP1 != newArgs.end()) {
         this->HandlePredicate(
-          this->Makefile.FindTargetToUse(argP1->GetValue()) ? true : false,
+          this->Makefile.FindTargetToUse(argP1->GetValue()) != CM_NULLPTR,
           reducible, arg, newArgs, argP1, argP2);
       }
       // does a test exist
@@ -463,7 +475,7 @@ bool cmConditionEvaluator::HandleLevel1(cmArgumentList& newArgs, std::string&,
           this->Policy64Status != cmPolicies::WARN) {
         if (this->IsKeyword(keyTEST, *arg) && argP1 != newArgs.end()) {
           const cmTest* haveTest = this->Makefile.GetTest(argP1->c_str());
-          this->HandlePredicate(haveTest ? true : false, reducible, arg,
+          this->HandlePredicate(haveTest != CM_NULLPTR, reducible, arg,
                                 newArgs, argP1, argP2);
         }
       } else if (this->Policy64Status == cmPolicies::WARN &&
@@ -637,8 +649,8 @@ bool cmConditionEvaluator::HandleLevel2(cmArgumentList& newArgs,
         bool success = cmSystemTools::FileTimeCompare(
           arg->GetValue(), (argP2)->GetValue(), &fileIsNewer);
         this->HandleBinaryOp(
-          (success == false || fileIsNewer == 1 || fileIsNewer == 0),
-          reducible, arg, newArgs, argP1, argP2);
+          (!success || fileIsNewer == 1 || fileIsNewer == 0), reducible, arg,
+          newArgs, argP1, argP2);
       }
 
       if (argP1 != newArgs.end() && argP2 != newArgs.end() &&

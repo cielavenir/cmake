@@ -3,7 +3,13 @@
 #ifndef cmOptionCommand_h
 #define cmOptionCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmOptionCommand
  * \brief Provide an option to the user
@@ -34,8 +40,6 @@ public:
    * This determines if the command is invoked when in script mode.
    */
   bool IsScriptable() const CM_OVERRIDE { return true; }
-
-  cmTypeMacro(cmOptionCommand, cmCommand);
 };
 
 #endif

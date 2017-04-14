@@ -2,6 +2,11 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCPackIFWInstaller.h"
 
+#include <cmConfigure.h>
+#include <sstream>
+#include <stddef.h>
+#include <utility>
+
 #include "CPack/cmCPackGenerator.h"
 #include "CPack/cmCPackLog.h"
 #include "cmCPackIFWGenerator.h"
@@ -11,9 +16,6 @@
 #include "cmSystemTools.h"
 #include "cmXMLParser.h"
 #include "cmXMLWriter.h"
-
-#include <cmConfigure.h>
-#include <utility>
 
 #ifdef cmCPackLogger
 #undef cmCPackLogger
@@ -26,7 +28,7 @@
       Generator->Logger->Log(logType, __FILE__, __LINE__,                     \
                              cmCPackLog_msg.str().c_str());                   \
     }                                                                         \
-  } while (0)
+  } while (false)
 
 cmCPackIFWInstaller::cmCPackIFWInstaller()
   : Generator(CM_NULLPTR)
@@ -56,6 +58,16 @@ bool cmCPackIFWInstaller::IsVersionGreater(const char* version)
 bool cmCPackIFWInstaller::IsVersionEqual(const char* version)
 {
   return Generator ? Generator->IsVersionEqual(version) : false;
+}
+
+void cmCPackIFWInstaller::printSkippedOptionWarning(
+  const std::string& optionName, const std::string& optionValue)
+{
+  cmCPackLogger(
+    cmCPackLog::LOG_WARNING, "Option "
+      << optionName << " is set to \"" << optionValue
+      << "\" but will be skipped because the specified file does not exist."
+      << std::endl);
 }
 
 void cmCPackIFWInstaller::ConfigureFromOptions()
@@ -108,7 +120,7 @@ void cmCPackIFWInstaller::ConfigureFromOptions()
     if (cmSystemTools::FileExists(option)) {
       InstallerApplicationIcon = option;
     } else {
-      // TODO: implement warning
+      printSkippedOptionWarning("CPACK_IFW_PACKAGE_ICON", option);
     }
   }
 
@@ -117,7 +129,7 @@ void cmCPackIFWInstaller::ConfigureFromOptions()
     if (cmSystemTools::FileExists(option)) {
       InstallerWindowIcon = option;
     } else {
-      // TODO: implement warning
+      printSkippedOptionWarning("CPACK_IFW_PACKAGE_WINDOW_ICON", option);
     }
   }
 
@@ -126,8 +138,67 @@ void cmCPackIFWInstaller::ConfigureFromOptions()
     if (cmSystemTools::FileExists(option)) {
       Logo = option;
     } else {
-      // TODO: implement warning
+      printSkippedOptionWarning("CPACK_IFW_PACKAGE_LOGO", option);
     }
+  }
+
+  // Watermark
+  if (const char* option = GetOption("CPACK_IFW_PACKAGE_WATERMARK")) {
+    if (cmSystemTools::FileExists(option)) {
+      Watermark = option;
+    } else {
+      printSkippedOptionWarning("CPACK_IFW_PACKAGE_WATERMARK", option);
+    }
+  }
+
+  // Banner
+  if (const char* option = GetOption("CPACK_IFW_PACKAGE_BANNER")) {
+    if (cmSystemTools::FileExists(option)) {
+      Banner = option;
+    } else {
+      printSkippedOptionWarning("CPACK_IFW_PACKAGE_BANNER", option);
+    }
+  }
+
+  // Background
+  if (const char* option = GetOption("CPACK_IFW_PACKAGE_BACKGROUND")) {
+    if (cmSystemTools::FileExists(option)) {
+      Background = option;
+    } else {
+      printSkippedOptionWarning("CPACK_IFW_PACKAGE_BACKGROUND", option);
+    }
+  }
+
+  // WizardStyle
+  if (const char* option = GetOption("CPACK_IFW_PACKAGE_WIZARD_STYLE")) {
+    if (WizardStyle.compare("Modern") == 0 &&
+        WizardStyle.compare("Aero") == 0 && WizardStyle.compare("Mac") == 0 &&
+        WizardStyle.compare("Classic") == 0) {
+      cmCPackLogger(
+        cmCPackLog::LOG_WARNING,
+        "Option CPACK_IFW_PACKAGE_WIZARD_STYLE has unknown value \""
+          << option << "\". Expected values are: Modern, Aero, Mac, Classic."
+          << std::endl);
+    }
+
+    WizardStyle = option;
+  }
+
+  // WizardDefaultWidth
+  if (const char* option =
+        GetOption("CPACK_IFW_PACKAGE_WIZARD_DEFAULT_WIDTH")) {
+    WizardDefaultWidth = option;
+  }
+
+  // WizardDefaultHeight
+  if (const char* option =
+        GetOption("CPACK_IFW_PACKAGE_WIZARD_DEFAULT_HEIGHT")) {
+    WizardDefaultHeight = option;
+  }
+
+  // TitleColor
+  if (const char* option = GetOption("CPACK_IFW_PACKAGE_TITLE_COLOR")) {
+    TitleColor = option;
   }
 
   // Start menu
@@ -231,7 +302,7 @@ public:
 protected:
   void StartElement(const std::string& name, const char** /*atts*/) CM_OVERRIDE
   {
-    file = name == "file" ? true : false;
+    file = name == "file";
     if (file) {
       hasFiles = true;
     }
@@ -309,6 +380,50 @@ void cmCPackIFWInstaller::GenerateInstallerFile()
     std::string path = Directory + "/config/" + name;
     cmsys::SystemTools::CopyFileIfDifferent(Logo.data(), path.data());
     xout.Element("Logo", name);
+  }
+
+  // Banner
+  if (!Banner.empty()) {
+    std::string name = cmSystemTools::GetFilenameName(Banner);
+    std::string path = Directory + "/config/" + name;
+    cmsys::SystemTools::CopyFileIfDifferent(Banner.data(), path.data());
+    xout.Element("Banner", name);
+  }
+
+  // Watermark
+  if (!Watermark.empty()) {
+    std::string name = cmSystemTools::GetFilenameName(Watermark);
+    std::string path = Directory + "/config/" + name;
+    cmsys::SystemTools::CopyFileIfDifferent(Watermark.data(), path.data());
+    xout.Element("Watermark", name);
+  }
+
+  // Background
+  if (!Background.empty()) {
+    std::string name = cmSystemTools::GetFilenameName(Background);
+    std::string path = Directory + "/config/" + name;
+    cmsys::SystemTools::CopyFileIfDifferent(Background.data(), path.data());
+    xout.Element("Background", name);
+  }
+
+  // WizardStyle
+  if (!WizardStyle.empty()) {
+    xout.Element("WizardStyle", WizardStyle);
+  }
+
+  // WizardDefaultWidth
+  if (!WizardDefaultWidth.empty()) {
+    xout.Element("WizardDefaultWidth", WizardDefaultWidth);
+  }
+
+  // WizardDefaultHeight
+  if (!WizardDefaultHeight.empty()) {
+    xout.Element("WizardDefaultHeight", WizardDefaultHeight);
+  }
+
+  // TitleColor
+  if (!TitleColor.empty()) {
+    xout.Element("TitleColor", TitleColor);
   }
 
   // Start menu
@@ -403,7 +518,11 @@ void cmCPackIFWInstaller::GeneratePackageFiles()
     // Check package group
     if (const char* option = GetOption("CPACK_IFW_PACKAGE_GROUP")) {
       package.ConfigureFromGroup(option);
-      package.ForcedInstallation = "true";
+      std::string forcedOption = "CPACK_IFW_COMPONENT_GROUP_" +
+        cmsys::SystemTools::UpperCase(option) + "_FORCED_INSTALLATION";
+      if (!GetOption(forcedOption)) {
+        package.ForcedInstallation = "true";
+      }
     } else {
       package.ConfigureFromOptions();
     }

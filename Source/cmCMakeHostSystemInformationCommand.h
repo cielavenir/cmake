@@ -3,9 +3,17 @@
 #ifndef cmCMakeHostSystemInformationCommand_h
 #define cmCMakeHostSystemInformationCommand_h
 
+#include <cmConfigure.h>
+#include <stddef.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
 
-#include <cmsys/SystemInformation.hxx>
+class cmExecutionStatus;
+namespace cmsys {
+class SystemInformation;
+} // namespace cmsys
 
 /** \class cmCMakeHostSystemInformationCommand
  * \brief Query host system specific information
@@ -43,8 +51,6 @@ public:
   {
     return "cmake_host_system_information";
   }
-
-  cmTypeMacro(cmCMakeHostSystemInformationCommand, cmCommand);
 
 private:
   bool GetValue(cmsys::SystemInformation& info, std::string const& key,

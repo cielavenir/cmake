@@ -3,7 +3,13 @@
 #ifndef cmEnableLanguageCommand_h
 #define cmEnableLanguageCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmEnableLanguageCommand
  * \brief Specify the name for this build project.
@@ -32,8 +38,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "enable_language"; }
-
-  cmTypeMacro(cmEnableLanguageCommand, cmCommand);
 };
 
 #endif

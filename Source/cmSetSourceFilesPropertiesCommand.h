@@ -3,7 +3,14 @@
 #ifndef cmSetSourceFilesPropertiesCommand_h
 #define cmSetSourceFilesPropertiesCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
+class cmMakefile;
 
 class cmSetSourceFilesPropertiesCommand : public cmCommand
 {
@@ -27,8 +34,6 @@ public:
   {
     return "set_source_files_properties";
   }
-
-  cmTypeMacro(cmSetSourceFilesPropertiesCommand, cmCommand);
 
   static bool RunCommand(cmMakefile* mf,
                          std::vector<std::string>::const_iterator filebeg,

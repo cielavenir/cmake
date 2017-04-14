@@ -5,16 +5,23 @@
 #include "cmCPluginAPI.cxx"
 #include "cmCPluginAPI.h"
 #include "cmDynamicLoader.h"
+#include "cmMakefile.h"
+#include "cmPolicies.h"
+#include "cmState.h"
+#include "cmSystemTools.h"
 
-#include <cmsys/DynamicLoader.hxx>
+class cmExecutionStatus;
 
+#include <signal.h>
+#include <sstream>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef __QNX__
 #include <malloc.h> /* for malloc/free on QNX */
 #endif
 
-#include <signal.h>
 extern "C" void TrapsForSignalsCFunction(int sig);
 
 // a class for loadabple commands
@@ -57,7 +64,7 @@ public:
   void FinalPass() CM_OVERRIDE;
   bool HasFinalPass() const CM_OVERRIDE
   {
-    return this->info.FinalPass ? true : false;
+    return this->info.FinalPass != CM_NULLPTR;
   }
 
   /**
@@ -92,8 +99,6 @@ public:
       signal(SIGILL, CM_NULLPTR);
     }
   }
-
-  cmTypeMacro(cmLoadedCommand, cmCommand);
 
   cmLoadedCommandInfo info;
 };
@@ -203,7 +208,7 @@ bool cmLoadCommandCommand::InitialPass(std::vector<std::string> const& args,
   }
 
   // Try to find the program.
-  std::string fullPath = cmSystemTools::FindFile(moduleName.c_str(), path);
+  std::string fullPath = cmSystemTools::FindFile(moduleName, path);
   if (fullPath == "") {
     std::ostringstream e;
     e << "Attempt to load command failed from file \"" << moduleName << "\"";
@@ -232,14 +237,14 @@ bool cmLoadCommandCommand::InitialPass(std::vector<std::string> const& args,
   // find the init function
   std::string initFuncName = args[0] + "Init";
   CM_INIT_FUNCTION initFunction =
-    (CM_INIT_FUNCTION)cmsys::DynamicLoader::GetSymbolAddress(
-      lib, initFuncName.c_str());
+    (CM_INIT_FUNCTION)cmsys::DynamicLoader::GetSymbolAddress(lib,
+                                                             initFuncName);
   if (!initFunction) {
     initFuncName = "_";
     initFuncName += args[0];
     initFuncName += "Init";
     initFunction = (CM_INIT_FUNCTION)(
-      cmsys::DynamicLoader::GetSymbolAddress(lib, initFuncName.c_str()));
+      cmsys::DynamicLoader::GetSymbolAddress(lib, initFuncName));
   }
   // if the symbol is found call it to set the name on the
   // function blocker

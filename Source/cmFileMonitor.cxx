@@ -36,7 +36,7 @@ public:
 class cmVirtualDirectoryWatcher : public cmIBaseWatcher
 {
 public:
-  ~cmVirtualDirectoryWatcher()
+  ~cmVirtualDirectoryWatcher() override
   {
     for (auto i : this->Children) {
       delete i.second;
@@ -156,7 +156,7 @@ public:
     p->AddChildWatcher(ps, this);
   }
 
-  ~cmRealDirectoryWatcher()
+  ~cmRealDirectoryWatcher() override
   {
     // Handle is freed via uv_handle_close callback!
   }
@@ -247,7 +247,10 @@ public:
 
   void StopWatching() final {}
 
-  void AppendCallback(cmFileMonitor::Callback cb) { CbList.push_back(cb); }
+  void AppendCallback(cmFileMonitor::Callback const& cb)
+  {
+    this->CbList.push_back(cb);
+  }
 
   std::string Path() const final
   {
@@ -310,7 +313,7 @@ cmFileMonitor::~cmFileMonitor()
 }
 
 void cmFileMonitor::MonitorPaths(const std::vector<std::string>& paths,
-                                 Callback cb)
+                                 Callback const& cb)
 {
   for (const auto& p : paths) {
     std::vector<std::string> pathSegments;

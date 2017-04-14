@@ -3,7 +3,13 @@
 #ifndef cmGetSourceFilePropertyCommand_h
 #define cmGetSourceFilePropertyCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 class cmGetSourceFilePropertyCommand : public cmCommand
 {
@@ -24,8 +30,6 @@ public:
   {
     return "get_source_file_property";
   }
-
-  cmTypeMacro(cmGetSourceFilePropertyCommand, cmCommand);
 };
 
 #endif

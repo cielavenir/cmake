@@ -5,12 +5,6 @@
 
 #include <cmConfigure.h>
 
-#include "cmGlobalCommonGenerator.h"
-#include "cmGlobalGenerator.h"
-#include "cmGlobalGeneratorFactory.h"
-#include "cmNinjaTypes.h"
-#include "cmPolicies.h"
-
 #include <iosfwd>
 #include <map>
 #include <set>
@@ -18,13 +12,23 @@
 #include <utility>
 #include <vector>
 
+#include "cmGlobalCommonGenerator.h"
+#include "cmGlobalGenerator.h"
+#include "cmGlobalGeneratorFactory.h"
+#include "cmNinjaTypes.h"
+#include "cmPolicies.h"
+#include "cm_codecvt.hxx"
+
 class cmCustomCommand;
-class cmMakefile;
-class cmake;
-struct cmDocumentationEntry;
 class cmGeneratedFileStream;
 class cmGeneratorTarget;
+class cmLinkLineComputer;
 class cmLocalGenerator;
+class cmMakefile;
+class cmOutputConverter;
+class cmStateDirectory;
+class cmake;
+struct cmDocumentationEntry;
 
 /**
  * \class cmGlobalNinjaGenerator
@@ -58,6 +62,9 @@ public:
   /// The indentation string used when generating Ninja's build file.
   static const char* INDENT;
 
+  /// The shell command used for a no-op.
+  static std::string const SHELL_NOOP;
+
   /// Write @a count times INDENT level to output stream @a os.
   static void Indent(std::ostream& os, int count);
 
@@ -69,6 +76,10 @@ public:
   static std::string EncodeLiteral(const std::string& lit);
   std::string EncodePath(const std::string& path);
   static std::string EncodeDepfileSpace(const std::string& path);
+
+  cmLinkLineComputer* CreateLinkLineComputer(
+    cmOutputConverter* outputConverter,
+    cmStateDirectory stateDir) const CM_OVERRIDE;
 
   /**
    * Write the given @a comment to the output stream @a os. It
@@ -182,6 +193,9 @@ public:
 
   static std::string GetActualName() { return "Ninja"; }
 
+  /** Get encoding used by generator for ninja files */
+  codecvt::Encoding GetMakefileEncoding() const CM_OVERRIDE;
+
   static void GetDocumentation(cmDocumentationEntry& entry);
 
   void EnableLanguage(std::vector<std::string> const& languages,
@@ -233,7 +247,7 @@ public:
     return this->RulesFileStream;
   }
 
-  std::string ConvertToNinjaPath(const std::string& path);
+  std::string ConvertToNinjaPath(const std::string& path) const;
 
   struct MapToNinjaPathImpl
   {
@@ -332,7 +346,7 @@ public:
   bool SupportsConsolePool() const;
   bool SupportsImplicitOuts() const;
 
-  std::string NinjaOutputPath(std::string const& path);
+  std::string NinjaOutputPath(std::string const& path) const;
   bool HasOutputPathPrefix() const { return !this->OutputPathPrefix.empty(); }
   void StripNinjaOutputPathPrefixAsSuffix(std::string& path);
 
@@ -352,7 +366,7 @@ protected:
 
 private:
   std::string GetEditCacheCommand() const CM_OVERRIDE;
-  void FindMakeProgram(cmMakefile* mf) CM_OVERRIDE;
+  bool FindMakeProgram(cmMakefile* mf) CM_OVERRIDE;
   void CheckNinjaFeatures();
   bool CheckLanguages(std::vector<std::string> const& languages,
                       cmMakefile* mf) const CM_OVERRIDE;

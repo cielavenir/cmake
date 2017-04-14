@@ -6,7 +6,6 @@
 #include <cmConfigure.h>
 
 #include "cmCTestTestHandler.h"
-#include "cmTypeMacro.h"
 
 #include <string>
 #include <vector>
@@ -23,13 +22,15 @@ class cmCTestMemCheckHandler : public cmCTestTestHandler
   friend class cmCTestRunTest;
 
 public:
-  cmTypeMacro(cmCTestMemCheckHandler, cmCTestTestHandler);
+  typedef cmCTestTestHandler Superclass;
 
   void PopulateCustomVectors(cmMakefile* mf) CM_OVERRIDE;
 
   cmCTestMemCheckHandler();
 
   void Initialize() CM_OVERRIDE;
+
+  int GetDefectCount();
 
 protected:
   int PreProcessHandler() CM_OVERRIDE;
@@ -46,6 +47,7 @@ private:
     BOUNDS_CHECKER,
     // checkers after here do not use the standard error list
     ADDRESS_SANITIZER,
+    LEAK_SANITIZER,
     THREAD_SANITIZER,
     MEMORY_SANITIZER,
     UB_SANITIZER
@@ -106,6 +108,7 @@ private:
   std::vector<std::string> ResultStringsLong;
   std::vector<int> GlobalResults;
   bool LogWithPID; // does log file add pid
+  int DefectCount;
 
   std::vector<int>::size_type FindOrAddWarning(const std::string& warning);
   // initialize the ResultStrings and ResultStringsLong for

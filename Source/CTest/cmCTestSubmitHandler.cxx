@@ -2,16 +2,6 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCTestSubmitHandler.h"
 
-#include "cmCTest.h"
-#include "cmCTestCurl.h"
-#include "cmCTestScriptHandler.h"
-#include "cmCurl.h"
-#include "cmGeneratedFileStream.h"
-#include "cmState.h"
-#include "cmSystemTools.h"
-#include "cmXMLParser.h"
-#include "cmake.h"
-
 #include <cm_curl.h>
 #include <cm_jsoncpp_reader.h>
 #include <cm_jsoncpp_value.h>
@@ -19,6 +9,18 @@
 #include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "cmCTest.h"
+#include "cmCTestCurl.h"
+#include "cmCTestScriptHandler.h"
+#include "cmCurl.h"
+#include "cmGeneratedFileStream.h"
+#include "cmProcessOutput.h"
+#include "cmState.h"
+#include "cmSystemTools.h"
+#include "cmThirdParty.h"
+#include "cmXMLParser.h"
+#include "cmake.h"
 
 #if defined(CTEST_USE_XMLRPC)
 #include "cmVersion.h"
@@ -45,7 +47,6 @@ public:
   };
 
   StatusType Status;
-  std::string CDashVersion;
   std::string Filename;
   std::string MD5;
   std::string Message;
@@ -62,12 +63,10 @@ private:
     return val;
   }
 
-  void StartElement(const std::string& name, const char** atts) CM_OVERRIDE
+  void StartElement(const std::string& /*name*/,
+                    const char** /*atts*/) CM_OVERRIDE
   {
     this->CurrentValue.clear();
-    if (name == "cdash") {
-      this->CDashVersion = this->FindAttribute(atts, "version");
-    }
   }
 
   void CharacterDataHandler(const char* data, int length) CM_OVERRIDE
@@ -389,7 +388,7 @@ bool cmCTestSubmitHandler::SubmitUsingHTTP(const std::string& localprefix,
       *this->LogFile << "\tUpload file: " << local_file << " to "
                      << remote_file << std::endl;
 
-      std::string ofile = "";
+      std::string ofile;
       for (kk = 0; kk < remote_file.size(); kk++) {
         char c = remote_file[kk];
         char hexCh[4] = { 0, 0, 0, 0 };
@@ -468,20 +467,6 @@ bool cmCTestSubmitHandler::SubmitUsingHTTP(const std::string& localprefix,
 
       // Now run off and do what you've been told!
       res = ::curl_easy_perform(curl);
-
-      if (cmSystemTools::IsOn(this->GetOption("InternalTest")) &&
-          cmSystemTools::VersionCompare(cmSystemTools::OP_LESS,
-                                        this->CTest->GetCDashVersion().c_str(),
-                                        "1.7")) {
-        // mock failure output for internal test case
-        std::string mock_output =
-          "<cdash version=\"1.7.0\">\n"
-          "  <status>ERROR</status>\n"
-          "  <message>Checksum failed for file.</message>\n"
-          "</cdash>\n";
-        chunk.clear();
-        chunk.assign(mock_output.begin(), mock_output.end());
-      }
 
       if (!chunk.empty()) {
         cmCTestOptionalLog(this->CTest, DEBUG, "CURL output: ["
@@ -597,7 +582,7 @@ bool cmCTestSubmitHandler::SubmitUsingHTTP(const std::string& localprefix,
 void cmCTestSubmitHandler::ParseResponse(
   cmCTestSubmitHandlerVectorOfChar chunk)
 {
-  std::string output = "";
+  std::string output;
   output.append(chunk.begin(), chunk.end());
 
   if (output.find("<cdash") != output.npos) {
@@ -677,7 +662,7 @@ bool cmCTestSubmitHandler::TriggerUsingHTTP(const std::set<std::string>& files,
       ::curl_easy_setopt(curl, CURLOPT_DEBUGDATA, (void*)&chunkDebug);
 
       std::string rfile = remoteprefix + cmSystemTools::GetFilenameName(*file);
-      std::string ofile = "";
+      std::string ofile;
       std::string::iterator kk;
       for (kk = rfile.begin(); kk < rfile.end(); ++kk) {
         char c = *kk;
@@ -763,7 +748,7 @@ bool cmCTestSubmitHandler::SubmitUsingSCP(const std::string& scp_command,
 {
   if (scp_command.empty() || localprefix.empty() || files.empty() ||
       remoteprefix.empty() || url.empty()) {
-    return 0;
+    return false;
   }
 
   std::vector<const char*> argv;
@@ -800,10 +785,20 @@ bool cmCTestSubmitHandler::SubmitUsingSCP(const std::string& scp_command,
     cmsysProcess_Execute(cp);
     char* data;
     int length;
+    cmProcessOutput processOutput;
+    std::string strdata;
 
     while (cmsysProcess_WaitForData(cp, &data, &length, CM_NULLPTR)) {
+      processOutput.DecodeText(data, length, strdata);
       cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
-                         cmCTestLogWrite(data, length), this->Quiet);
+                         cmCTestLogWrite(strdata.c_str(), strdata.size()),
+                         this->Quiet);
+    }
+    processOutput.DecodeText(std::string(), strdata);
+    if (!strdata.empty()) {
+      cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
+                         cmCTestLogWrite(strdata.c_str(), strdata.size()),
+                         this->Quiet);
     }
 
     cmsysProcess_WaitForExit(cp, CM_NULLPTR);
@@ -857,7 +852,7 @@ bool cmCTestSubmitHandler::SubmitUsingCP(const std::string& localprefix,
                << "\tremoteprefix: " << remoteprefix << "\n"
                << "\tdestination: " << destination << std::endl);
     /* clang-format on */
-    return 0;
+    return false;
   }
 
   cmCTest::SetOfStrings::const_iterator file;
@@ -925,7 +920,7 @@ bool cmCTestSubmitHandler::SubmitUsingXMLRPC(
       return false;
     }
     size_t fileSize = static_cast<size_t>(st.st_size);
-    FILE* fp = cmsys::SystemTools::Fopen(local_file.c_str(), "rb");
+    FILE* fp = cmsys::SystemTools::Fopen(local_file, "rb");
     if (!fp) {
       cmCTestLog(this->CTest, ERROR_MESSAGE,
                  "  Cannot open file: " << local_file << std::endl);
@@ -1012,6 +1007,7 @@ int cmCTestSubmitHandler::HandleCDashUploadFile(std::string const& file,
     return -1;
   }
   cmCTestCurl curl(this->CTest);
+  curl.SetQuiet(this->Quiet);
   std::string curlopt(this->CTest->GetCTestConfiguration("CurlOptions"));
   std::vector<std::string> args;
   cmSystemTools::ExpandListArgument(curlopt, args);
@@ -1027,6 +1023,30 @@ int cmCTestSubmitHandler::HandleCDashUploadFile(std::string const& file,
                "Only http and https are supported for CDASH_UPLOAD\n");
     return -1;
   }
+  bool internalTest = cmSystemTools::IsOn(this->GetOption("InternalTest"));
+
+  // Get RETRY_COUNT and RETRY_DELAY values if they were set.
+  std::string retryDelayString = this->GetOption("RetryDelay") == CM_NULLPTR
+    ? ""
+    : this->GetOption("RetryDelay");
+  std::string retryCountString = this->GetOption("RetryCount") == CM_NULLPTR
+    ? ""
+    : this->GetOption("RetryCount");
+  unsigned long retryDelay = 0;
+  if (retryDelayString != "") {
+    if (!cmSystemTools::StringToULong(retryDelayString.c_str(), &retryDelay)) {
+      cmCTestLog(this->CTest, WARNING, "Invalid value for 'RETRY_DELAY' : "
+                   << retryDelayString << std::endl);
+    }
+  }
+  unsigned long retryCount = 0;
+  if (retryCountString != "") {
+    if (!cmSystemTools::StringToULong(retryCountString.c_str(), &retryCount)) {
+      cmCTestLog(this->CTest, WARNING, "Invalid value for 'RETRY_DELAY' : "
+                   << retryCountString << std::endl);
+    }
+  }
+
   char md5sum[33];
   md5sum[32] = 0;
   cmSystemTools::ComputeFileMD5(file, md5sum);
@@ -1063,7 +1083,33 @@ int cmCTestSubmitHandler::HandleCDashUploadFile(std::string const& file,
                                 << "\nfile: " << file << "\n",
                      this->Quiet);
   std::string response;
-  if (!curl.HttpRequest(url, fields, response)) {
+
+  bool requestSucceeded = curl.HttpRequest(url, fields, response);
+  if (!internalTest && !requestSucceeded) {
+    // If request failed, wait and retry.
+    for (unsigned long i = 0; i < retryCount; i++) {
+      cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
+                         "   Request failed, waiting " << retryDelay
+                                                       << " seconds...\n",
+                         this->Quiet);
+
+      double stop = cmSystemTools::GetTime() + static_cast<double>(retryDelay);
+      while (cmSystemTools::GetTime() < stop) {
+        cmSystemTools::Delay(100);
+      }
+
+      cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
+                         "   Retry request: Attempt "
+                           << (i + 1) << " of " << retryCount << std::endl,
+                         this->Quiet);
+
+      requestSucceeded = curl.HttpRequest(url, fields, response);
+      if (requestSucceeded) {
+        break;
+      }
+    }
+  }
+  if (!internalTest && !requestSucceeded) {
     cmCTestLog(this->CTest, ERROR_MESSAGE, "Error in HttpRequest\n"
                  << response);
     return -1;
@@ -1073,30 +1119,32 @@ int cmCTestSubmitHandler::HandleCDashUploadFile(std::string const& file,
                      this->Quiet);
   Json::Value json;
   Json::Reader reader;
-  if (!reader.parse(response, json)) {
+  if (!internalTest && !reader.parse(response, json)) {
     cmCTestLog(this->CTest, ERROR_MESSAGE, "error parsing json string ["
                  << response << "]\n"
                  << reader.getFormattedErrorMessages() << "\n");
     return -1;
   }
-  if (json["status"].asInt() != 0) {
+  if (!internalTest && json["status"].asInt() != 0) {
     cmCTestLog(this->CTest, ERROR_MESSAGE,
                "Bad status returned from CDash: " << json["status"].asInt());
     return -1;
   }
-  if (json["datafilesmd5"].isArray()) {
-    int datares = json["datafilesmd5"][0].asInt();
-    if (datares == 1) {
-      cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
-                         "File already exists on CDash, skip upload " << file
-                                                                      << "\n",
-                         this->Quiet);
-      return 0;
+  if (!internalTest) {
+    if (json["datafilesmd5"].isArray()) {
+      int datares = json["datafilesmd5"][0].asInt();
+      if (datares == 1) {
+        cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
+                           "File already exists on CDash, skip upload "
+                             << file << "\n",
+                           this->Quiet);
+        return 0;
+      }
+    } else {
+      cmCTestLog(this->CTest, ERROR_MESSAGE,
+                 "bad datafilesmd5 value in response " << response << "\n");
+      return -1;
     }
-  } else {
-    cmCTestLog(this->CTest, ERROR_MESSAGE,
-               "bad datafilesmd5 value in response " << response << "\n");
-    return -1;
   }
 
   std::string upload_as = cmSystemTools::GetFilenameName(file);
@@ -1105,7 +1153,40 @@ int cmCTestSubmitHandler::HandleCDashUploadFile(std::string const& file,
        << "md5=" << md5sum << "&"
        << "filename=" << curl.Escape(upload_as) << "&"
        << "buildid=" << json["buildid"].asString();
-  if (!curl.UploadFile(file, url, fstr.str(), response)) {
+
+  bool uploadSucceeded = false;
+  if (!internalTest) {
+    uploadSucceeded = curl.UploadFile(file, url, fstr.str(), response);
+  }
+
+  if (!uploadSucceeded) {
+    // If upload failed, wait and retry.
+    for (unsigned long i = 0; i < retryCount; i++) {
+      cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
+                         "   Upload failed, waiting " << retryDelay
+                                                      << " seconds...\n",
+                         this->Quiet);
+
+      double stop = cmSystemTools::GetTime() + static_cast<double>(retryDelay);
+      while (cmSystemTools::GetTime() < stop) {
+        cmSystemTools::Delay(100);
+      }
+
+      cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
+                         "   Retry upload: Attempt "
+                           << (i + 1) << " of " << retryCount << std::endl,
+                         this->Quiet);
+
+      if (!internalTest) {
+        uploadSucceeded = curl.UploadFile(file, url, fstr.str(), response);
+      }
+      if (uploadSucceeded) {
+        break;
+      }
+    }
+  }
+
+  if (!uploadSucceeded) {
     cmCTestLog(this->CTest, ERROR_MESSAGE, "error uploading to CDash. "
                  << file << " " << url << " " << fstr.str());
     return -1;

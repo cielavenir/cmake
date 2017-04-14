@@ -6,7 +6,6 @@
 #include <cmConfigure.h>
 
 #include "cmCTestGenericHandler.h"
-#include "cmTypeMacro.h"
 
 #include <string>
 #include <vector>
@@ -56,7 +55,7 @@ class cmake;
 class cmCTestScriptHandler : public cmCTestGenericHandler
 {
 public:
-  cmTypeMacro(cmCTestScriptHandler, cmCTestGenericHandler);
+  typedef cmCTestGenericHandler Superclass;
 
   /**
    * Add a script to run, and if is should run in the current process

@@ -2,7 +2,13 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmConfigureFileCommand.h"
 
-#include <cmsys/RegularExpression.hxx>
+#include <sstream>
+
+#include "cmMakefile.h"
+#include "cmSystemTools.h"
+#include "cmake.h"
+
+class cmExecutionStatus;
 
 // cmConfigureFileCommand
 bool cmConfigureFileCommand::InitialPass(std::vector<std::string> const& args,

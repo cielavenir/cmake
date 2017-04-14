@@ -6,7 +6,6 @@
 #include <cmConfigure.h>
 
 #include "cmCTestCommand.h"
-#include "cmTypeMacro.h"
 
 #include <string>
 #include <vector>
@@ -51,8 +50,6 @@ public:
   {
     return "ctest_empty_binary_directory";
   }
-
-  cmTypeMacro(cmCTestEmptyBinaryDirectoryCommand, cmCTestCommand);
 };
 
 #endif

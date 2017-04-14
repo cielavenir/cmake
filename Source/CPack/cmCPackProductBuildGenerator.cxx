@@ -2,17 +2,14 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCPackProductBuildGenerator.h"
 
+#include <map>
+#include <sstream>
+#include <stddef.h>
+
 #include "cmCPackComponentGroup.h"
 #include "cmCPackLog.h"
 #include "cmGeneratedFileStream.h"
-#include "cmGlobalGenerator.h"
-#include "cmLocalGenerator.h"
-#include "cmMakefile.h"
 #include "cmSystemTools.h"
-#include "cmake.h"
-
-#include <cmsys/Glob.hxx>
-#include <cmsys/SystemTools.hxx>
 
 cmCPackProductBuildGenerator::cmCPackProductBuildGenerator()
 {
@@ -78,6 +75,14 @@ int cmCPackProductBuildGenerator::PackageFiles()
 
   std::string version = this->GetOption("CPACK_PACKAGE_VERSION");
   std::string productbuild = this->GetOption("CPACK_COMMAND_PRODUCTBUILD");
+  std::string identityName;
+  if (const char* n = this->GetOption("CPACK_PRODUCTBUILD_IDENTITY_NAME")) {
+    identityName = n;
+  }
+  std::string keychainPath;
+  if (const char* p = this->GetOption("CPACK_PRODUCTBUILD_KEYCHAIN_PATH")) {
+    keychainPath = p;
+  }
 
   pkgCmd << productbuild << " --distribution \"" << packageDirFileName
          << "/Contents/distribution.dist\""
@@ -85,6 +90,9 @@ int cmCPackProductBuildGenerator::PackageFiles()
          << "\""
          << " --resources \"" << resDir << "\""
          << " --version \"" << version << "\""
+         << (identityName.empty() ? "" : " --sign \"" + identityName + "\"")
+         << (keychainPath.empty() ? ""
+                                  : " --keychain \"" + keychainPath + "\"")
          << " \"" << packageFileNames[0] << "\"";
 
   // Run ProductBuild
@@ -196,12 +204,23 @@ bool cmCPackProductBuildGenerator::GenerateComponentPackage(
 
   std::string version = this->GetOption("CPACK_PACKAGE_VERSION");
   std::string pkgbuild = this->GetOption("CPACK_COMMAND_PKGBUILD");
+  std::string identityName;
+  if (const char* n = this->GetOption("CPACK_PKGBUILD_IDENTITY_NAME")) {
+    identityName = n;
+  }
+  std::string keychainPath;
+  if (const char* p = this->GetOption("CPACK_PKGBUILD_KEYCHAIN_PATH")) {
+    keychainPath = p;
+  }
 
   pkgCmd << pkgbuild << " --root \"" << packageDir << "\""
          << " --identifier \"" << pkgId << "\""
          << " --scripts \"" << scriptDir << "\""
          << " --version \"" << version << "\""
          << " --install-location \"/\""
+         << (identityName.empty() ? "" : " --sign \"" + identityName + "\"")
+         << (keychainPath.empty() ? ""
+                                  : " --keychain \"" + keychainPath + "\"")
          << " \"" << packageFile << "\"";
 
   // Run ProductBuild

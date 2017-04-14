@@ -7,7 +7,6 @@
 
 #include "cmCTest.h"
 #include "cmCTestGenericHandler.h"
-#include "cmTypeMacro.h"
 
 #include <iosfwd>
 #include <set>
@@ -23,7 +22,7 @@
 class cmCTestSubmitHandler : public cmCTestGenericHandler
 {
 public:
-  cmTypeMacro(cmCTestSubmitHandler, cmCTestGenericHandler);
+  typedef cmCTestGenericHandler Superclass;
 
   cmCTestSubmitHandler();
   ~cmCTestSubmitHandler() CM_OVERRIDE { this->LogFile = CM_NULLPTR; }

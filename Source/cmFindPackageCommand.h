@@ -3,9 +3,18 @@
 #ifndef cmFindPackageCommand_h
 #define cmFindPackageCommand_h
 
+#include <cmConfigure.h>
+#include <cm_kwiml.h>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "cmFindCommon.h"
 
-class cmFindPackageFileList;
+class cmCommand;
+class cmExecutionStatus;
+class cmSearchPath;
 
 /** \class cmFindPackageCommand
  * \brief Load settings from an external project.
@@ -59,8 +68,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "find_package"; }
-
-  cmTypeMacro(cmFindPackageCommand, cmFindCommon);
 
 private:
   class PathLabel : public cmFindCommon::PathLabel

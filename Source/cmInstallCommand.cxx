@@ -2,16 +2,32 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmInstallCommand.h"
 
+#include <cmsys/Glob.hxx>
+#include <sstream>
+#include <stddef.h>
+
+#include "cmAlgorithms.h"
+#include "cmCommandArgumentsHelper.h"
 #include "cmExportSet.h"
+#include "cmExportSetMap.h"
+#include "cmGeneratorExpression.h"
+#include "cmGlobalGenerator.h"
 #include "cmInstallCommandArguments.h"
 #include "cmInstallDirectoryGenerator.h"
 #include "cmInstallExportGenerator.h"
 #include "cmInstallFilesGenerator.h"
+#include "cmInstallGenerator.h"
 #include "cmInstallScriptGenerator.h"
 #include "cmInstallTargetGenerator.h"
+#include "cmMakefile.h"
+#include "cmPolicies.h"
+#include "cmStateTypes.h"
+#include "cmSystemTools.h"
+#include "cmTarget.h"
 #include "cmTargetExport.h"
+#include "cmake.h"
 
-#include <cmsys/Glob.hxx>
+class cmExecutionStatus;
 
 static cmInstallTargetGenerator* CreateInstallTargetGenerator(
   cmTarget& target, const cmInstallCommandArguments& args, bool impLib,
@@ -327,19 +343,19 @@ bool cmInstallCommand::HandleTargetsMode(std::vector<std::string> const& args)
     if (cmTarget* target =
           this->Makefile->FindLocalNonAliasTarget(*targetIt)) {
       // Found the target.  Check its type.
-      if (target->GetType() != cmState::EXECUTABLE &&
-          target->GetType() != cmState::STATIC_LIBRARY &&
-          target->GetType() != cmState::SHARED_LIBRARY &&
-          target->GetType() != cmState::MODULE_LIBRARY &&
-          target->GetType() != cmState::OBJECT_LIBRARY &&
-          target->GetType() != cmState::INTERFACE_LIBRARY) {
+      if (target->GetType() != cmStateEnums::EXECUTABLE &&
+          target->GetType() != cmStateEnums::STATIC_LIBRARY &&
+          target->GetType() != cmStateEnums::SHARED_LIBRARY &&
+          target->GetType() != cmStateEnums::MODULE_LIBRARY &&
+          target->GetType() != cmStateEnums::OBJECT_LIBRARY &&
+          target->GetType() != cmStateEnums::INTERFACE_LIBRARY) {
         std::ostringstream e;
         e << "TARGETS given target \"" << (*targetIt)
           << "\" which is not an executable, library, or module.";
         this->SetError(e.str());
         return false;
       }
-      if (target->GetType() == cmState::OBJECT_LIBRARY) {
+      if (target->GetType() == cmStateEnums::OBJECT_LIBRARY) {
         std::ostringstream e;
         e << "TARGETS given OBJECT library \"" << (*targetIt)
           << "\" which may not be installed.";
@@ -387,7 +403,7 @@ bool cmInstallCommand::HandleTargetsMode(std::vector<std::string> const& args)
     bool namelinkOnly = false;
 
     switch (target.GetType()) {
-      case cmState::SHARED_LIBRARY: {
+      case cmStateEnums::SHARED_LIBRARY: {
         // Shared libraries are handled differently on DLL and non-DLL
         // platforms.  All windows platforms are DLL platforms including
         // cygwin.  Currently no other platform is a DLL platform.
@@ -454,21 +470,43 @@ bool cmInstallCommand::HandleTargetsMode(std::vector<std::string> const& args)
           }
         }
       } break;
-      case cmState::STATIC_LIBRARY: {
-        // Static libraries use ARCHIVE properties.
-        if (!archiveArgs.GetDestination().empty()) {
-          archiveGenerator =
-            CreateInstallTargetGenerator(target, archiveArgs, false);
+      case cmStateEnums::STATIC_LIBRARY: {
+        // If it is marked with FRAMEWORK property use the FRAMEWORK set of
+        // INSTALL properties. Otherwise, use the LIBRARY properties.
+        if (target.IsFrameworkOnApple()) {
+          // When in namelink only mode skip frameworks.
+          if (namelinkMode == cmInstallTargetGenerator::NamelinkModeOnly) {
+            continue;
+          }
+
+          // Use the FRAMEWORK properties.
+          if (!frameworkArgs.GetDestination().empty()) {
+            frameworkGenerator =
+              CreateInstallTargetGenerator(target, frameworkArgs, false);
+          } else {
+            std::ostringstream e;
+            e << "TARGETS given no FRAMEWORK DESTINATION for static library "
+                 "FRAMEWORK target \""
+              << target.GetName() << "\".";
+            this->SetError(e.str());
+            return false;
+          }
         } else {
-          std::ostringstream e;
-          e << "TARGETS given no ARCHIVE DESTINATION for static library "
-               "target \""
-            << target.GetName() << "\".";
-          this->SetError(e.str());
-          return false;
+          // Static libraries use ARCHIVE properties.
+          if (!archiveArgs.GetDestination().empty()) {
+            archiveGenerator =
+              CreateInstallTargetGenerator(target, archiveArgs, false);
+          } else {
+            std::ostringstream e;
+            e << "TARGETS given no ARCHIVE DESTINATION for static library "
+                 "target \""
+              << target.GetName() << "\".";
+            this->SetError(e.str());
+            return false;
+          }
         }
       } break;
-      case cmState::MODULE_LIBRARY: {
+      case cmStateEnums::MODULE_LIBRARY: {
         // Modules use LIBRARY properties.
         if (!libraryArgs.GetDestination().empty()) {
           libraryGenerator =
@@ -484,7 +522,7 @@ bool cmInstallCommand::HandleTargetsMode(std::vector<std::string> const& args)
           return false;
         }
       } break;
-      case cmState::EXECUTABLE: {
+      case cmStateEnums::EXECUTABLE: {
         if (target.IsAppBundleOnApple()) {
           // Application bundles use the BUNDLE properties.
           if (!bundleArgs.GetDestination().empty()) {
@@ -534,7 +572,7 @@ bool cmInstallCommand::HandleTargetsMode(std::vector<std::string> const& args)
             CreateInstallTargetGenerator(target, archiveArgs, true, true);
         }
       } break;
-      case cmState::INTERFACE_LIBRARY:
+      case cmStateEnums::INTERFACE_LIBRARY:
         // Nothing to do. An INTERFACE_LIBRARY can be installed, but the
         // only effect of that is to make it exportable. It installs no
         // other files itself.
@@ -553,7 +591,7 @@ bool cmInstallCommand::HandleTargetsMode(std::vector<std::string> const& args)
     bool createInstallGeneratorsForTargetFileSets = true;
 
     if (target.IsFrameworkOnApple() ||
-        target.GetType() == cmState::INTERFACE_LIBRARY) {
+        target.GetType() == cmStateEnums::INTERFACE_LIBRARY) {
       createInstallGeneratorsForTargetFileSets = false;
     }
 
@@ -969,7 +1007,7 @@ bool cmInstallCommand::HandleDirectoryMode(
         std::ostringstream e;
         e << args[0] << " does not allow \"" << args[i]
           << "\" after PATTERN or REGEX.";
-        this->SetError(e.str().c_str());
+        this->SetError(e.str());
         return false;
       }
       exclude_from_all = true;

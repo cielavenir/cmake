@@ -4,22 +4,23 @@
 
 #include <cmConfigure.h>
 
-#include "cmGeneratedFileStream.h"
-#include "cmGlobalGenerator.h"
-#include "cmMakefile.h"
-#include "cmState.h"
-#include "cmSystemTools.h"
-#include "cmXMLWriter.h"
-#include "cmake.h"
-
-#include <cm_auto_ptr.hxx>
 #include <cmsys/FStream.hxx>
-#include <cmsys/MD5.h>
 #include <cmsys/Process.h>
 #include <cmsys/RegularExpression.hxx>
 #include <iostream>
 #include <stdlib.h>
 #include <string.h>
+
+#include "cmCryptoHash.h"
+#include "cmGeneratedFileStream.h"
+#include "cmGlobalGenerator.h"
+#include "cmMakefile.h"
+#include "cmProcessOutput.h"
+#include "cmStateSnapshot.h"
+#include "cmSystemTools.h"
+#include "cmXMLWriter.h"
+#include "cm_auto_ptr.hxx"
+#include "cmake.h"
 
 #ifdef _WIN32
 #include <fcntl.h> // for _O_BINARY
@@ -167,17 +168,14 @@ void cmCTestLaunch::ComputeFileNames()
 
   // We hash the input command working dir and command line to obtain
   // a repeatable and (probably) unique name for log files.
-  char hash[32];
-  cmsysMD5* md5 = cmsysMD5_New();
-  cmsysMD5_Initialize(md5);
-  cmsysMD5_Append(md5, (unsigned char const*)(this->CWD.c_str()), -1);
+  cmCryptoHash md5(cmCryptoHash::AlgoMD5);
+  md5.Initialize();
+  md5.Append(this->CWD);
   for (std::vector<std::string>::const_iterator ai = this->RealArgs.begin();
        ai != this->RealArgs.end(); ++ai) {
-    cmsysMD5_Append(md5, (unsigned char const*)ai->c_str(), -1);
+    md5.Append(*ai);
   }
-  cmsysMD5_FinalizeHex(md5, hash);
-  cmsysMD5_Delete(md5);
-  this->LogHash.assign(hash, 32);
+  this->LogHash = md5.FinalizeHex();
 
   // We store stdout and stderr in temporary log files.
   this->LogOut = this->LogDir;
@@ -228,16 +226,30 @@ void cmCTestLaunch::RunChild()
   if (!this->Passthru) {
     char* data = CM_NULLPTR;
     int length = 0;
+    cmProcessOutput processOutput;
+    std::string strdata;
     while (int p = cmsysProcess_WaitForData(cp, &data, &length, CM_NULLPTR)) {
       if (p == cmsysProcess_Pipe_STDOUT) {
-        fout.write(data, length);
-        std::cout.write(data, length);
+        processOutput.DecodeText(data, length, strdata, 1);
+        fout.write(strdata.c_str(), strdata.size());
+        std::cout.write(strdata.c_str(), strdata.size());
         this->HaveOut = true;
       } else if (p == cmsysProcess_Pipe_STDERR) {
-        ferr.write(data, length);
-        std::cerr.write(data, length);
+        processOutput.DecodeText(data, length, strdata, 2);
+        ferr.write(strdata.c_str(), strdata.size());
+        std::cerr.write(strdata.c_str(), strdata.size());
         this->HaveErr = true;
       }
+    }
+    processOutput.DecodeText(std::string(), strdata, 1);
+    if (!strdata.empty()) {
+      fout.write(strdata.c_str(), strdata.size());
+      std::cout.write(strdata.c_str(), strdata.size());
+    }
+    processOutput.DecodeText(std::string(), strdata, 2);
+    if (!strdata.empty()) {
+      ferr.write(strdata.c_str(), strdata.size());
+      std::cerr.write(strdata.c_str(), strdata.size());
     }
   }
 

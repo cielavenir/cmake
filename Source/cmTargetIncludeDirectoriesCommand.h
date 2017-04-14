@@ -3,7 +3,15 @@
 #ifndef cmTargetIncludeDirectoriesCommand_h
 #define cmTargetIncludeDirectoriesCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmTargetPropCommandBase.h"
+
+class cmCommand;
+class cmExecutionStatus;
+class cmTarget;
 
 class cmTargetIncludeDirectoriesCommand : public cmTargetPropCommandBase
 {
@@ -30,8 +38,6 @@ public:
   {
     return "target_include_directories";
   }
-
-  cmTypeMacro(cmTargetIncludeDirectoriesCommand, cmTargetPropCommandBase);
 
 private:
   void HandleImportedTarget(const std::string& tgt) CM_OVERRIDE;

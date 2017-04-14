@@ -6,7 +6,6 @@
 #include <cmConfigure.h>
 
 #include "cmCTestGenericHandler.h"
-#include "cmTypeMacro.h"
 
 #include <cmsys/RegularExpression.hxx>
 #include <iosfwd>
@@ -32,7 +31,7 @@ class cmCTestTestHandler : public cmCTestGenericHandler
   friend class cmCTestBatchTestHandler;
 
 public:
-  cmTypeMacro(cmCTestTestHandler, cmCTestGenericHandler);
+  typedef cmCTestGenericHandler Superclass;
 
   /**
    * The main entry point for this class

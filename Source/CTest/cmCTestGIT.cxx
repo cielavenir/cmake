@@ -2,12 +2,6 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCTestGIT.h"
 
-#include "cmAlgorithms.h"
-#include "cmCTest.h"
-#include "cmCTestVC.h"
-#include "cmProcessTools.h"
-#include "cmSystemTools.h"
-
 #include <cmsys/FStream.hxx>
 #include <cmsys/Process.h>
 #include <ctype.h>
@@ -15,6 +9,13 @@
 #include <stdlib.h>
 #include <time.h>
 #include <vector>
+
+#include "cmAlgorithms.h"
+#include "cmCTest.h"
+#include "cmCTestVC.h"
+#include "cmProcessOutput.h"
+#include "cmProcessTools.h"
+#include "cmSystemTools.h"
 
 static unsigned int cmCTestGITVersion(unsigned int epic, unsigned int major,
                                       unsigned int minor, unsigned int fix)
@@ -91,7 +92,8 @@ std::string cmCTestGIT::FindGitDir()
   std::string git_dir_line;
   OneLineParser rev_parse_out(this, "rev-parse-out> ", git_dir_line);
   OutputLogger rev_parse_err(this->Log, "rev-parse-err> ");
-  if (this->RunChild(git_rev_parse, &rev_parse_out, &rev_parse_err)) {
+  if (this->RunChild(git_rev_parse, &rev_parse_out, &rev_parse_err, CM_NULLPTR,
+                     cmProcessOutput::UTF8)) {
     git_dir = git_dir_line;
   }
   if (git_dir.empty()) {
@@ -114,7 +116,8 @@ std::string cmCTestGIT::FindGitDir()
                                 0 };
       OneLineParser cygpath_out(this, "cygpath-out> ", git_dir_line);
       OutputLogger cygpath_err(this->Log, "cygpath-err> ");
-      if (this->RunChild(cygpath, &cygpath_out, &cygpath_err)) {
+      if (this->RunChild(cygpath, &cygpath_out, &cygpath_err, CM_NULLPTR,
+                         cmProcessOutput::UTF8)) {
         git_dir = git_dir_line;
       }
     }
@@ -134,7 +137,8 @@ std::string cmCTestGIT::FindTopDir()
   std::string cdup;
   OneLineParser rev_parse_out(this, "rev-parse-out> ", cdup);
   OutputLogger rev_parse_err(this->Log, "rev-parse-err> ");
-  if (this->RunChild(git_rev_parse, &rev_parse_out, &rev_parse_err) &&
+  if (this->RunChild(git_rev_parse, &rev_parse_out, &rev_parse_err, CM_NULLPTR,
+                     cmProcessOutput::UTF8) &&
       !cdup.empty()) {
     top_dir += "/";
     top_dir += cdup;
@@ -624,7 +628,7 @@ void cmCTestGIT::LoadRevisions()
 
   CommitParser out(this, "dt-out> ");
   OutputLogger err(this->Log, "dt-err> ");
-  this->RunProcess(cp, &out, &err);
+  this->RunProcess(cp, &out, &err, cmProcessOutput::UTF8);
 
   // Send one extra zero-byte to terminate the last record.
   out.Process("", 1);
@@ -641,14 +645,16 @@ void cmCTestGIT::LoadModifications()
                                      CM_NULLPTR };
   OutputLogger ui_out(this->Log, "ui-out> ");
   OutputLogger ui_err(this->Log, "ui-err> ");
-  this->RunChild(git_update_index, &ui_out, &ui_err);
+  this->RunChild(git_update_index, &ui_out, &ui_err, CM_NULLPTR,
+                 cmProcessOutput::UTF8);
 
   // Use 'git diff-index' to get modified files.
   const char* git_diff_index[] = { git,    "diff-index", "-z",
                                    "HEAD", "--",         CM_NULLPTR };
   DiffParser out(this, "di-out> ");
   OutputLogger err(this->Log, "di-err> ");
-  this->RunChild(git_diff_index, &out, &err);
+  this->RunChild(git_diff_index, &out, &err, CM_NULLPTR,
+                 cmProcessOutput::UTF8);
 
   for (std::vector<Change>::const_iterator ci = out.Changes.begin();
        ci != out.Changes.end(); ++ci) {

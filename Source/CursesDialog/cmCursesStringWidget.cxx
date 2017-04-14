@@ -6,7 +6,7 @@
 #include "cmCursesMainForm.h"
 #include "cmCursesStandardIncludes.h"
 #include "cmCursesWidget.h"
-#include "cmState.h"
+#include "cmStateTypes.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -21,7 +21,7 @@ cmCursesStringWidget::cmCursesStringWidget(int width, int height, int left,
   : cmCursesWidget(width, height, left, top)
 {
   this->InEdit = false;
-  this->Type = cmState::STRING;
+  this->Type = cmStateEnums::STRING;
   set_field_fore(this->Field, A_NORMAL);
   set_field_back(this->Field, A_STANDOUT);
   field_opts_off(this->Field, O_STATIC);
@@ -202,7 +202,9 @@ bool cmCursesStringWidget::PrintKeys()
     printw(fmt_s, firstLine);
 
     curses_move(y - 3, 0);
-    printw(fmt_s, "Editing option, press [enter] to leave edit.");
+    printw(fmt_s, "Editing option, press [enter] to confirm");
+    curses_move(y - 2, 0);
+    printw(fmt_s, "                press [esc] to cancel");
     return true;
   }
   return false;

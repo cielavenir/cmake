@@ -3,7 +3,13 @@
 #ifndef cmExecutablesCommand_h
 #define cmExecutablesCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmExecutablesCommand
  * \brief Defines a list of executables to build.
@@ -30,8 +36,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "add_executable"; }
-
-  cmTypeMacro(cmAddExecutableCommand, cmCommand);
 };
 
 #endif

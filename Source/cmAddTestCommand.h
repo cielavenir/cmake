@@ -3,7 +3,13 @@
 #ifndef cmAddTestCommand_h
 #define cmAddTestCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmAddTestCommand
  * \brief Add a test to the lists of tests to run.
@@ -29,8 +35,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "add_test"; }
-
-  cmTypeMacro(cmAddTestCommand, cmCommand);
 
 private:
   bool HandleNameMode(std::vector<std::string> const& args);

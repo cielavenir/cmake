@@ -2,20 +2,21 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmGraphVizWriter.h"
 
+#include <cmConfigure.h>
+#include <iostream>
+#include <sstream>
+#include <utility>
+
 #include "cmGeneratedFileStream.h"
 #include "cmGeneratorTarget.h"
 #include "cmGlobalGenerator.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
+#include "cmStateSnapshot.h"
 #include "cmSystemTools.h"
 #include "cmTarget.h"
 #include "cm_auto_ptr.hxx"
 #include "cmake.h"
-
-#include <cmConfigure.h>
-#include <iostream>
-#include <sstream>
-#include <utility>
 
 static const char* getShapeForTarget(const cmGeneratorTarget* target)
 {
@@ -24,13 +25,13 @@ static const char* getShapeForTarget(const cmGeneratorTarget* target)
   }
 
   switch (target->GetType()) {
-    case cmState::EXECUTABLE:
+    case cmStateEnums::EXECUTABLE:
       return "house";
-    case cmState::STATIC_LIBRARY:
+    case cmStateEnums::STATIC_LIBRARY:
       return "diamond";
-    case cmState::SHARED_LIBRARY:
+    case cmStateEnums::SHARED_LIBRARY:
       return "polygon";
-    case cmState::MODULE_LIBRARY:
+    case cmStateEnums::MODULE_LIBRARY:
       return "octagon";
     default:
       break;
@@ -495,16 +496,16 @@ bool cmGraphVizWriter::IgnoreThisTarget(const std::string& name)
 }
 
 bool cmGraphVizWriter::GenerateForTargetType(
-  cmState::TargetType targetType) const
+  cmStateEnums::TargetType targetType) const
 {
   switch (targetType) {
-    case cmState::EXECUTABLE:
+    case cmStateEnums::EXECUTABLE:
       return this->GenerateForExecutables;
-    case cmState::STATIC_LIBRARY:
+    case cmStateEnums::STATIC_LIBRARY:
       return this->GenerateForStaticLibs;
-    case cmState::SHARED_LIBRARY:
+    case cmStateEnums::SHARED_LIBRARY:
       return this->GenerateForSharedLibs;
-    case cmState::MODULE_LIBRARY:
+    case cmStateEnums::MODULE_LIBRARY:
       return this->GenerateForModuleLibs;
     default:
       break;

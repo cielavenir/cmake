@@ -428,7 +428,7 @@ function(_Boost_GUESS_COMPILER_PREFIX _ret)
     set(_boost_COMPILER "-ghs")
   elseif("x${CMAKE_CXX_COMPILER_ID}" STREQUAL "xMSVC")
     if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.10)
-      set(_boost_COMPILER "-vc150")
+      set(_boost_COMPILER "-vc141")
     elseif (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19)
       set(_boost_COMPILER "-vc140")
     elseif(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 18)
@@ -445,7 +445,7 @@ function(_Boost_GUESS_COMPILER_PREFIX _ret)
       set(_boost_COMPILER "-vc71")
     elseif(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13) # Good luck!
       set(_boost_COMPILER "-vc7") # yes, this is correct
-    else() # MSVC60 Good luck!
+    else() # VS 6.0 Good luck!
       set(_boost_COMPILER "-vc6") # yes, this is correct
     endif()
   elseif (BORLAND)
@@ -742,10 +742,11 @@ function(_Boost_COMPONENT_DEPENDENCIES component _ret)
     set(_Boost_THREAD_DEPENDENCIES chrono system date_time atomic)
     set(_Boost_WAVE_DEPENDENCIES filesystem system serialization thread chrono date_time atomic)
     set(_Boost_WSERIALIZATION_DEPENDENCIES serialization)
-  elseif(NOT Boost_VERSION VERSION_LESS 106300 AND Boost_VERSION VERSION_LESS 106400)
+  elseif(NOT Boost_VERSION VERSION_LESS 106300 AND Boost_VERSION VERSION_LESS 106500)
     set(_Boost_CHRONO_DEPENDENCIES system)
     set(_Boost_CONTEXT_DEPENDENCIES thread chrono system date_time)
     set(_Boost_COROUTINE_DEPENDENCIES context system)
+    set(_Boost_COROUTINE2_DEPENDENCIES context fiber thread chrono system date_time)
     set(_Boost_FIBER_DEPENDENCIES context thread chrono system date_time)
     set(_Boost_FILESYSTEM_DEPENDENCIES system)
     set(_Boost_IOSTREAMS_DEPENDENCIES regex)
@@ -892,7 +893,7 @@ endfunction()
 # This function would append corresponding directories if MSVC is a current compiler,
 # so having `BOOST_ROOT` would be enough to specify to find everything.
 #
-macro(_Boost_UPDATE_LIBRARY_SEARCH_DIRS_WITH_PREBUILT_PATHS componentlibvar basedir)
+macro(_Boost_UPDATE_WINDOWS_LIBRARY_SEARCH_DIRS_WITH_PREBUILT_PATHS componentlibvar basedir)
   if("x${CMAKE_CXX_COMPILER_ID}" STREQUAL "xMSVC")
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
       set(_arch_suffix 64)
@@ -900,19 +901,19 @@ macro(_Boost_UPDATE_LIBRARY_SEARCH_DIRS_WITH_PREBUILT_PATHS componentlibvar base
       set(_arch_suffix 32)
     endif()
     if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.10)
-      list(APPEND ${componentlibvar} ${${basedir}}/lib${_arch_suffix}-msvc-15.0)
+      list(APPEND ${componentlibvar} ${basedir}/lib${_arch_suffix}-msvc-15.0)
     elseif(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19)
-      list(APPEND ${componentlibvar} ${${basedir}}/lib${_arch_suffix}-msvc-14.0)
+      list(APPEND ${componentlibvar} ${basedir}/lib${_arch_suffix}-msvc-14.0)
     elseif(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 18)
-      list(APPEND ${componentlibvar} ${${basedir}}/lib${_arch_suffix}-msvc-12.0)
+      list(APPEND ${componentlibvar} ${basedir}/lib${_arch_suffix}-msvc-12.0)
     elseif(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 17)
-      list(APPEND ${componentlibvar} ${${basedir}}/lib${_arch_suffix}-msvc-11.0)
+      list(APPEND ${componentlibvar} ${basedir}/lib${_arch_suffix}-msvc-11.0)
     elseif(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
-      list(APPEND ${componentlibvar} ${${basedir}}/lib${_arch_suffix}-msvc-10.0)
+      list(APPEND ${componentlibvar} ${basedir}/lib${_arch_suffix}-msvc-10.0)
     elseif(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
-      list(APPEND ${componentlibvar} ${${basedir}}/lib${_arch_suffix}-msvc-9.0)
+      list(APPEND ${componentlibvar} ${basedir}/lib${_arch_suffix}-msvc-9.0)
     elseif(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
-      list(APPEND ${componentlibvar} ${${basedir}}/lib${_arch_suffix}-msvc-8.0)
+      list(APPEND ${componentlibvar} ${basedir}/lib${_arch_suffix}-msvc-8.0)
     endif()
   endif()
 endmacro()
@@ -963,7 +964,7 @@ else()
   # _Boost_COMPONENT_HEADERS.  See the instructions at the top of
   # _Boost_COMPONENT_DEPENDENCIES.
   set(_Boost_KNOWN_VERSIONS ${Boost_ADDITIONAL_VERSIONS}
-    "1.63.0" "1.63" "1.62.0" "1.62" "1.61.0" "1.61" "1.60.0" "1.60"
+    "1.64.0" "1.64" "1.63.0" "1.63" "1.62.0" "1.62" "1.61.0" "1.61" "1.60.0" "1.60"
     "1.59.0" "1.59" "1.58.0" "1.58" "1.57.0" "1.57" "1.56.0" "1.56" "1.55.0" "1.55"
     "1.54.0" "1.54" "1.53.0" "1.53" "1.52.0" "1.52" "1.51.0" "1.51"
     "1.50.0" "1.50" "1.49.0" "1.49" "1.48.0" "1.48" "1.47.0" "1.47" "1.46.1"
@@ -1332,13 +1333,13 @@ string(APPEND _boost_DEBUG_ABI_TAG "d")
 #  p        using the STLport standard library rather than the
 #           default one supplied with your compiler
 if(Boost_USE_STLPORT)
-  set( _boost_RELEASE_ABI_TAG "${_boost_RELEASE_ABI_TAG}p")
-  set( _boost_DEBUG_ABI_TAG   "${_boost_DEBUG_ABI_TAG}p")
+  string(APPEND _boost_RELEASE_ABI_TAG "p")
+  string(APPEND _boost_DEBUG_ABI_TAG "p")
 endif()
 #  n        using the STLport deprecated "native iostreams" feature
 if(Boost_USE_STLPORT_DEPRECATED_NATIVE_IOSTREAMS)
-  set( _boost_RELEASE_ABI_TAG "${_boost_RELEASE_ABI_TAG}n")
-  set( _boost_DEBUG_ABI_TAG   "${_boost_DEBUG_ABI_TAG}n")
+  string(APPEND _boost_RELEASE_ABI_TAG "n")
+  string(APPEND _boost_DEBUG_ABI_TAG "n")
 endif()
 
 if(Boost_DEBUG)
@@ -1376,10 +1377,10 @@ foreach(c DEBUG RELEASE)
 
     if(BOOST_ROOT)
       list(APPEND _boost_LIBRARY_SEARCH_DIRS_${c} ${BOOST_ROOT}/lib ${BOOST_ROOT}/stage/lib)
-      _Boost_UPDATE_LIBRARY_SEARCH_DIRS_WITH_PREBUILT_PATHS(_boost_LIBRARY_SEARCH_DIRS_${c} BOOST_ROOT)
+      _Boost_UPDATE_WINDOWS_LIBRARY_SEARCH_DIRS_WITH_PREBUILT_PATHS(_boost_LIBRARY_SEARCH_DIRS_${c} "${BOOST_ROOT}")
     elseif(_ENV_BOOST_ROOT)
       list(APPEND _boost_LIBRARY_SEARCH_DIRS_${c} ${_ENV_BOOST_ROOT}/lib ${_ENV_BOOST_ROOT}/stage/lib)
-      _Boost_UPDATE_LIBRARY_SEARCH_DIRS_WITH_PREBUILT_PATHS(_boost_LIBRARY_SEARCH_DIRS_${c} _ENV_BOOST_ROOT)
+      _Boost_UPDATE_WINDOWS_LIBRARY_SEARCH_DIRS_WITH_PREBUILT_PATHS(_boost_LIBRARY_SEARCH_DIRS_${c} "${_ENV_BOOST_ROOT}")
     endif()
 
     list(APPEND _boost_LIBRARY_SEARCH_DIRS_${c}
@@ -1387,6 +1388,7 @@ foreach(c DEBUG RELEASE)
       ${Boost_INCLUDE_DIR}/../lib
       ${Boost_INCLUDE_DIR}/stage/lib
       )
+    _Boost_UPDATE_WINDOWS_LIBRARY_SEARCH_DIRS_WITH_PREBUILT_PATHS(_boost_LIBRARY_SEARCH_DIRS_${c} "${Boost_INCLUDE_DIR}/..")
     if( Boost_NO_SYSTEM_PATHS )
       list(APPEND _boost_LIBRARY_SEARCH_DIRS_${c} NO_CMAKE_SYSTEM_PATH NO_SYSTEM_ENVIRONMENT_PATH)
     else()
@@ -1395,6 +1397,7 @@ foreach(c DEBUG RELEASE)
         C:/boost
         /sw/local/lib
         )
+      _Boost_UPDATE_WINDOWS_LIBRARY_SEARCH_DIRS_WITH_PREBUILT_PATHS(_boost_LIBRARY_SEARCH_DIRS_${c} "C:/boost")
     endif()
   endif()
 endforeach()
@@ -1409,9 +1412,9 @@ endif()
 if( Boost_USE_STATIC_LIBS )
   set( _boost_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
   if(WIN32)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES .lib .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+    list(INSERT CMAKE_FIND_LIBRARY_SUFFIXES 0 .lib .a)
   else()
-    set(CMAKE_FIND_LIBRARY_SUFFIXES .a )
+    set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
   endif()
 endif()
 
@@ -1437,7 +1440,7 @@ endif()
 set(_boost_STATIC_RUNTIME_WORKAROUND false)
 if(WIN32 AND Boost_USE_STATIC_LIBS)
   if(NOT DEFINED Boost_USE_STATIC_RUNTIME)
-    set(_boost_STATIC_RUNTIME_WORKAROUND true)
+    set(_boost_STATIC_RUNTIME_WORKAROUND TRUE)
   endif()
 endif()
 
@@ -1461,7 +1464,7 @@ if(NOT _Boost_THREAD_DEPENDENCY_LIBS EQUAL -1)
 endif()
 
 # If the user changed any of our control inputs flush previous results.
-if(_Boost_CHANGE_LIBDIR OR _Boost_CHANGE_LIBNAME)
+if(_Boost_CHANGE_LIBDIR_DEBUG OR _Boost_CHANGE_LIBDIR_RELEASE OR _Boost_CHANGE_LIBNAME)
   foreach(COMPONENT ${_Boost_COMPONENTS_SEARCHED})
     string(TOUPPER ${COMPONENT} UPPERCOMPONENT)
     foreach(c DEBUG RELEASE)
@@ -1700,13 +1703,11 @@ if(Boost_FOUND)
     endif()
 
     if(EXISTS "${_boost_LIB_DIR}/lib")
-      set(_boost_LIB_DIR ${_boost_LIB_DIR}/lib)
+      string(APPEND _boost_LIB_DIR /lib)
+    elseif(EXISTS "${_boost_LIB_DIR}/stage/lib")
+      string(APPEND _boost_LIB_DIR "/stage/lib")
     else()
-      if(EXISTS "${_boost_LIB_DIR}/stage/lib")
-        set(_boost_LIB_DIR ${_boost_LIB_DIR}/stage/lib)
-      else()
-        set(_boost_LIB_DIR "")
-      endif()
+      set(_boost_LIB_DIR "")
     endif()
 
     if(_boost_LIB_DIR AND EXISTS "${_boost_LIB_DIR}")

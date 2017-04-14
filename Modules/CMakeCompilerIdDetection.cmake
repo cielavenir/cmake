@@ -11,11 +11,9 @@ function(_readFile file)
   set(_compiler_id_pp_test_${CompilerId} ${_compiler_id_pp_test} PARENT_SCOPE)
 endfunction()
 
-include(${CMAKE_CURRENT_LIST_DIR}/CMakeParseArguments.cmake)
-
 function(compiler_id_detection outvar lang)
 
-  if (NOT lang STREQUAL Fortran)
+  if (NOT lang STREQUAL Fortran AND NOT lang STREQUAL CSharp)
     file(GLOB lang_files
       "${CMAKE_ROOT}/Modules/Compiler/*-DetermineCompiler.cmake")
     set(nonlang CXX)
@@ -89,6 +87,11 @@ function(compiler_id_detection outvar lang)
     endif()
     list(APPEND ordered_compilers
       MIPSpro)
+
+    #Currently the only CUDA compilers are NVIDIA
+    if(lang STREQUAL CUDA)
+      set(ordered_compilers NVIDIA)
+    endif()
 
     if(CID_ID_DEFINE)
       foreach(Id ${ordered_compilers})

@@ -3,7 +3,13 @@
 #ifndef cmSetCommand_h
 #define cmSetCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmSetCommand
  * \brief Set a CMAKE variable
@@ -34,8 +40,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "set"; }
-
-  cmTypeMacro(cmSetCommand, cmCommand);
 };
 
 #endif

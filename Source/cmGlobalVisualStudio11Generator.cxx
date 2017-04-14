@@ -3,8 +3,15 @@
 #include "cmGlobalVisualStudio11Generator.h"
 
 #include "cmAlgorithms.h"
+#include "cmDocumentationEntry.h"
 #include "cmLocalVisualStudio10Generator.h"
 #include "cmMakefile.h"
+#include "cmVS11CLFlagTable.h"
+#include "cmVS11CSharpFlagTable.h"
+#include "cmVS11LibFlagTable.h"
+#include "cmVS11LinkFlagTable.h"
+#include "cmVS11MASMFlagTable.h"
+#include "cmVS11RCFlagTable.h"
 
 static const char vs11generatorName[] = "Visual Studio 11 2012";
 
@@ -101,6 +108,12 @@ cmGlobalVisualStudio11Generator::cmGlobalVisualStudio11Generator(
     "ProductDir",
     vc11Express, cmSystemTools::KeyWOW64_32);
   this->DefaultPlatformToolset = "v110";
+  this->DefaultClFlagTable = cmVS11CLFlagTable;
+  this->DefaultCSharpFlagTable = cmVS11CSharpFlagTable;
+  this->DefaultLibFlagTable = cmVS11LibFlagTable;
+  this->DefaultLinkFlagTable = cmVS11LinkFlagTable;
+  this->DefaultMasmFlagTable = cmVS11MASMFlagTable;
+  this->DefaultRcFlagTable = cmVS11RCFlagTable;
   this->Version = VS11;
 }
 
@@ -230,9 +243,10 @@ cmGlobalVisualStudio11Generator::GetInstalledWindowsCESDKs()
 }
 
 bool cmGlobalVisualStudio11Generator::NeedsDeploy(
-  cmState::TargetType type) const
+  cmStateEnums::TargetType type) const
 {
-  if ((type == cmState::EXECUTABLE || type == cmState::SHARED_LIBRARY) &&
+  if ((type == cmStateEnums::EXECUTABLE ||
+       type == cmStateEnums::SHARED_LIBRARY) &&
       (this->SystemIsWindowsPhone || this->SystemIsWindowsStore)) {
     return true;
   }

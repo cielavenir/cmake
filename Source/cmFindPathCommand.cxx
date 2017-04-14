@@ -4,6 +4,12 @@
 
 #include <cmsys/Glob.hxx>
 
+#include "cmMakefile.h"
+#include "cmStateTypes.h"
+#include "cmSystemTools.h"
+
+class cmExecutionStatus;
+
 cmFindPathCommand::cmFindPathCommand()
 {
   this->EnvironmentPath = "INCLUDE";
@@ -26,7 +32,8 @@ bool cmFindPathCommand::InitialPass(std::vector<std::string> const& argsIn,
     if (this->AlreadyInCacheWithoutMetaInfo) {
       this->Makefile->AddCacheDefinition(
         this->VariableName, "", this->VariableDocumentation.c_str(),
-        (this->IncludeFileInPath ? cmState::FILEPATH : cmState::PATH));
+        (this->IncludeFileInPath ? cmStateEnums::FILEPATH
+                                 : cmStateEnums::PATH));
     }
     return true;
   }
@@ -35,13 +42,13 @@ bool cmFindPathCommand::InitialPass(std::vector<std::string> const& argsIn,
   if (!result.empty()) {
     this->Makefile->AddCacheDefinition(
       this->VariableName, result.c_str(), this->VariableDocumentation.c_str(),
-      (this->IncludeFileInPath) ? cmState::FILEPATH : cmState::PATH);
+      (this->IncludeFileInPath) ? cmStateEnums::FILEPATH : cmStateEnums::PATH);
     return true;
   }
   this->Makefile->AddCacheDefinition(
     this->VariableName, (this->VariableName + "-NOTFOUND").c_str(),
     this->VariableDocumentation.c_str(),
-    (this->IncludeFileInPath) ? cmState::FILEPATH : cmState::PATH);
+    (this->IncludeFileInPath) ? cmStateEnums::FILEPATH : cmStateEnums::PATH);
   return true;
 }
 
@@ -65,7 +72,7 @@ std::string cmFindPathCommand::FindHeaderInFramework(std::string const& file,
 {
   std::string fileName = file;
   std::string frameWorkName;
-  std::string::size_type pos = fileName.find("/");
+  std::string::size_type pos = fileName.find('/');
   // if there is a / in the name try to find the header as a framework
   // For example bar/foo.h would look for:
   // bar.framework/Headers/foo.h
@@ -76,7 +83,7 @@ std::string cmFindPathCommand::FindHeaderInFramework(std::string const& file,
     frameWorkName =
       frameWorkName.substr(0, frameWorkName.size() - fileName.size() - 1);
     // if the framework has a path in it then just use the filename
-    if (frameWorkName.find("/") != frameWorkName.npos) {
+    if (frameWorkName.find('/') != frameWorkName.npos) {
       fileName = file;
       frameWorkName = "";
     }

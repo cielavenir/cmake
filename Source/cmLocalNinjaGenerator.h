@@ -5,16 +5,15 @@
 
 #include <cmConfigure.h>
 
-#include "cmLocalCommonGenerator.h"
-#include "cmLocalGenerator.h"
-#include "cmNinjaTypes.h"
-#include "cmOutputConverter.h"
-
 #include <iosfwd>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
+
+#include "cmLocalCommonGenerator.h"
+#include "cmNinjaTypes.h"
+#include "cmOutputConverter.h"
 
 class cmCustomCommand;
 class cmCustomCommandGenerator;
@@ -23,6 +22,7 @@ class cmGeneratorTarget;
 class cmGlobalGenerator;
 class cmGlobalNinjaGenerator;
 class cmMakefile;
+class cmRulePlaceholderExpander;
 class cmSourceFile;
 class cmake;
 
@@ -42,6 +42,8 @@ public:
 
   void Generate() CM_OVERRIDE;
 
+  cmRulePlaceholderExpander* CreateRulePlaceholderExpander() const CM_OVERRIDE;
+
   std::string GetTargetDirectory(cmGeneratorTarget const* target) const
     CM_OVERRIDE;
 
@@ -58,12 +60,6 @@ public:
     return this->HomeRelativeOutputPath;
   }
 
-  void ExpandRuleVariables(std::string& string,
-                           const RuleVariables& replaceValues)
-  {
-    cmLocalGenerator::ExpandRuleVariables(string, replaceValues);
-  }
-
   std::string BuildCommandLine(const std::vector<std::string>& cmdLines);
 
   void AppendTargetOutputs(cmGeneratorTarget* target, cmNinjaDeps& outputs);
@@ -75,10 +71,6 @@ public:
                                 std::vector<std::string>& cmdLines);
   void AppendCustomCommandDeps(cmCustomCommandGenerator const& ccg,
                                cmNinjaDeps& ninjaDeps);
-
-  std::string ConvertToLinkReference(std::string const& lib,
-                                     cmOutputConverter::OutputFormat format =
-                                       cmOutputConverter::SHELL) CM_OVERRIDE;
 
   void ComputeObjectFilenames(
     std::map<cmSourceFile const*, std::string>& mapping,

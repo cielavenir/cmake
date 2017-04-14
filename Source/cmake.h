@@ -5,17 +5,18 @@
 
 #include <cmConfigure.h>
 
-#include "cmInstalledFile.h"
-#include "cmListFileCache.h"
-#include "cmState.h"
-
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "cmInstalledFile.h"
+#include "cmListFileCache.h"
+#include "cmStateSnapshot.h"
+#include "cmStateTypes.h"
+
 #if defined(CMAKE_BUILD_WITH_CMAKE)
-#include "cm_jsoncpp_value.h"
+#include <cm_jsoncpp_value.h>
 #endif
 
 class cmExternalMakefileProjectGeneratorFactory;
@@ -24,6 +25,7 @@ class cmGlobalGenerator;
 class cmGlobalGeneratorFactory;
 class cmMakefile;
 class cmMessenger;
+class cmState;
 class cmVariableWatch;
 struct cmDocumentationEntry;
 
@@ -161,7 +163,7 @@ public:
   ///! Break up a line like VAR:type="value" into var, type and value
   static bool ParseCacheEntry(const std::string& entry, std::string& var,
                               std::string& value,
-                              cmState::CacheEntryType& type);
+                              cmStateEnums::CacheEntryType& type);
 
   int LoadCache();
   bool LoadCache(const std::string& path);
@@ -407,14 +409,11 @@ public:
   void WatchUnusedCli(const std::string& var);
 
   cmState* GetState() const { return this->State; }
-  void SetCurrentSnapshot(cmState::Snapshot snapshot)
+  void SetCurrentSnapshot(cmStateSnapshot snapshot)
   {
     this->CurrentSnapshot = snapshot;
   }
-  cmState::Snapshot GetCurrentSnapshot() const
-  {
-    return this->CurrentSnapshot;
-  }
+  cmStateSnapshot GetCurrentSnapshot() const { return this->CurrentSnapshot; }
 
 protected:
   void RunCheckForUnusedVariables();
@@ -490,7 +489,7 @@ private:
   InstalledFilesMap InstalledFiles;
 
   cmState* State;
-  cmState::Snapshot CurrentSnapshot;
+  cmStateSnapshot CurrentSnapshot;
   cmMessenger* Messenger;
 
   std::vector<std::string> TraceOnlyThisSources;
@@ -499,6 +498,8 @@ private:
 
   // Print a list of valid generators to stderr.
   void PrintGeneratorList();
+
+  void CreateDefaultGlobalGenerator();
 
   /**
    * Convert a message type between a warning and an error, based on the state
@@ -536,12 +537,19 @@ private:
   }
 
 #define FOR_EACH_C_FEATURE(F)                                                 \
+  F(c_std_90)                                                                 \
+  F(c_std_99)                                                                 \
+  F(c_std_11)                                                                 \
   F(c_function_prototypes)                                                    \
   F(c_restrict)                                                               \
   F(c_static_assert)                                                          \
   F(c_variadic_macros)
 
 #define FOR_EACH_CXX_FEATURE(F)                                               \
+  F(cxx_std_98)                                                               \
+  F(cxx_std_11)                                                               \
+  F(cxx_std_14)                                                               \
+  F(cxx_std_17)                                                               \
   F(cxx_aggregate_default_initializers)                                       \
   F(cxx_alias_templates)                                                      \
   F(cxx_alignas)                                                              \

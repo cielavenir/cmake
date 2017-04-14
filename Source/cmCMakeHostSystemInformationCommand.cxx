@@ -2,6 +2,19 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCMakeHostSystemInformationCommand.h"
 
+#include <sstream>
+
+#include "cmMakefile.h"
+#include "cmsys/SystemInformation.hxx"
+
+#if defined(_WIN32)
+#include "cmSystemTools.h"
+#include "cmVSSetupHelper.h"
+#define HAVE_VS_SETUP_HELPER
+#endif
+
+class cmExecutionStatus;
+
 // cmCMakeHostSystemInformation
 bool cmCMakeHostSystemInformationCommand::InitialPass(
   std::vector<std::string> const& args, cmExecutionStatus&)
@@ -63,6 +76,13 @@ bool cmCMakeHostSystemInformationCommand::GetValue(
     value = this->ValueToString(info.GetTotalPhysicalMemory());
   } else if (key == "AVAILABLE_PHYSICAL_MEMORY") {
     value = this->ValueToString(info.GetAvailablePhysicalMemory());
+#ifdef HAVE_VS_SETUP_HELPER
+  } else if (key == "VS_15_DIR") {
+    cmVSSetupAPIHelper vsSetupAPIHelper;
+    if (vsSetupAPIHelper.GetVSInstanceInfo(value)) {
+      cmSystemTools::ConvertToUnixSlashes(value);
+    }
+#endif
   } else {
     std::string e = "does not recognize <key> " + key;
     this->SetError(e);

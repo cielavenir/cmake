@@ -44,6 +44,7 @@ Properties of Global Scope
    /prop_gbl/TARGET_MESSAGES
    /prop_gbl/TARGET_SUPPORTS_SHARED_LIBS
    /prop_gbl/USE_FOLDERS
+   /prop_gbl/XCODE_EMIT_EFFECTIVE_PLATFORM_NAME
 
 .. _`Directory Properties`:
 
@@ -121,6 +122,7 @@ Properties on Targets
    /prop_tgt/AUTORCC
    /prop_tgt/AUTORCC_OPTIONS
    /prop_tgt/BINARY_DIR
+   /prop_tgt/BUILD_RPATH
    /prop_tgt/BUILD_WITH_INSTALL_RPATH
    /prop_tgt/BUNDLE_EXTENSION
    /prop_tgt/BUNDLE
@@ -142,6 +144,10 @@ Properties on Targets
    /prop_tgt/CONFIG_OUTPUT_NAME
    /prop_tgt/CONFIG_POSTFIX
    /prop_tgt/CROSSCOMPILING_EMULATOR
+   /prop_tgt/CUDA_SEPARABLE_COMPILATION
+   /prop_tgt/CUDA_EXTENSIONS
+   /prop_tgt/CUDA_STANDARD
+   /prop_tgt/CUDA_STANDARD_REQUIRED
    /prop_tgt/CXX_EXTENSIONS
    /prop_tgt/CXX_STANDARD
    /prop_tgt/CXX_STANDARD_REQUIRED
@@ -166,6 +172,8 @@ Properties on Targets
    /prop_tgt/IMPORTED_CONFIGURATIONS
    /prop_tgt/IMPORTED_IMPLIB_CONFIG
    /prop_tgt/IMPORTED_IMPLIB
+   /prop_tgt/IMPORTED_LIBNAME_CONFIG
+   /prop_tgt/IMPORTED_LIBNAME
    /prop_tgt/IMPORTED_LINK_DEPENDENT_LIBRARIES_CONFIG
    /prop_tgt/IMPORTED_LINK_DEPENDENT_LIBRARIES
    /prop_tgt/IMPORTED_LINK_INTERFACE_LANGUAGES_CONFIG
@@ -204,6 +212,7 @@ Properties on Targets
    /prop_tgt/LABELS
    /prop_tgt/LANG_CLANG_TIDY
    /prop_tgt/LANG_COMPILER_LAUNCHER
+   /prop_tgt/LANG_CPPLINT
    /prop_tgt/LANG_INCLUDE_WHAT_YOU_USE
    /prop_tgt/LANG_VISIBILITY_PRESET
    /prop_tgt/LIBRARY_OUTPUT_DIRECTORY_CONFIG
@@ -229,6 +238,7 @@ Properties on Targets
    /prop_tgt/MACOSX_BUNDLE
    /prop_tgt/MACOSX_FRAMEWORK_INFO_PLIST
    /prop_tgt/MACOSX_RPATH
+   /prop_tgt/MANUALLY_ADDED_DEPENDENCIES
    /prop_tgt/MAP_IMPORTED_CONFIG_CONFIG
    /prop_tgt/NAME
    /prop_tgt/NO_SONAME
@@ -265,8 +275,11 @@ Properties on Targets
    /prop_tgt/VERSION
    /prop_tgt/VISIBILITY_INLINES_HIDDEN
    /prop_tgt/VS_CONFIGURATION_TYPE
+   /prop_tgt/VS_DEBUGGER_WORKING_DIRECTORY
    /prop_tgt/VS_DESKTOP_EXTENSIONS_VERSION
+   /prop_tgt/VS_DOTNET_REFERENCE_refname
    /prop_tgt/VS_DOTNET_REFERENCES
+   /prop_tgt/VS_DOTNET_REFERENCES_COPY_LOCAL
    /prop_tgt/VS_DOTNET_TARGET_FRAMEWORK_VERSION
    /prop_tgt/VS_GLOBAL_KEYWORD
    /prop_tgt/VS_GLOBAL_PROJECT_TYPES
@@ -281,6 +294,7 @@ Properties on Targets
    /prop_tgt/VS_SCC_PROJECTNAME
    /prop_tgt/VS_SCC_PROVIDER
    /prop_tgt/VS_SDK_REFERENCES
+   /prop_tgt/VS_USER_PROPS
    /prop_tgt/VS_WINDOWS_TARGET_PLATFORM_MIN_VERSION
    /prop_tgt/VS_WINRT_COMPONENT
    /prop_tgt/VS_WINRT_EXTENSIONS
@@ -288,6 +302,8 @@ Properties on Targets
    /prop_tgt/WIN32_EXECUTABLE
    /prop_tgt/WINDOWS_EXPORT_ALL_SYMBOLS
    /prop_tgt/XCODE_ATTRIBUTE_an-attribute
+   /prop_tgt/XCODE_EXPLICIT_FILE_TYPE
+   /prop_tgt/XCODE_PRODUCT_TYPE
    /prop_tgt/XCTEST
 
 .. _`Test Properties`:
@@ -344,9 +360,17 @@ Properties on Source Files
    /prop_sf/MACOSX_PACKAGE_LOCATION
    /prop_sf/OBJECT_DEPENDS
    /prop_sf/OBJECT_OUTPUTS
+   /prop_sf/SKIP_AUTOGEN
+   /prop_sf/SKIP_AUTOMOC
+   /prop_sf/SKIP_AUTORCC
+   /prop_sf/SKIP_AUTOUIC
    /prop_sf/SYMBOLIC
+   /prop_sf/VS_COPY_TO_OUT_DIR
+   /prop_sf/VS_CSHARP_tagname
    /prop_sf/VS_DEPLOYMENT_CONTENT
    /prop_sf/VS_DEPLOYMENT_LOCATION
+   /prop_sf/VS_INCLUDE_IN_VSIX
+   /prop_sf/VS_RESOURCE_GENERATOR
    /prop_sf/VS_SHADER_ENTRYPOINT
    /prop_sf/VS_SHADER_FLAGS
    /prop_sf/VS_SHADER_MODEL

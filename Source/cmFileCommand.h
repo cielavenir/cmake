@@ -3,9 +3,13 @@
 #ifndef cmFileCommand_h
 #define cmFileCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
 
-struct cmFileInstaller;
+class cmExecutionStatus;
 
 /** \class cmFileCommand
  * \brief Command for manipulation of files
@@ -35,8 +39,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "file"; }
-
-  cmTypeMacro(cmFileCommand, cmCommand);
 
 protected:
   bool HandleRename(std::vector<std::string> const& args);
