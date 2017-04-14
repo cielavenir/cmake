@@ -2,10 +2,13 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmUseMangledMesaCommand.h"
 
-#include "cmSystemTools.h"
-
 #include <cmsys/FStream.hxx>
 #include <cmsys/RegularExpression.hxx>
+
+#include "cmPolicies.h"
+#include "cmSystemTools.h"
+
+class cmExecutionStatus;
 
 bool cmUseMangledMesaCommand::InitialPass(std::vector<std::string> const& args,
                                           cmExecutionStatus&)
@@ -105,5 +108,5 @@ void cmUseMangledMesaCommand::CopyAndFullPathMesaHeader(const char* source,
   fin.close();
   fout.close();
   cmSystemTools::CopyFileIfDifferent(tempOutputFile.c_str(), outFile.c_str());
-  cmSystemTools::RemoveFile(tempOutputFile.c_str());
+  cmSystemTools::RemoveFile(tempOutputFile);
 }

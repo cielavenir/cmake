@@ -2,18 +2,17 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmDependsC.h"
 
+#include <cmsys/FStream.hxx>
+#include <utility>
+
 #include "cmAlgorithms.h"
 #include "cmFileTimeComparison.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
-#include "cmOutputConverter.h"
 #include "cmSystemTools.h"
 
-#include <cmsys/FStream.hxx>
-#include <utility>
-
 #define INCLUDE_REGEX_LINE                                                    \
-  "^[ \t]*#[ \t]*(include|import)[ \t]*[<\"]([^\">]+)([\">])"
+  "^[ \t]*[#%][ \t]*(include|import)[ \t]*[<\"]([^\">]+)([\">])"
 
 #define INCLUDE_REGEX_LINE_MARKER "#IncludeRegexLine: "
 #define INCLUDE_REGEX_SCAN_MARKER "#IncludeRegexScan: "
@@ -421,7 +420,7 @@ void cmDependsC::SetupTransforms()
   if (!this->TransformRules.empty()) {
     // Construct the regular expression to match lines to be
     // transformed.
-    std::string xform = "^([ \t]*#[ \t]*(include|import)[ \t]*)(";
+    std::string xform = "^([ \t]*[#%][ \t]*(include|import)[ \t]*)(";
     const char* sep = "";
     for (TransformRulesType::const_iterator tri = this->TransformRules.begin();
          tri != this->TransformRules.end(); ++tri) {

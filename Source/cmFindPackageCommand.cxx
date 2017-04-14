@@ -2,21 +2,37 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmFindPackageCommand.h"
 
-#include "cmAlgorithms.h"
+#include <algorithm>
+#include <assert.h>
 #include <cmSystemTools.h>
 #include <cmsys/Directory.hxx>
-#include <cmsys/Encoding.hxx>
+#include <cmsys/FStream.hxx>
+#include <cmsys/Glob.hxx>
 #include <cmsys/RegularExpression.hxx>
+#include <cmsys/String.h>
+#include <functional>
+#include <iterator>
+#include <sstream>
+#include <stdio.h>
+#include <string.h>
+#include <utility>
 
-#ifdef CMAKE_BUILD_WITH_CMAKE
-#include "cmVariableWatch.h"
-#endif
+#include "cmAlgorithms.h"
+#include "cmMakefile.h"
+#include "cmSearchPath.h"
+#include "cmState.h"
+#include "cmStateTypes.h"
+#include "cmVersion.h"
+#include "cm_auto_ptr.hxx"
+#include "cmake.h"
 
 #if defined(__HAIKU__)
 #include <FindDirectory.h>
 #include <StorageDefs.h>
-#include <string.h>
 #endif
+
+class cmExecutionStatus;
+class cmFileList;
 
 cmFindPackageCommand::PathLabel cmFindPackageCommand::PathLabel::UserRegistry(
   "PACKAGE_REGISTRY");
@@ -669,8 +685,8 @@ bool cmFindPackageCommand::HandlePackageMode()
   bool configFileSetFOUNDFalse = false;
 
   if (fileFound) {
-    if ((this->Makefile->IsDefinitionSet(foundVar)) &&
-        (this->Makefile->IsOn(foundVar) == false)) {
+    if (this->Makefile->IsDefinitionSet(foundVar) &&
+        !this->Makefile->IsOn(foundVar)) {
       // by removing Foo_FOUND here if it is FALSE, we don't really change
       // the situation for the Config file which is about to be included,
       // but we make it possible to detect later on whether the Config file
@@ -689,8 +705,8 @@ bool cmFindPackageCommand::HandlePackageMode()
       found = true;
 
       // Check whether the Config file has set Foo_FOUND to FALSE:
-      if ((this->Makefile->IsDefinitionSet(foundVar)) &&
-          (this->Makefile->IsOn(foundVar) == false)) {
+      if (this->Makefile->IsDefinitionSet(foundVar) &&
+          !this->Makefile->IsOn(foundVar)) {
         // we get here if the Config file has set Foo_FOUND actively to FALSE
         found = false;
         configFileSetFOUNDFalse = true;
@@ -890,7 +906,7 @@ bool cmFindPackageCommand::FindConfig()
   help += ".";
   // We force the value since we do not get here if it was already set.
   this->Makefile->AddCacheDefinition(this->Variable, init.c_str(),
-                                     help.c_str(), cmState::PATH, true);
+                                     help.c_str(), cmStateEnums::PATH, true);
   return found;
 }
 
@@ -1412,8 +1428,7 @@ bool cmFindPackageCommand::CheckVersion(std::string const& config_file)
   // Look for foo-config-version.cmake
   std::string version_file = version_file_base;
   version_file += "-version.cmake";
-  if ((haveResult == false) &&
-      (cmSystemTools::FileExists(version_file.c_str(), true))) {
+  if (!haveResult && cmSystemTools::FileExists(version_file.c_str(), true)) {
     result = this->CheckVersionFile(version_file, version);
     haveResult = true;
   }
@@ -1421,14 +1436,13 @@ bool cmFindPackageCommand::CheckVersion(std::string const& config_file)
   // Look for fooConfigVersion.cmake
   version_file = version_file_base;
   version_file += "Version.cmake";
-  if ((haveResult == false) &&
-      (cmSystemTools::FileExists(version_file.c_str(), true))) {
+  if (!haveResult && cmSystemTools::FileExists(version_file.c_str(), true)) {
     result = this->CheckVersionFile(version_file, version);
     haveResult = true;
   }
 
   // If no version was requested a versionless package is acceptable.
-  if ((haveResult == false) && (this->Version.empty())) {
+  if (!haveResult && this->Version.empty()) {
     result = true;
   }
 
@@ -1547,11 +1561,6 @@ void cmFindPackageCommand::StoreVersionFound()
   this->Makefile->AddDefinition(ver + "_COUNT", buf);
 }
 
-#include <cm_auto_ptr.hxx>
-#include <cmsys/Glob.hxx>
-#include <cmsys/String.h>
-
-class cmFileList;
 class cmFileListGeneratorBase
 {
 public:

@@ -101,6 +101,8 @@ function(CMAKE_DETERMINE_COMPILER_ID lang flagvar src)
   set(CMAKE_${lang}_SIMULATE_ID "${CMAKE_${lang}_SIMULATE_ID}" PARENT_SCOPE)
   set(CMAKE_${lang}_SIMULATE_VERSION "${CMAKE_${lang}_SIMULATE_VERSION}" PARENT_SCOPE)
   set(CMAKE_${lang}_STANDARD_COMPUTED_DEFAULT "${CMAKE_${lang}_STANDARD_COMPUTED_DEFAULT}" PARENT_SCOPE)
+  set(CMAKE_${lang}_COMPILER_PRODUCED_OUTPUT "${COMPILER_${lang}_PRODUCED_OUTPUT}" PARENT_SCOPE)
+  set(CMAKE_${lang}_COMPILER_PRODUCED_FILES "${COMPILER_${lang}_PRODUCED_FILES}" PARENT_SCOPE)
 endfunction()
 
 include(CMakeCompilerIdDetection)
@@ -129,13 +131,14 @@ function(CMAKE_DETERMINE_COMPILER_ID_BUILD lang testflags src)
   # Create a clean working directory.
   file(REMOVE_RECURSE ${CMAKE_${lang}_COMPILER_ID_DIR})
   file(MAKE_DIRECTORY ${CMAKE_${lang}_COMPILER_ID_DIR})
+  file(MAKE_DIRECTORY ${CMAKE_${lang}_COMPILER_ID_DIR}/tmp)
   CMAKE_DETERMINE_COMPILER_ID_WRITE("${lang}" "${src}")
 
   # Construct a description of this test case.
   set(COMPILER_DESCRIPTION
     "Compiler: ${CMAKE_${lang}_COMPILER} ${CMAKE_${lang}_COMPILER_ID_ARG1}
 Build flags: ${CMAKE_${lang}_COMPILER_ID_FLAGS_LIST}
-Id flags: ${testflags}
+Id flags: ${testflags} ${CMAKE_${lang}_COMPILER_ID_FLAGS_ALWAYS}
 ")
 
   # Compile the compiler identification source.
@@ -162,6 +165,10 @@ Id flags: ${testflags}
       set(v Intel)
       set(ext vfproj)
       set(id_cl ifort.exe)
+    elseif(lang STREQUAL CSharp)
+      set(v 10)
+      set(ext csproj)
+      set(id_cl csc.exe)
     elseif(NOT "${vs_version}" VERSION_LESS 10)
       set(v 10)
       set(ext vcxproj)
@@ -181,6 +188,11 @@ Id flags: ${testflags}
       endif()
     else()
       set(id_toolset "")
+    endif()
+    if(CMAKE_VS_PLATFORM_TOOLSET_HOST_ARCHITECTURE)
+      set(id_PreferredToolArchitecture "<PreferredToolArchitecture>${CMAKE_VS_PLATFORM_TOOLSET_HOST_ARCHITECTURE}</PreferredToolArchitecture>")
+    else()
+      set(id_PreferredToolArchitecture "")
     endif()
     if(CMAKE_SYSTEM_NAME STREQUAL "WindowsPhone")
       set(id_system "<ApplicationType>Windows Phone</ApplicationType>")
@@ -257,7 +269,13 @@ Id flags: ${testflags}
       set(id_toolset "")
     endif()
     if("${lang}" STREQUAL "Swift")
-      set(id_lang_version "SWIFT_VERSION = 2.3;")
+      if(CMAKE_Swift_LANGUAGE_VERSION)
+        set(id_lang_version "SWIFT_VERSION = ${CMAKE_Swift_LANGUAGE_VERSION};")
+      elseif(XCODE_VERSION VERSION_GREATER_EQUAL 8.3)
+        set(id_lang_version "SWIFT_VERSION = 3.0;")
+      else()
+        set(id_lang_version "SWIFT_VERSION = 2.3;")
+      endif()
     else()
       set(id_lang_version "")
     endif()
@@ -317,6 +335,7 @@ Id flags: ${testflags}
               ${CMAKE_${lang}_COMPILER_ID_ARG1}
               ${CMAKE_${lang}_COMPILER_ID_FLAGS_LIST}
               ${testflags}
+              ${CMAKE_${lang}_COMPILER_ID_FLAGS_ALWAYS}
               "${src}"
       WORKING_DIRECTORY ${CMAKE_${lang}_COMPILER_ID_DIR}
       OUTPUT_VARIABLE CMAKE_${lang}_COMPILER_ID_OUTPUT
@@ -395,6 +414,7 @@ ${CMAKE_${lang}_COMPILER_ID_OUTPUT}
   # Return the files produced by the compilation.
   set(COMPILER_${lang}_PRODUCED_FILES "${COMPILER_${lang}_PRODUCED_FILES}" PARENT_SCOPE)
   set(COMPILER_${lang}_PRODUCED_OUTPUT "${COMPILER_${lang}_PRODUCED_OUTPUT}" PARENT_SCOPE)
+
 endfunction()
 
 #-----------------------------------------------------------------------------
@@ -438,8 +458,12 @@ function(CMAKE_DETERMINE_COMPILER_ID_CHECK lang file)
     set(SIMULATE_ID)
     set(SIMULATE_VERSION)
     file(STRINGS ${file}
-      CMAKE_${lang}_COMPILER_ID_STRINGS LIMIT_COUNT 38 REGEX "INFO:[A-Za-z0-9_]+\\[[^]]*\\]")
+      CMAKE_${lang}_COMPILER_ID_STRINGS LIMIT_COUNT 38
+      ${CMAKE_${lang}_COMPILER_ID_STRINGS_PARAMETERS}
+      REGEX "INFO:[A-Za-z0-9_]+\\[[^]]*\\]")
     set(COMPILER_ID_TWICE)
+    # In C# binaries, some strings are found more than once.
+    list(REMOVE_DUPLICATES CMAKE_${lang}_COMPILER_ID_STRINGS)
     foreach(info ${CMAKE_${lang}_COMPILER_ID_STRINGS})
       if("${info}" MATCHES "INFO:compiler\\[([^]\"]*)\\]")
         if(COMPILER_ID)

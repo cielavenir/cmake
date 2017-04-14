@@ -6,7 +6,6 @@
 #include <cmConfigure.h>
 
 #include "cmCTestCommand.h"
-#include "cmTypeMacro.h"
 
 #include <string>
 #include <vector>
@@ -47,8 +46,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "ctest_run_script"; }
-
-  cmTypeMacro(cmCTestRunScriptCommand, cmCTestCommand);
 };
 
 #endif

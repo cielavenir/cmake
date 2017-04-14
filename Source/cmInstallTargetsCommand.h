@@ -3,7 +3,13 @@
 #ifndef cmInstallTargetsCommand_h
 #define cmInstallTargetsCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmInstallTargetsCommand
  * \brief Specifies where to install some targets
@@ -31,8 +37,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "install_targets"; }
-
-  cmTypeMacro(cmInstallTargetsCommand, cmCommand);
 };
 
 #endif

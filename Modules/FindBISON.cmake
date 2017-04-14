@@ -84,8 +84,6 @@
 find_program(BISON_EXECUTABLE NAMES bison win_bison DOC "path to the bison executable")
 mark_as_advanced(BISON_EXECUTABLE)
 
-include(CMakeParseArguments)
-
 if(BISON_EXECUTABLE)
   # the bison commands should be executed with the C locale, otherwise
   # the message (which are parsed) may be translated
@@ -253,5 +251,3 @@ endif()
 include(${CMAKE_CURRENT_LIST_DIR}/FindPackageHandleStandardArgs.cmake)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(BISON REQUIRED_VARS  BISON_EXECUTABLE
                                         VERSION_VAR BISON_VERSION)
-
-# FindBISON.cmake ends here

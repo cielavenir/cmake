@@ -3,6 +3,7 @@
 #include "cmSystemTools.h"
 
 #include "cmAlgorithms.h"
+#include "cmProcessOutput.h"
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 #include "cmArchiveWrite.h"
@@ -573,7 +574,7 @@ bool cmSystemTools::RunSingleCommand(std::vector<std::string> const& command,
                                      std::string* captureStdOut,
                                      std::string* captureStdErr, int* retVal,
                                      const char* dir, OutputOption outputflag,
-                                     double timeout)
+                                     double timeout, Encoding encoding)
 {
   std::vector<const char*> argv;
   for (std::vector<std::string>::const_iterator a = command.begin();
@@ -609,6 +610,8 @@ bool cmSystemTools::RunSingleCommand(std::vector<std::string> const& command,
   char* data;
   int length;
   int pipe;
+  cmProcessOutput processOutput(encoding);
+  std::string strdata;
   if (outputflag != OUTPUT_PASSTHROUGH &&
       (captureStdOut || captureStdErr || outputflag != OUTPUT_NONE)) {
     while ((pipe = cmsysProcess_WaitForData(cp, &data, &length, CM_NULLPTR)) >
@@ -624,28 +627,44 @@ bool cmSystemTools::RunSingleCommand(std::vector<std::string> const& command,
 
       if (pipe == cmsysProcess_Pipe_STDOUT) {
         if (outputflag != OUTPUT_NONE) {
-          cmSystemTools::Stdout(data, length);
+          processOutput.DecodeText(data, length, strdata, 1);
+          cmSystemTools::Stdout(strdata.c_str(), strdata.size());
         }
         if (captureStdOut) {
           tempStdOut.insert(tempStdOut.end(), data, data + length);
         }
       } else if (pipe == cmsysProcess_Pipe_STDERR) {
         if (outputflag != OUTPUT_NONE) {
-          cmSystemTools::Stderr(data, length);
+          processOutput.DecodeText(data, length, strdata, 2);
+          cmSystemTools::Stderr(strdata.c_str(), strdata.size());
         }
         if (captureStdErr) {
           tempStdErr.insert(tempStdErr.end(), data, data + length);
         }
       }
     }
+
+    if (outputflag != OUTPUT_NONE) {
+      processOutput.DecodeText(std::string(), strdata, 1);
+      if (!strdata.empty()) {
+        cmSystemTools::Stdout(strdata.c_str(), strdata.size());
+      }
+      processOutput.DecodeText(std::string(), strdata, 2);
+      if (!strdata.empty()) {
+        cmSystemTools::Stderr(strdata.c_str(), strdata.size());
+      }
+    }
   }
 
   cmsysProcess_WaitForExit(cp, CM_NULLPTR);
+
   if (captureStdOut) {
     captureStdOut->assign(tempStdOut.begin(), tempStdOut.end());
+    processOutput.DecodeText(*captureStdOut, *captureStdOut);
   }
   if (captureStdErr) {
     captureStdErr->assign(tempStdErr.begin(), tempStdErr.end());
+    processOutput.DecodeText(*captureStdErr, *captureStdErr);
   }
 
   bool result = true;
@@ -847,8 +866,8 @@ bool cmSystemTools::RenameFile(const char* oldname, const char* newname)
 bool cmSystemTools::ComputeFileMD5(const std::string& source, char* md5out)
 {
 #if defined(CMAKE_BUILD_WITH_CMAKE)
-  cmCryptoHashMD5 md5;
-  std::string str = md5.HashFile(source);
+  cmCryptoHash md5(cmCryptoHash::AlgoMD5);
+  std::string const str = md5.HashFile(source);
   strncpy(md5out, str.c_str(), 32);
   return !str.empty();
 #else
@@ -863,7 +882,7 @@ bool cmSystemTools::ComputeFileMD5(const std::string& source, char* md5out)
 std::string cmSystemTools::ComputeStringMD5(const std::string& input)
 {
 #if defined(CMAKE_BUILD_WITH_CMAKE)
-  cmCryptoHashMD5 md5;
+  cmCryptoHash md5(cmCryptoHash::AlgoMD5);
   return md5.HashString(input);
 #else
   (void)input;
@@ -1499,6 +1518,7 @@ void list_item_verbose(FILE* out, struct archive_entry* entry)
   {
     fprintf(out, " -> %s", archive_entry_symlink(entry));
   }
+  fflush(out);
 }
 
 long copy_data(struct archive* ar, struct archive* aw)
@@ -1642,7 +1662,9 @@ int cmSystemTools::WaitForLine(cmsysProcess* process, std::string& line,
   line = "";
   std::vector<char>::iterator outiter = out.begin();
   std::vector<char>::iterator erriter = err.begin();
-  while (1) {
+  cmProcessOutput processOutput;
+  std::string strdata;
+  while (true) {
     // Check for a newline in stdout.
     for (; outiter != out.end(); ++outiter) {
       if ((*outiter == '\r') && ((outiter + 1) == out.end())) {
@@ -1686,17 +1708,31 @@ int cmSystemTools::WaitForLine(cmsysProcess* process, std::string& line,
       return pipe;
     }
     if (pipe == cmsysProcess_Pipe_STDOUT) {
+      processOutput.DecodeText(data, length, strdata, 1);
       // Append to the stdout buffer.
       std::vector<char>::size_type size = out.size();
-      out.insert(out.end(), data, data + length);
+      out.insert(out.end(), strdata.begin(), strdata.end());
       outiter = out.begin() + size;
     } else if (pipe == cmsysProcess_Pipe_STDERR) {
+      processOutput.DecodeText(data, length, strdata, 2);
       // Append to the stderr buffer.
       std::vector<char>::size_type size = err.size();
-      err.insert(err.end(), data, data + length);
+      err.insert(err.end(), strdata.begin(), strdata.end());
       erriter = err.begin() + size;
     } else if (pipe == cmsysProcess_Pipe_None) {
       // Both stdout and stderr pipes have broken.  Return leftover data.
+      processOutput.DecodeText(std::string(), strdata, 1);
+      if (!strdata.empty()) {
+        std::vector<char>::size_type size = out.size();
+        out.insert(out.end(), strdata.begin(), strdata.end());
+        outiter = out.begin() + size;
+      }
+      processOutput.DecodeText(std::string(), strdata, 2);
+      if (!strdata.empty()) {
+        std::vector<char>::size_type size = err.size();
+        err.insert(err.end(), strdata.begin(), strdata.end());
+        erriter = err.begin() + size;
+      }
       if (!out.empty()) {
         line.append(&out[0], outiter - out.begin());
         out.erase(out.begin(), out.end());
@@ -1979,7 +2015,8 @@ void cmSystemTools::FindCMakeResources(const char* argv0)
   // Install tree has
   // - "<prefix><CMAKE_BIN_DIR>/cmake"
   // - "<prefix><CMAKE_DATA_DIR>"
-  if (cmHasSuffix(exe_dir, CMAKE_BIN_DIR)) {
+  const std::string actual_case = cmSystemTools::GetActualCaseForPath(exe_dir);
+  if (cmHasSuffix(actual_case, CMAKE_BIN_DIR)) {
     std::string const prefix =
       exe_dir.substr(0, exe_dir.size() - strlen(CMAKE_BIN_DIR));
     cmSystemToolsCMakeRoot = prefix + CMAKE_DATA_DIR;
@@ -2518,9 +2555,9 @@ bool cmSystemTools::RemoveRPath(std::string const& file, std::string* emsg,
       std::swap(se[0], se[1]);
     }
 
-    // Get the size of the dynamic section header.
-    unsigned int count = elf.GetDynamicEntryCount();
-    if (count == 0) {
+    // Obtain a copy of the dynamic entries
+    cmELF::DynamicEntryList dentries = elf.GetDynamicEntries();
+    if (dentries.empty()) {
       // This should happen only for invalid ELF files where a DT_NULL
       // appears before the end of the table.
       if (emsg) {
@@ -2536,40 +2573,46 @@ bool cmSystemTools::RemoveRPath(std::string const& file, std::string* emsg,
       zeroSize[i] = se[i]->Size;
     }
 
-    // Get the range of file positions corresponding to each entry and
-    // the rest of the table after them.
-    unsigned long entryBegin[3] = { 0, 0, 0 };
-    unsigned long entryEnd[2] = { 0, 0 };
-    for (int i = 0; i < se_count; ++i) {
-      entryBegin[i] = elf.GetDynamicEntryPosition(se[i]->IndexInSection);
-      entryEnd[i] = elf.GetDynamicEntryPosition(se[i]->IndexInSection + 1);
-    }
-    entryBegin[se_count] = elf.GetDynamicEntryPosition(count);
+    // Get size of one DYNAMIC entry
+    unsigned long const sizeof_dentry =
+      elf.GetDynamicEntryPosition(1) - elf.GetDynamicEntryPosition(0);
 
-    // The data are to be written over the old table entries starting at
-    // the first one being removed.
-    bytesBegin = entryBegin[0];
-    unsigned long bytesEnd = entryBegin[se_count];
-
-    // Allocate a buffer to hold the part of the file to be written.
-    // Initialize it with zeros.
-    bytes.resize(bytesEnd - bytesBegin, 0);
-
-    // Read the part of the DYNAMIC section header that will move.
-    // The remainder of the buffer will be left with zeros which
-    // represent a DT_NULL entry.
-    char* data = &bytes[0];
-    for (int i = 0; i < se_count; ++i) {
-      // Read data between the entries being removed.
-      unsigned long sz = entryBegin[i + 1] - entryEnd[i];
-      if (sz > 0 && !elf.ReadBytes(entryEnd[i], sz, data)) {
-        if (emsg) {
-          *emsg = "Failed to read DYNAMIC section header.";
+    // Adjust the entry list as necessary to remove the run path
+    unsigned long entriesErased = 0;
+    for (cmELF::DynamicEntryList::iterator it = dentries.begin();
+         it != dentries.end();) {
+      if (it->first == cmELF::TagRPath || it->first == cmELF::TagRunPath) {
+        it = dentries.erase(it);
+        entriesErased++;
+        continue;
+      } else {
+        if (cmELF::TagMipsRldMapRel != 0 &&
+            it->first == cmELF::TagMipsRldMapRel) {
+          // Background: debuggers need to know the "linker map" which contains
+          // the addresses each dynamic object is loaded at. Most arches use
+          // the DT_DEBUG tag which the dynamic linker writes to (directly) and
+          // contain the location of the linker map, however on MIPS the
+          // .dynamic section is always read-only so this is not possible. MIPS
+          // objects instead contain a DT_MIPS_RLD_MAP tag which contains the
+          // address where the dyanmic linker will write to (an indirect
+          // version of DT_DEBUG). Since this doesn't work when using PIE, a
+          // relative equivalent was created - DT_MIPS_RLD_MAP_REL. Since this
+          // version contains a relative offset, moving it changes the
+          // calculated address. This may cause the dyanmic linker to write
+          // into memory it should not be changing.
+          //
+          // To fix this, we adjust the value of DT_MIPS_RLD_MAP_REL here. If
+          // we move it up by n bytes, we add n bytes to the value of this tag.
+          it->second += entriesErased * sizeof_dentry;
         }
-        return false;
+
+        it++;
       }
-      data += sz;
     }
+
+    // Encode new entries list
+    bytes = elf.EncodeDynamicEntries(dentries);
+    bytesBegin = elf.GetDynamicEntryPosition(0);
   }
 
   // Open the file for update.

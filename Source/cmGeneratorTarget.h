@@ -8,7 +8,7 @@
 #include "cmLinkItem.h"
 #include "cmListFileCache.h"
 #include "cmPolicies.h"
-#include "cmState.h"
+#include "cmStateTypes.h"
 
 #include <map>
 #include <set>
@@ -31,6 +31,8 @@ public:
   ~cmGeneratorTarget();
 
   cmLocalGenerator* GetLocalGenerator() const;
+
+  cmGlobalGenerator* GetGlobalGenerator() const;
 
   bool IsImported() const;
   bool IsImportedGloballyVisible() const;
@@ -58,7 +60,7 @@ public:
   cmComputeLinkInformation* GetLinkInformation(
     const std::string& config) const;
 
-  cmState::TargetType GetType() const;
+  cmStateEnums::TargetType GetType() const;
   const std::string& GetName() const;
   std::string GetExportName() const;
 
@@ -145,6 +147,9 @@ public:
                                      const cmGeneratorTarget* head,
                                      bool usage_requirements_only) const;
 
+  /** Get the library name for an imported interface library.  */
+  std::string GetImportedLibName(std::string const& config) const;
+
   /** Get the full path to the target according to the settings in its
       makefile and the configuration type.  */
   std::string GetFullPath(const std::string& config = "", bool implib = false,
@@ -196,7 +201,7 @@ public:
 
   bool LinkLanguagePropagatesToDependents() const
   {
-    return this->GetType() == cmState::STATIC_LIBRARY;
+    return this->GetType() == cmStateEnums::STATIC_LIBRARY;
   }
 
   /** Get the macro to define when building sources in this target.
@@ -219,6 +224,9 @@ public:
   /** @return the mac content directory for this target. */
   std::string GetMacContentDirectory(const std::string& config = CM_NULLPTR,
                                      bool implib = false) const;
+
+  /** @return folder prefix for IDEs. */
+  std::string GetEffectiveFolderName() const;
 
   cmTarget* Target;
   cmMakefile* Makefile;
@@ -388,6 +396,12 @@ public:
   void AddTracedSources(std::vector<std::string> const& srcs);
 
   /**
+   * Adds an entry to the INCLUDE_DIRECTORIES list.
+   * If before is true the entry is pushed at the front.
+   */
+  void AddIncludeDirectory(const std::string& src, bool before = false);
+
+  /**
    * Flags for a given source file as used in this target. Typically assigned
    * via SET_TARGET_PROPERTIES when the property is a list of source files.
    */
@@ -530,6 +544,8 @@ public:
 
   std::string GetFortranModuleDirectory(std::string const& working_dir) const;
 
+  const char* GetSourcesProperty() const;
+
 private:
   void AddSourceCommon(const std::string& src);
 
@@ -636,6 +652,7 @@ private:
     std::string Location;
     std::string SOName;
     std::string ImportLibrary;
+    std::string LibName;
     std::string Languages;
     std::string Libraries;
     std::string LibrariesProp;

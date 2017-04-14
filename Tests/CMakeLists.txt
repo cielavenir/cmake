@@ -324,6 +324,11 @@ if(BUILD_TESTING)
       ADD_TEST_MACRO(VSGNUFortran ${CMAKE_COMMAND} -P runtest.cmake)
     endif()
   endif()
+
+  if(${CMAKE_GENERATOR} MATCHES "Visual Studio ([^789]|[789][0-9])")
+    ADD_TEST_MACRO(CSharpOnly CSharpOnly)
+  endif()
+
   ADD_TEST_MACRO(COnly COnly)
   ADD_TEST_MACRO(CxxOnly CxxOnly)
   ADD_TEST_MACRO(CxxSubdirC CxxSubdirC)
@@ -1243,7 +1248,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     set(run_autogen_test ${CMAKE_CTEST_COMMAND} -V)
     set(run_autouic_test ${CMAKE_CTEST_COMMAND} -V)
   else()
-    set(run_autogen_test QtAutogen)
+    set(run_autogen_test complex/QtAutogen)
     set(run_autouic_test QtAutoUicInterface)
   endif()
   if(NOT CMAKE_CONFIGURATION_TYPES)
@@ -1353,6 +1358,11 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     endif()
   endif()
 
+  if(CMake_TEST_CUDA)
+    add_subdirectory(Cuda)
+    add_subdirectory(CudaOnly)
+  endif()
+
   if(CMake_TEST_FindBoost)
     add_subdirectory(FindBoost)
   endif()
@@ -1377,6 +1387,10 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     add_subdirectory(FindJsonCpp)
   endif()
 
+  if(CMake_TEST_FindLibRHash)
+    add_subdirectory(FindLibRHash)
+  endif()
+
   if(CMake_TEST_FindLibUV)
     add_subdirectory(FindLibUV)
   endif()
@@ -1387,6 +1401,10 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
 
   if(CMake_TEST_FindOpenCL)
     add_subdirectory(FindOpenCL)
+  endif()
+
+  if(CMake_TEST_FindOpenGL)
+    add_subdirectory(FindOpenGL)
   endif()
 
   if(CMake_TEST_FindOpenSSL)
@@ -3081,8 +3099,8 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
         -P ${CMAKE_CURRENT_SOURCE_DIR}/BootstrapTest.cmake
       )
     list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/BootstrapTest")
-    # Make this test run early during parallel execution
-    set_tests_properties(BootstrapTest PROPERTIES COST 5000)
+    # This test will use all processors.
+    set_tests_properties(BootstrapTest PROPERTIES RUN_SERIAL 1)
 
     # provide more time for the bootstrap test
     get_test_property(BootstrapTest TIMEOUT PREVIOUS_TIMEOUT)
@@ -3345,20 +3363,6 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     --build-options ${build_options}
     --test-command InterfaceLinkLibraries)
   list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/InterfaceLinkLibraries")
-
-  if(CMAKE_USE_KWSTYLE AND KWSTYLE_EXECUTABLE)
-    # The "make StyleCheck" command line as a test. If the test fails, look
-    # for lines like "Error #0 (624) Line length exceed 88 (max=79)" in the
-    # output to find where the style errors are...
-    add_test(KWStyle ${KWSTYLE_EXECUTABLE}
-      -xml ${CMake_BINARY_DIR}/CMake.kws.xml
-      -o ${CMake_SOURCE_DIR}/Utilities/KWStyle/CMakeOverwrite.txt
-      -v
-      -D ${CMake_BINARY_DIR}/CMakeKWSFiles.txt
-      )
-    set_tests_properties(KWStyle PROPERTIES
-      WORKING_DIRECTORY ${CMake_BINARY_DIR}/Utilities/KWStyle)
-  endif()
 
   if(NOT CMake_TEST_EXTERNAL_CMAKE)
     add_subdirectory(CMakeTests)

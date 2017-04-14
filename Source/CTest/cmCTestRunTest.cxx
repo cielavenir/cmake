@@ -119,10 +119,9 @@ void cmCTestRunTest::CompressOutput()
   strm.next_out = out;
   ret = deflate(&strm, Z_FINISH);
 
-  if (ret == Z_STREAM_ERROR || ret != Z_STREAM_END) {
+  if (ret != Z_STREAM_END) {
     cmCTestLog(this->CTest, ERROR_MESSAGE,
-               "Error during output "
-               "compression. Sending uncompressed output."
+               "Error during output compression. Sending uncompressed output."
                  << std::endl);
     delete[] out;
     return;
@@ -135,6 +134,7 @@ void cmCTestRunTest::CompressOutput()
 
   size_t rlen = cmsysBase64_Encode(out, strm.total_out, encoded_buffer, 1);
 
+  this->CompressedOutput.clear();
   for (size_t i = 0; i < rlen; i++) {
     this->CompressedOutput += encoded_buffer[i];
   }
@@ -153,7 +153,7 @@ bool cmCTestRunTest::EndTest(size_t completed, size_t total, bool started)
   if ((!this->TestHandler->MemCheck &&
        this->CTest->ShouldCompressTestOutput()) ||
       (this->TestHandler->MemCheck &&
-       this->CTest->ShouldCompressMemCheckOutput())) {
+       this->CTest->ShouldCompressTestOutput())) {
     this->CompressOutput();
   }
 
@@ -417,6 +417,7 @@ bool cmCTestRunTest::StartTest(size_t total)
                << std::setw(getNumWidth(this->TestHandler->GetMaxIndex()))
                << this->TestProperties->Index << ": "
                << this->TestProperties->Name << std::endl);
+  this->ProcessOutput.clear();
   this->ComputeArguments();
   std::vector<std::string>& args = this->TestProperties->Args;
   this->TestResult.Properties = this->TestProperties;

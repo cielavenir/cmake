@@ -6,7 +6,6 @@
 #include <cmConfigure.h>
 
 #include "cmCTestGenericHandler.h"
-#include "cmTypeMacro.h"
 
 #include <sstream>
 #include <stddef.h>
@@ -22,7 +21,7 @@ class cmake;
 class cmCTestBuildAndTestHandler : public cmCTestGenericHandler
 {
 public:
-  cmTypeMacro(cmCTestBuildAndTestHandler, cmCTestGenericHandler);
+  typedef cmCTestGenericHandler Superclass;
 
   /*
    * The main entry point for this class

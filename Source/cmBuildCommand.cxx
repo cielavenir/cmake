@@ -2,7 +2,15 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmBuildCommand.h"
 
+#include <sstream>
+
 #include "cmGlobalGenerator.h"
+#include "cmMakefile.h"
+#include "cmStateTypes.h"
+#include "cmSystemTools.h"
+#include "cmake.h"
+
+class cmExecutionStatus;
 
 bool cmBuildCommand::InitialPass(std::vector<std::string> const& args,
                                  cmExecutionStatus&)
@@ -82,8 +90,7 @@ bool cmBuildCommand::MainSignature(std::vector<std::string> const& args)
 
   std::string makecommand =
     this->Makefile->GetGlobalGenerator()->GenerateCMakeBuildCommand(
-      target, configuration.c_str(), "",
-      this->Makefile->IgnoreErrorsCMP0061());
+      target, configuration, "", this->Makefile->IgnoreErrorsCMP0061());
 
   this->Makefile->AddDefinition(variable, makecommand.c_str());
 
@@ -116,6 +123,6 @@ bool cmBuildCommand::TwoArgsSignature(std::vector<std::string> const& args)
   this->Makefile->AddCacheDefinition(define, makecommand.c_str(),
                                      "Command used to build entire project "
                                      "from the command line.",
-                                     cmState::STRING);
+                                     cmStateEnums::STRING);
   return true;
 }

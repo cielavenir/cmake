@@ -3,9 +3,13 @@
 #ifndef cmQTWrapCPPCommand_h
 #define cmQTWrapCPPCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
 
-#include "cmSourceFile.h"
+class cmExecutionStatus;
 
 /** \class cmQTWrapCPPCommand
  * \brief Create moc file rules for Qt classes
@@ -16,8 +20,6 @@
 class cmQTWrapCPPCommand : public cmCommand
 {
 public:
-  cmTypeMacro(cmQTWrapCPPCommand, cmCommand);
-
   /**
    * This is a virtual constructor for the command.
    */

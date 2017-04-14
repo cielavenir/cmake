@@ -66,12 +66,8 @@ if(NOT CMake_TEST_EXTERNAL_CMAKE)
   include(${CMake_SOURCE_DIR}/Source/Checks/cm_cxx_features.cmake)
 endif()
 
-# option to set the internal encoding of CMake to UTF-8
-option(CMAKE_ENCODING_UTF8 "Use UTF-8 encoding internally." ON)
-mark_as_advanced(CMAKE_ENCODING_UTF8)
-if(CMAKE_ENCODING_UTF8)
-  set(KWSYS_ENCODING_DEFAULT_CODEPAGE CP_UTF8)
-endif()
+# set the internal encoding of CMake to UTF-8
+set(KWSYS_ENCODING_DEFAULT_CODEPAGE CP_UTF8)
 
 # option to use COMPONENT with install command
 option(CMake_INSTALL_COMPONENTS "Using components when installing" OFF)
@@ -108,7 +104,7 @@ macro(CMAKE_HANDLE_SYSTEM_LIBRARIES)
 
   # Allow the user to enable/disable all system utility library options by
   # defining CMAKE_USE_SYSTEM_LIBRARIES or CMAKE_USE_SYSTEM_LIBRARY_${util}.
-  set(UTILITIES BZIP2 CURL EXPAT FORM JSONCPP LIBARCHIVE LIBLZMA LIBUV ZLIB)
+  set(UTILITIES BZIP2 CURL EXPAT FORM JSONCPP LIBARCHIVE LIBLZMA LIBRHASH LIBUV ZLIB)
   foreach(util ${UTILITIES})
     if(NOT DEFINED CMAKE_USE_SYSTEM_LIBRARY_${util}
         AND DEFINED CMAKE_USE_SYSTEM_LIBRARIES)
@@ -148,6 +144,7 @@ macro(CMAKE_HANDLE_SYSTEM_LIBRARIES)
     "${CMAKE_USE_SYSTEM_LIBRARY_LIBLZMA}" "NOT CMAKE_USE_SYSTEM_LIBARCHIVE" ON)
   option(CMAKE_USE_SYSTEM_FORM "Use system-installed libform" "${CMAKE_USE_SYSTEM_LIBRARY_FORM}")
   option(CMAKE_USE_SYSTEM_JSONCPP "Use system-installed jsoncpp" "${CMAKE_USE_SYSTEM_LIBRARY_JSONCPP}")
+  option(CMAKE_USE_SYSTEM_LIBRHASH "Use system-installed librhash" "${CMAKE_USE_SYSTEM_LIBRARY_LIBRHASH}")
   option(CMAKE_USE_SYSTEM_LIBUV "Use system-installed libuv" "${CMAKE_USE_SYSTEM_LIBRARY_LIBUV}")
 
   # For now use system KWIML only if explicitly requested rather
@@ -260,6 +257,7 @@ macro (CMAKE_BUILD_UTILITIES)
   set(KWSYS_USE_MD5 1)
   set(KWSYS_USE_Process 1)
   set(KWSYS_USE_CommandLineArguments 1)
+  set(KWSYS_USE_ConsoleBuf 1)
   set(KWSYS_HEADER_ROOT ${CMake_BINARY_DIR}/Source)
   set(KWSYS_INSTALL_DOC_DIR "${CMAKE_DOC_DIR}")
   add_subdirectory(Source/kwsys)
@@ -299,6 +297,23 @@ macro (CMAKE_BUILD_UTILITIES)
       set(KWIML_TEST_ENABLE 1)
     endif()
     add_subdirectory(Utilities/KWIML)
+  endif()
+
+  if(CMAKE_USE_SYSTEM_LIBRHASH)
+    if(NOT CMAKE_VERSION VERSION_LESS 3.0)
+      find_package(LibRHash)
+    else()
+      message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBRHASH requires CMake >= 3.0")
+    endif()
+    if(NOT LibRHash_FOUND)
+      message(FATAL_ERROR
+        "CMAKE_USE_SYSTEM_LIBRHASH is ON but LibRHash is not found!")
+    endif()
+    set(CMAKE_LIBRHASH_LIBRARIES LibRHash::LibRHash)
+  else()
+    set(CMAKE_LIBRHASH_LIBRARIES cmlibrhash)
+    add_subdirectory(Utilities/cmlibrhash)
+    CMAKE_SET_TARGET_FOLDER(cmlibrhash "Utilities/3rdParty")
   endif()
 
   #---------------------------------------------------------------------
@@ -366,66 +381,9 @@ macro (CMAKE_BUILD_UTILITIES)
   set(CMAKE_COMPRESS_LIBRARIES "cmcompress")
   add_subdirectory(Utilities/cmcompress)
   CMAKE_SET_TARGET_FOLDER(cmcompress "Utilities/3rdParty")
-  if(CMAKE_USE_SYSTEM_BZIP2)
-    find_package(BZip2)
-  else()
-    set(BZIP2_INCLUDE_DIR
-      "${CMAKE_CURRENT_SOURCE_DIR}/Utilities/cmbzip2")
-    set(BZIP2_LIBRARIES cmbzip2)
-    add_subdirectory(Utilities/cmbzip2)
-    CMAKE_SET_TARGET_FOLDER(cmbzip2 "Utilities/3rdParty")
-  endif()
 
   #---------------------------------------------------------------------
-  # Build or use system liblzma for libarchive.
-  if(CMAKE_USE_SYSTEM_LIBLZMA)
-    find_package(LibLZMA)
-    if(NOT LIBLZMA_FOUND)
-      message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBLZMA is ON but LibLZMA is not found!")
-    endif()
-    set(LZMA_INCLUDE_DIR ${LIBLZMA_INCLUDE_DIRS})
-    set(LZMA_LIBRARY ${LIBLZMA_LIBRARIES})
-  else()
-    add_subdirectory(Utilities/cmliblzma)
-    CMAKE_SET_TARGET_FOLDER(cmliblzma "Utilities/3rdParty")
-    set(LZMA_INCLUDE_DIR
-      "${CMAKE_CURRENT_SOURCE_DIR}/Utilities/cmliblzma/liblzma/api")
-    set(LZMA_LIBRARY cmliblzma)
-  endif()
-
-  #---------------------------------------------------------------------
-  # Build or use system libarchive for CMake and CTest.
-  if(CMAKE_USE_SYSTEM_LIBARCHIVE)
-    find_package(LibArchive 3.0.0)
-    if(NOT LibArchive_FOUND)
-      message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBARCHIVE is ON but LibArchive is not found!")
-    endif()
-    set(CMAKE_TAR_INCLUDES ${LibArchive_INCLUDE_DIRS})
-    set(CMAKE_TAR_LIBRARIES ${LibArchive_LIBRARIES})
-  else()
-    set(ZLIB_INCLUDE_DIR ${CMAKE_ZLIB_INCLUDES})
-    set(ZLIB_LIBRARY ${CMAKE_ZLIB_LIBRARIES})
-    add_definitions(-DLIBARCHIVE_STATIC)
-    set(ENABLE_NETTLE OFF CACHE INTERNAL "Enable use of Nettle")
-    set(ENABLE_OPENSSL ${CMAKE_USE_OPENSSL} CACHE INTERNAL "Enable use of OpenSSL")
-    set(ENABLE_LZMA ON CACHE INTERNAL "Enable the use of the system found LZMA library if found")
-    set(ENABLE_ZLIB ON CACHE INTERNAL "Enable the use of the system found ZLIB library if found")
-    set(ENABLE_BZip2 ON CACHE INTERNAL "Enable the use of the system found BZip2 library if found")
-    set(ENABLE_LIBXML2 OFF CACHE INTERNAL "Enable the use of the system found libxml2 library if found")
-    set(ENABLE_EXPAT OFF CACHE INTERNAL "Enable the use of the system found EXPAT library if found")
-    set(ENABLE_PCREPOSIX OFF CACHE INTERNAL "Enable the use of the system found PCREPOSIX library if found")
-    set(ENABLE_LibGCC OFF CACHE INTERNAL "Enable the use of the system found LibGCC library if found")
-    set(ENABLE_XATTR OFF CACHE INTERNAL "Enable extended attribute support")
-    set(ENABLE_ACL OFF CACHE INTERNAL "Enable ACL support")
-    set(ENABLE_ICONV OFF CACHE INTERNAL "Enable iconv support")
-    set(ENABLE_CNG OFF CACHE INTERNAL "Enable the use of CNG(Crypto Next Generation)")
-    add_subdirectory(Utilities/cmlibarchive)
-    CMAKE_SET_TARGET_FOLDER(cmlibarchive "Utilities/3rdParty")
-    set(CMAKE_TAR_LIBRARIES cmlibarchive ${BZIP2_LIBRARIES})
-  endif()
-
-  #---------------------------------------------------------------------
-  # Build expat library for CMake and CTest.
+  # Build expat library for CMake, CTest, and libarchive.
   if(CMAKE_USE_SYSTEM_EXPAT)
     find_package(EXPAT)
     if(NOT EXPAT_FOUND)
@@ -439,6 +397,72 @@ macro (CMAKE_BUILD_UTILITIES)
     set(CMAKE_EXPAT_LIBRARIES cmexpat)
     add_subdirectory(Utilities/cmexpat)
     CMAKE_SET_TARGET_FOLDER(cmexpat "Utilities/3rdParty")
+  endif()
+
+  #---------------------------------------------------------------------
+  # Build or use system libbz2 for libarchive.
+  if(NOT CMAKE_USE_SYSTEM_LIBARCHIVE)
+    if(CMAKE_USE_SYSTEM_BZIP2)
+      find_package(BZip2)
+    else()
+      set(BZIP2_INCLUDE_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/Utilities/cmbzip2")
+      set(BZIP2_LIBRARIES cmbzip2)
+      add_subdirectory(Utilities/cmbzip2)
+      CMAKE_SET_TARGET_FOLDER(cmbzip2 "Utilities/3rdParty")
+    endif()
+  endif()
+
+  #---------------------------------------------------------------------
+  # Build or use system liblzma for libarchive.
+  if(NOT CMAKE_USE_SYSTEM_LIBARCHIVE)
+    if(CMAKE_USE_SYSTEM_LIBLZMA)
+      find_package(LibLZMA)
+      if(NOT LIBLZMA_FOUND)
+        message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBLZMA is ON but LibLZMA is not found!")
+      endif()
+      set(LZMA_INCLUDE_DIR ${LIBLZMA_INCLUDE_DIRS})
+      set(LZMA_LIBRARY ${LIBLZMA_LIBRARIES})
+    else()
+      add_subdirectory(Utilities/cmliblzma)
+      CMAKE_SET_TARGET_FOLDER(cmliblzma "Utilities/3rdParty")
+      set(LZMA_INCLUDE_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/Utilities/cmliblzma/liblzma/api")
+      set(LZMA_LIBRARY cmliblzma)
+    endif()
+  endif()
+
+  #---------------------------------------------------------------------
+  # Build or use system libarchive for CMake and CTest.
+  if(CMAKE_USE_SYSTEM_LIBARCHIVE)
+    find_package(LibArchive 3.0.0)
+    if(NOT LibArchive_FOUND)
+      message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBARCHIVE is ON but LibArchive is not found!")
+    endif()
+    set(CMAKE_TAR_INCLUDES ${LibArchive_INCLUDE_DIRS})
+    set(CMAKE_TAR_LIBRARIES ${LibArchive_LIBRARIES})
+  else()
+    set(EXPAT_INCLUDE_DIR ${CMAKE_EXPAT_INCLUDES})
+    set(EXPAT_LIBRARY ${CMAKE_EXPAT_LIBRARIES})
+    set(ZLIB_INCLUDE_DIR ${CMAKE_ZLIB_INCLUDES})
+    set(ZLIB_LIBRARY ${CMAKE_ZLIB_LIBRARIES})
+    add_definitions(-DLIBARCHIVE_STATIC)
+    set(ENABLE_NETTLE OFF CACHE INTERNAL "Enable use of Nettle")
+    set(ENABLE_OPENSSL ${CMAKE_USE_OPENSSL} CACHE INTERNAL "Enable use of OpenSSL")
+    set(ENABLE_LZMA ON CACHE INTERNAL "Enable the use of the system found LZMA library if found")
+    set(ENABLE_ZLIB ON CACHE INTERNAL "Enable the use of the system found ZLIB library if found")
+    set(ENABLE_BZip2 ON CACHE INTERNAL "Enable the use of the system found BZip2 library if found")
+    set(ENABLE_LIBXML2 OFF CACHE INTERNAL "Enable the use of the system found libxml2 library if found")
+    set(ENABLE_EXPAT ON CACHE INTERNAL "Enable the use of the system found EXPAT library if found")
+    set(ENABLE_PCREPOSIX OFF CACHE INTERNAL "Enable the use of the system found PCREPOSIX library if found")
+    set(ENABLE_LibGCC OFF CACHE INTERNAL "Enable the use of the system found LibGCC library if found")
+    set(ENABLE_XATTR OFF CACHE INTERNAL "Enable extended attribute support")
+    set(ENABLE_ACL OFF CACHE INTERNAL "Enable ACL support")
+    set(ENABLE_ICONV OFF CACHE INTERNAL "Enable iconv support")
+    set(ENABLE_CNG OFF CACHE INTERNAL "Enable the use of CNG(Crypto Next Generation)")
+    add_subdirectory(Utilities/cmlibarchive)
+    CMAKE_SET_TARGET_FOLDER(cmlibarchive "Utilities/3rdParty")
+    set(CMAKE_TAR_LIBRARIES cmlibarchive ${BZIP2_LIBRARIES})
   endif()
 
   #---------------------------------------------------------------------
@@ -484,6 +508,9 @@ int main(void) { return 0; }
       # Disable until it can be ported.
       set(CMAKE_USE_LIBUV 0)
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+      # Disable until it can be ported.
+      set(CMAKE_USE_LIBUV 0)
+    elseif(CMAKE_SYSTEM STREQUAL "SunOS-5.10")
       # Disable until it can be ported.
       set(CMAKE_USE_LIBUV 0)
     endif()

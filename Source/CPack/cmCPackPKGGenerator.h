@@ -3,9 +3,14 @@
 #ifndef cmCPackPKGGenerator_h
 #define cmCPackPKGGenerator_h
 
+#include <cmConfigure.h>
+#include <set>
+#include <sstream>
+#include <string>
+
+#include "cmCPackComponentGroup.h"
 #include "cmCPackGenerator.h"
 
-class cmCPackComponent;
 class cmXMLWriter;
 
 /** \class cmCPackPKGGenerator

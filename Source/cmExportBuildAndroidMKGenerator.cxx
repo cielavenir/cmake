@@ -2,14 +2,22 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmExportBuildAndroidMKGenerator.h"
 
-#include "cmExportSet.h"
+#include <algorithm>
+#include <map>
+#include <sstream>
+#include <utility>
+
+#include "cmGeneratorExpression.h"
 #include "cmGeneratorTarget.h"
-#include "cmGlobalGenerator.h"
+#include "cmLinkItem.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
-#include "cmTargetExport.h"
-
-#include <algorithm>
+#include "cmPolicies.h"
+#include "cmStateTypes.h"
+#include "cmSystemTools.h"
+#include "cmTarget.h"
+#include "cm_auto_ptr.hxx"
+#include "cmake.h"
 
 cmExportBuildAndroidMKGenerator::cmExportBuildAndroidMKGenerator()
 {
@@ -61,7 +69,7 @@ void cmExportBuildAndroidMKGenerator::GenerateInterfaceProperties(
   const cmGeneratorTarget* target, std::ostream& os,
   const ImportPropertyMap& properties)
 {
-  std::string config = "";
+  std::string config;
   if (!this->Configurations.empty()) {
     config = this->Configurations[0];
   }
@@ -111,8 +119,8 @@ void cmExportBuildAndroidMKGenerator::GenerateInterfaceProperties(
             target->GetLocalGenerator()->FindGeneratorTargetToUse(*i);
           if (gt) {
 
-            if (gt->GetType() == cmState::SHARED_LIBRARY ||
-                gt->GetType() == cmState::MODULE_LIBRARY) {
+            if (gt->GetType() == cmStateEnums::SHARED_LIBRARY ||
+                gt->GetType() == cmStateEnums::MODULE_LIBRARY) {
               sharedLibs += " " + *i;
             } else {
               staticLibs += " " + *i;
@@ -168,7 +176,7 @@ void cmExportBuildAndroidMKGenerator::GenerateInterfaceProperties(
   }
 
   // Tell the NDK build system if prebuilt static libraries use C++.
-  if (target->GetType() == cmState::STATIC_LIBRARY) {
+  if (target->GetType() == cmStateEnums::STATIC_LIBRARY) {
     cmLinkImplementation const* li = target->GetLinkImplementation(config);
     if (std::find(li->Languages.begin(), li->Languages.end(), "CXX") !=
         li->Languages.end()) {
@@ -177,19 +185,19 @@ void cmExportBuildAndroidMKGenerator::GenerateInterfaceProperties(
   }
 
   switch (target->GetType()) {
-    case cmState::SHARED_LIBRARY:
-    case cmState::MODULE_LIBRARY:
+    case cmStateEnums::SHARED_LIBRARY:
+    case cmStateEnums::MODULE_LIBRARY:
       os << "include $(PREBUILT_SHARED_LIBRARY)\n";
       break;
-    case cmState::STATIC_LIBRARY:
+    case cmStateEnums::STATIC_LIBRARY:
       os << "include $(PREBUILT_STATIC_LIBRARY)\n";
       break;
-    case cmState::EXECUTABLE:
-    case cmState::UTILITY:
-    case cmState::OBJECT_LIBRARY:
-    case cmState::GLOBAL_TARGET:
-    case cmState::INTERFACE_LIBRARY:
-    case cmState::UNKNOWN_LIBRARY:
+    case cmStateEnums::EXECUTABLE:
+    case cmStateEnums::UTILITY:
+    case cmStateEnums::OBJECT_LIBRARY:
+    case cmStateEnums::GLOBAL_TARGET:
+    case cmStateEnums::INTERFACE_LIBRARY:
+    case cmStateEnums::UNKNOWN_LIBRARY:
       break;
   }
   os << "\n";

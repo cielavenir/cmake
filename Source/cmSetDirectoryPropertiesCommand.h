@@ -3,7 +3,14 @@
 #ifndef cmSetDirectoryPropertiesCommand_h
 #define cmSetDirectoryPropertiesCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
+class cmMakefile;
 
 class cmSetDirectoryPropertiesCommand : public cmCommand
 {
@@ -40,8 +47,6 @@ public:
                          std::vector<std::string>::const_iterator ait,
                          std::vector<std::string>::const_iterator aitend,
                          std::string& errors);
-
-  cmTypeMacro(cmSetDirectoryPropertiesCommand, cmCommand);
 };
 
 #endif

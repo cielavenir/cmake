@@ -3,9 +3,17 @@
 #ifndef cmVisualStudioGeneratorOptions_h
 #define cmVisualStudioGeneratorOptions_h
 
-#include "cmLocalVisualStudioGenerator.h"
+#include <cmConfigure.h>
 
+#include <iosfwd>
+#include <string>
+
+#include "cmGlobalVisualStudioGenerator.h"
+#include "cmIDEFlagTable.h"
 #include "cmIDEOptions.h"
+
+class cmLocalVisualStudioGenerator;
+
 typedef cmIDEFlagTable cmVS7FlagTable;
 
 class cmVisualStudio10TargetGenerator;
@@ -20,7 +28,8 @@ public:
     ResourceCompiler,
     MasmCompiler,
     Linker,
-    FortranCompiler
+    FortranCompiler,
+    CSharpCompiler
   };
   cmVisualStudioGeneratorOptions(cmLocalVisualStudioGenerator* lg, Tool tool,
                                  cmVS7FlagTable const* table,
@@ -49,6 +58,7 @@ public:
 
   bool IsDebug() const;
   bool IsWinRt() const;
+  bool IsManaged() const;
   // Write options to output.
   void OutputPreprocessorDefinitions(std::ostream& fout, const char* prefix,
                                      const char* suffix,

@@ -2,7 +2,15 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmBuildNameCommand.h"
 
+#include <algorithm>
 #include <cmsys/RegularExpression.hxx>
+
+#include "cmMakefile.h"
+#include "cmPolicies.h"
+#include "cmStateTypes.h"
+#include "cmSystemTools.h"
+
+class cmExecutionStatus;
 
 // cmBuildNameCommand
 bool cmBuildNameCommand::InitialPass(std::vector<std::string> const& args,
@@ -27,7 +35,7 @@ bool cmBuildNameCommand::InitialPass(std::vector<std::string> const& args,
       std::replace(cv.begin(), cv.end(), '(', '_');
       std::replace(cv.begin(), cv.end(), ')', '_');
       this->Makefile->AddCacheDefinition(args[0], cv.c_str(), "Name of build.",
-                                         cmState::STRING);
+                                         cmStateEnums::STRING);
     }
     return true;
   }
@@ -53,6 +61,6 @@ bool cmBuildNameCommand::InitialPass(std::vector<std::string> const& args,
   std::replace(buildname.begin(), buildname.end(), ')', '_');
 
   this->Makefile->AddCacheDefinition(args[0], buildname.c_str(),
-                                     "Name of build.", cmState::STRING);
+                                     "Name of build.", cmStateEnums::STRING);
   return true;
 }

@@ -3,7 +3,13 @@
 #ifndef cmListCommand_h
 #define cmListCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmListCommand
  * \brief Common list operations
@@ -33,8 +39,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "list"; }
-
-  cmTypeMacro(cmListCommand, cmCommand);
 
 protected:
   bool HandleLengthCommand(std::vector<std::string> const& args);

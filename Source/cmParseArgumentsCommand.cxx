@@ -2,7 +2,18 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmParseArgumentsCommand.h"
 
+#include <map>
+#include <set>
+#include <sstream>
+#include <stddef.h>
+#include <utility>
+
 #include "cmAlgorithms.h"
+#include "cmMakefile.h"
+#include "cmSystemTools.h"
+#include "cmake.h"
+
+class cmExecutionStatus;
 
 static std::string escape_arg(const std::string& arg)
 {

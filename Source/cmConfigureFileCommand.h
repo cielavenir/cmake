@@ -3,13 +3,18 @@
 #ifndef cmConfigureFileCommand_h
 #define cmConfigureFileCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+#include "cmNewLineStyle.h"
+
+class cmExecutionStatus;
 
 class cmConfigureFileCommand : public cmCommand
 {
 public:
-  cmTypeMacro(cmConfigureFileCommand, cmCommand);
-
   cmCommand* Clone() CM_OVERRIDE { return new cmConfigureFileCommand; }
 
   /**

@@ -2,8 +2,14 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmSearchPath.h"
 
+#include <algorithm>
+#include <cassert>
+#include <utility>
+
 #include "cmAlgorithms.h"
 #include "cmFindCommon.h"
+#include "cmMakefile.h"
+#include "cmSystemTools.h"
 
 cmSearchPath::cmSearchPath(cmFindCommon* findCmd)
   : FC(findCmd)

@@ -3,7 +3,13 @@
 #ifndef cmMathCommand_h
 #define cmMathCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /// Mathematical expressions: math(EXPR ...) command.
 class cmMathCommand : public cmCommand
@@ -30,8 +36,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "math"; }
-
-  cmTypeMacro(cmMathCommand, cmCommand);
 
 protected:
   bool HandleExprCommand(std::vector<std::string> const& args);

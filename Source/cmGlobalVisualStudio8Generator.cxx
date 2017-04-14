@@ -1,9 +1,8 @@
 /* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
    file Copyright.txt or https://cmake.org/licensing for details.  */
-#include "windows.h" // this must be first to define GetCurrentDirectory
-
 #include "cmGlobalVisualStudio8Generator.h"
 
+#include "cmDocumentationEntry.h"
 #include "cmGeneratedFileStream.h"
 #include "cmGeneratorTarget.h"
 #include "cmLocalVisualStudio7Generator.h"
@@ -161,6 +160,11 @@ void cmGlobalVisualStudio8Generator::GetDocumentation(
   entry.Brief = "Generates Visual Studio 8 2005 project files.";
 }
 
+std::string cmGlobalVisualStudio8Generator::GetGenerateStampList()
+{
+  return "generate.stamp.list";
+}
+
 void cmGlobalVisualStudio8Generator::Configure()
 {
   this->cmGlobalVisualStudio7Generator::Configure();
@@ -244,7 +248,7 @@ bool cmGlobalVisualStudio8Generator::AddCheckTarget()
   // Create a list of all stamp files for this project.
   std::vector<std::string> stamps;
   std::string stampList = cmake::GetCMakeFilesDirectoryPostSlash();
-  stampList += "generate.stamp.list";
+  stampList += cmGlobalVisualStudio8Generator::GetGenerateStampList();
   {
     std::string stampListFile =
       generators[0]->GetMakefile()->GetCurrentBinaryDirectory();
@@ -294,7 +298,9 @@ bool cmGlobalVisualStudio8Generator::AddCheckTarget()
     commandLine.push_back("--check-stamp-list");
     commandLine.push_back(stampList.c_str());
     commandLine.push_back("--vs-solution-file");
-    commandLine.push_back("\"$(SolutionPath)\"");
+    std::string const sln = std::string(lg->GetBinaryDirectory()) + "/" +
+      lg->GetProjectName() + ".sln";
+    commandLine.push_back(sln);
     cmCustomCommandLines commandLines;
     commandLines.push_back(commandLine);
 
@@ -306,7 +312,7 @@ bool cmGlobalVisualStudio8Generator::AddCheckTarget()
     std::vector<std::string> no_byproducts;
     if (cmSourceFile* file = mf->AddCustomCommandToOutput(
           stamps, no_byproducts, listFiles, no_main_dependency, commandLines,
-          "Checking Build System", no_working_directory, true)) {
+          "Checking Build System", no_working_directory, true, false)) {
       gt->AddSource(file->GetFullPath());
     } else {
       cmSystemTools::Error("Error adding rule for ", stamps[0].c_str());
@@ -347,7 +353,7 @@ void cmGlobalVisualStudio8Generator::WriteSolutionConfigurations(
 }
 
 void cmGlobalVisualStudio8Generator::WriteProjectConfigurations(
-  std::ostream& fout, const std::string& name, cmState::TargetType type,
+  std::ostream& fout, const std::string& name, cmStateEnums::TargetType type,
   std::vector<std::string> const& configs,
   const std::set<std::string>& configsPartOfDefaultBuild,
   std::string const& platformMapping)
@@ -380,10 +386,10 @@ void cmGlobalVisualStudio8Generator::WriteProjectConfigurations(
 }
 
 bool cmGlobalVisualStudio8Generator::NeedsDeploy(
-  cmState::TargetType type) const
+  cmStateEnums::TargetType type) const
 {
   bool needsDeploy =
-    (type == cmState::EXECUTABLE || type == cmState::SHARED_LIBRARY);
+    (type == cmStateEnums::EXECUTABLE || type == cmStateEnums::SHARED_LIBRARY);
   return this->TargetsWindowsCE() && needsDeploy;
 }
 
@@ -402,7 +408,7 @@ void cmGlobalVisualStudio8Generator::WriteProjectDepends(
   OrderedTargetDependSet depends(unordered, std::string());
   for (OrderedTargetDependSet::const_iterator i = depends.begin();
        i != depends.end(); ++i) {
-    if ((*i)->GetType() == cmState::INTERFACE_LIBRARY) {
+    if ((*i)->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
       continue;
     }
     std::string guid = this->GetGUID((*i)->GetName().c_str());
@@ -419,7 +425,7 @@ bool cmGlobalVisualStudio8Generator::NeedLinkLibraryDependencies(
        ui != target->GetUtilities().end(); ++ui) {
     if (cmGeneratorTarget* depTarget =
           target->GetLocalGenerator()->FindGeneratorTargetToUse(ui->c_str())) {
-      if (depTarget->GetType() != cmState::INTERFACE_LIBRARY &&
+      if (depTarget->GetType() != cmStateEnums::INTERFACE_LIBRARY &&
           depTarget->GetProperty("EXTERNAL_MSPROJECT")) {
         // This utility dependency names an external .vcproj target.
         // We use LinkLibraryDependencies="true" to link to it without

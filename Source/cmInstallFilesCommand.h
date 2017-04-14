@@ -3,7 +3,13 @@
 #ifndef cmInstallFilesCommand_h
 #define cmInstallFilesCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmInstallFilesCommand
  * \brief Specifies where to install some files
@@ -39,8 +45,6 @@ public:
    */
   void FinalPass() CM_OVERRIDE;
   bool HasFinalPass() const CM_OVERRIDE { return !this->IsFilesForm; }
-
-  cmTypeMacro(cmInstallFilesCommand, cmCommand);
 
 protected:
   void CreateInstallGenerator() const;

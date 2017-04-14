@@ -3,7 +3,15 @@
 #ifndef cmTargetSourcesCommand_h
 #define cmTargetSourcesCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmTargetPropCommandBase.h"
+
+class cmCommand;
+class cmExecutionStatus;
+class cmTarget;
 
 class cmTargetSourcesCommand : public cmTargetPropCommandBase
 {
@@ -24,8 +32,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "target_sources"; }
-
-  cmTypeMacro(cmTargetSourcesCommand, cmTargetPropCommandBase);
 
 private:
   void HandleImportedTarget(const std::string& tgt) CM_OVERRIDE;

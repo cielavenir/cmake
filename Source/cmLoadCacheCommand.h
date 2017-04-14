@@ -3,7 +3,14 @@
 #ifndef cmLoadCacheCommand_h
 #define cmLoadCacheCommand_h
 
+#include <cmConfigure.h>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmLoadCacheCommand
  * \brief load a cache file
@@ -29,8 +36,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "load_cache"; }
-
-  cmTypeMacro(cmLoadCacheCommand, cmCommand);
 
 protected:
   std::set<std::string> VariablesToRead;

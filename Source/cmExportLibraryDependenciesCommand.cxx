@@ -2,12 +2,23 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmExportLibraryDependenciesCommand.h"
 
+#include <cmsys/FStream.hxx>
+#include <map>
+#include <utility>
+
 #include "cmGeneratedFileStream.h"
 #include "cmGlobalGenerator.h"
-#include "cmVersion.h"
+#include "cmMakefile.h"
+#include "cmPolicies.h"
+#include "cmStateTypes.h"
+#include "cmSystemTools.h"
+#include "cmTarget.h"
+#include "cmTargetLinkLibraryType.h"
+#include "cm_auto_ptr.hxx"
+#include "cm_unordered_map.hxx"
 #include "cmake.h"
 
-#include <cm_auto_ptr.hxx>
+class cmExecutionStatus;
 
 bool cmExportLibraryDependenciesCommand::InitialPass(
   std::vector<std::string> const& args, cmExecutionStatus&)
@@ -79,8 +90,8 @@ void cmExportLibraryDependenciesCommand::ConstFinalPass() const
       cmTarget const& target = l->second;
 
       // Skip non-library targets.
-      if (target.GetType() < cmState::STATIC_LIBRARY ||
-          target.GetType() > cmState::MODULE_LIBRARY) {
+      if (target.GetType() < cmStateEnums::STATIC_LIBRARY ||
+          target.GetType() > cmStateEnums::MODULE_LIBRARY) {
         continue;
       }
 
@@ -169,5 +180,4 @@ void cmExportLibraryDependenciesCommand::ConstFinalPass() const
     }
   }
   fout << "endif()\n";
-  return;
 }

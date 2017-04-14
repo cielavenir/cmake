@@ -3,7 +3,11 @@
 #include "cmFindCommon.h"
 
 #include <algorithm>
-#include <functional>
+#include <string.h>
+#include <utility>
+
+#include "cmMakefile.h"
+#include "cmSystemTools.h"
 
 cmFindCommon::PathGroup cmFindCommon::PathGroup::All("ALL");
 cmFindCommon::PathLabel cmFindCommon::PathLabel::CMake("CMAKE");

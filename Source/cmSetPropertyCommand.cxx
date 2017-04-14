@@ -2,9 +2,20 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmSetPropertyCommand.h"
 
-#include "cmSetSourceFilesPropertiesCommand.h"
-#include "cmSetTargetPropertiesCommand.h"
-#include "cmSetTestsPropertiesCommand.h"
+#include <sstream>
+
+#include "cmGlobalGenerator.h"
+#include "cmInstalledFile.h"
+#include "cmMakefile.h"
+#include "cmProperty.h"
+#include "cmSourceFile.h"
+#include "cmState.h"
+#include "cmSystemTools.h"
+#include "cmTarget.h"
+#include "cmTest.h"
+#include "cmake.h"
+
+class cmExecutionStatus;
 
 cmSetPropertyCommand::cmSetPropertyCommand()
 {
@@ -331,7 +342,7 @@ bool cmSetPropertyCommand::HandleCacheMode()
       return false;
     }
   } else if (this->PropertyName == "TYPE") {
-    if (!cmState::IsCacheEntryType(this->PropertyValue.c_str())) {
+    if (!cmState::IsCacheEntryType(this->PropertyValue)) {
       std::ostringstream e;
       e << "given invalid CACHE entry TYPE \"" << this->PropertyValue << "\"";
       this->SetError(e.str());

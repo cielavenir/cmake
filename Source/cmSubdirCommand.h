@@ -3,7 +3,13 @@
 #ifndef cmSubdirCommand_h
 #define cmSubdirCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmSubdirCommand
  * \brief Specify a list of subdirectories to build.
@@ -31,8 +37,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "subdirs"; }
-
-  cmTypeMacro(cmSubdirCommand, cmCommand);
 };
 
 #endif

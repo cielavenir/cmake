@@ -3,7 +3,13 @@
 #ifndef cmRemoveDefinitionsCommand_h
 #define cmRemoveDefinitionsCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmRemoveDefinitionsCommand
  * \brief Specify a list of compiler defines
@@ -31,8 +37,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "remove_definitions"; }
-
-  cmTypeMacro(cmRemoveDefinitionsCommand, cmCommand);
 };
 
 #endif

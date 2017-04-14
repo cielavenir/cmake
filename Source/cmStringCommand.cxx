@@ -2,17 +2,22 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmStringCommand.h"
 
-#include "cmCryptoHash.h"
-
 #include <cmsys/RegularExpression.hxx>
-#include <cmsys/SystemTools.hxx>
-
 #include <ctype.h>
-#include <stdlib.h> // required for atoi
-#include <time.h>
+#include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
 
-#include <cmTimestamp.h>
-#include <cmUuid.h>
+#include "cmAlgorithms.h"
+#include "cmCryptoHash.h"
+#include "cmGeneratorExpression.h"
+#include "cmMakefile.h"
+#include "cmSystemTools.h"
+#include "cmTimestamp.h"
+#include "cmUuid.h"
+#include "cm_auto_ptr.hxx"
+
+class cmExecutionStatus;
 
 bool cmStringCommand::InitialPass(std::vector<std::string> const& args,
                                   cmExecutionStatus&)
@@ -31,7 +36,9 @@ bool cmStringCommand::InitialPass(std::vector<std::string> const& args,
   }
   if (subCommand == "MD5" || subCommand == "SHA1" || subCommand == "SHA224" ||
       subCommand == "SHA256" || subCommand == "SHA384" ||
-      subCommand == "SHA512") {
+      subCommand == "SHA512" || subCommand == "SHA3_224" ||
+      subCommand == "SHA3_256" || subCommand == "SHA3_384" ||
+      subCommand == "SHA3_512") {
     return this->HandleHashCommand(args);
   }
   if (subCommand == "TOLOWER") {
@@ -143,7 +150,7 @@ bool cmStringCommand::HandleAsciiCommand(std::vector<std::string> const& args)
   }
   std::string::size_type cc;
   std::string outvar = args[args.size() - 1];
-  std::string output = "";
+  std::string output;
   for (cc = 1; cc < args.size() - 1; cc++) {
     int ch = atoi(args[cc].c_str());
     if (ch > 0 && ch < 256) {
@@ -335,7 +342,7 @@ bool cmStringCommand::RegexReplace(std::vector<std::string> const& args)
   std::vector<RegexReplacement> replacement;
   std::string::size_type l = 0;
   while (l < replace.length()) {
-    std::string::size_type r = replace.find("\\", l);
+    std::string::size_type r = replace.find('\\', l);
     if (r == std::string::npos) {
       r = replace.length();
       replacement.push_back(replace.substr(l, r - l));

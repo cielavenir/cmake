@@ -3,9 +3,17 @@
 #ifndef cmIfCommand_h
 #define cmIfCommand_h
 
-#include "cmCommand.h"
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
 
+#include "cmCommand.h"
 #include "cmFunctionBlocker.h"
+#include "cmListFileCache.h"
+
+class cmExecutionStatus;
+class cmExpandedCommandArgument;
+class cmMakefile;
 
 class cmIfFunctionBlocker : public cmFunctionBlocker
 {
@@ -66,8 +74,6 @@ public:
   // Filter the given variable definition based on policy CMP0054.
   static const char* GetDefinitionIfUnquoted(
     const cmMakefile* mf, cmExpandedCommandArgument const& argument);
-
-  cmTypeMacro(cmIfCommand, cmCommand);
 };
 
 #endif

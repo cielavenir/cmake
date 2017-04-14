@@ -2,6 +2,15 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCTestScriptHandler.h"
 
+#include <cmsys/Directory.hxx>
+#include <cmsys/Process.h>
+#include <map>
+#include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <utility>
+
 #include "cmCTest.h"
 #include "cmCTestBuildCommand.h"
 #include "cmCTestCommand.h"
@@ -22,17 +31,10 @@
 #include "cmGlobalGenerator.h"
 #include "cmMakefile.h"
 #include "cmState.h"
+#include "cmStateDirectory.h"
+#include "cmStateSnapshot.h"
 #include "cmSystemTools.h"
 #include "cmake.h"
-
-#include <cmsys/Directory.hxx>
-#include <cmsys/Process.h>
-#include <map>
-#include <sstream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <utility>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -280,7 +282,7 @@ void cmCTestScriptHandler::CreateCMake()
   this->CMake->AddCMakePaths();
   this->GlobalGenerator = new cmGlobalGenerator(this->CMake);
 
-  cmState::Snapshot snapshot = this->CMake->GetCurrentSnapshot();
+  cmStateSnapshot snapshot = this->CMake->GetCurrentSnapshot();
   std::string cwd = cmSystemTools::GetCurrentWorkingDirectory();
   snapshot.GetDirectory().SetCurrentSource(cwd);
   snapshot.GetDirectory().SetCurrentBinary(cwd);

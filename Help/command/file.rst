@@ -83,10 +83,12 @@ from the input file.
 
 ::
 
-  file(<MD5|SHA1|SHA224|SHA256|SHA384|SHA512> <filename> <variable>)
+  file(<HASH> <filename> <variable>)
 
 Compute a cryptographic hash of the content of ``<filename>`` and
-store it in a ``<variable>``.
+store it in a ``<variable>``.  The supported ``<HASH>`` algorithm names
+are those listed by the :ref:`string(\<HASH\>) <Supported Hash Algorithms>`
+command.
 
 ------------------------------------------------------------------------------
 
@@ -153,7 +155,8 @@ Move a file or directory within a filesystem from ``<oldname>`` to
   file(REMOVE_RECURSE [<files>...])
 
 Remove the given files.  The ``REMOVE_RECURSE`` mode will remove the given
-files and directories, also non-empty directories
+files and directories, also non-empty directories. No error is emitted if a
+given file does not exist.
 
 ------------------------------------------------------------------------------
 
@@ -233,8 +236,8 @@ Additional options to ``DOWNLOAD`` are:
 ``EXPECTED_HASH ALGO=<value>``
 
   Verify that the downloaded content hash matches the expected value, where
-  ``ALGO`` is one of ``MD5``, ``SHA1``, ``SHA224``, ``SHA256``, ``SHA384``, or
-  ``SHA512``.  If it does not match, the operation fails with an error.
+  ``ALGO`` is one of the algorithms supported by ``file(<HASH>)``.
+  If it does not match, the operation fails with an error.
 
 ``EXPECTED_MD5 <value>``
   Historical short-hand for ``EXPECTED_HASH MD5=<value>``.
@@ -300,6 +303,11 @@ Exactly one ``CONTENT`` or ``INPUT`` option must be given.  A specific
 ``OUTPUT`` file may be named by at most one invocation of ``file(GENERATE)``.
 Generated files are modified on subsequent cmake runs only if their content
 is changed.
+
+Note also that ``file(GENERATE)`` does not create the output file until the
+generation phase. The output file will not yet have been written when the
+``file(GENERATE)`` command returns, it is written only after processing all
+of a project's ``CMakeLists.txt`` files.
 
 ------------------------------------------------------------------------------
 

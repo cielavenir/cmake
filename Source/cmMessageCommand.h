@@ -3,7 +3,13 @@
 #ifndef cmMessageCommand_h
 #define cmMessageCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmMessageCommand
  * \brief Displays a message to the user
@@ -33,8 +39,6 @@ public:
    * This determines if the command is invoked when in script mode.
    */
   bool IsScriptable() const CM_OVERRIDE { return true; }
-
-  cmTypeMacro(cmMessageCommand, cmCommand);
 };
 
 #endif

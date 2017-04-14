@@ -3,7 +3,13 @@
 #ifndef cmContinueCommand_h
 #define cmContinueCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmContinueCommand
  * \brief Continue from an enclosing foreach or while loop
@@ -34,8 +40,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "continue"; }
-
-  cmTypeMacro(cmContinueCommand, cmCommand);
 };
 
 #endif

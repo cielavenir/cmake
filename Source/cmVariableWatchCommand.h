@@ -3,7 +3,14 @@
 #ifndef cmVariableWatchCommand_h
 #define cmVariableWatchCommand_h
 
+#include <cmConfigure.h>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmVariableWatchCommand
  * \brief Watch when the variable changes and invoke command
@@ -43,8 +50,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "variable_watch"; }
-
-  cmTypeMacro(cmVariableWatchCommand, cmCommand);
 
 protected:
   std::set<std::string> WatchedVariables;

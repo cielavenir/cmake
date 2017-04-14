@@ -3,7 +3,13 @@
 #ifndef cmInstallCommand_h
 #define cmInstallCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmInstallCommand
  * \brief Specifies where to install some files
@@ -30,8 +36,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "install"; }
-
-  cmTypeMacro(cmInstallCommand, cmCommand);
 
 private:
   bool HandleScriptMode(std::vector<std::string> const& args);

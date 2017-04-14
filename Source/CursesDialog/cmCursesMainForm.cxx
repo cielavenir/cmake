@@ -12,6 +12,7 @@
 #include "cmCursesStringWidget.h"
 #include "cmCursesWidget.h"
 #include "cmState.h"
+#include "cmStateTypes.h"
 #include "cmSystemTools.h"
 #include "cmVersion.h"
 #include "cmake.h"
@@ -106,10 +107,10 @@ void cmCursesMainForm::InitializeUI()
 
   for (std::vector<std::string>::const_iterator it = cacheKeys.begin();
        it != cacheKeys.end(); ++it) {
-    cmState::CacheEntryType t =
+    cmStateEnums::CacheEntryType t =
       this->CMakeInstance->GetState()->GetCacheEntryType(*it);
-    if (t != cmState::INTERNAL && t != cmState::STATIC &&
-        t != cmState::UNINITIALIZED) {
+    if (t != cmStateEnums::INTERNAL && t != cmStateEnums::STATIC &&
+        t != cmStateEnums::UNINITIALIZED) {
       ++count;
     }
   }
@@ -130,10 +131,10 @@ void cmCursesMainForm::InitializeUI()
     for (std::vector<std::string>::const_iterator it = cacheKeys.begin();
          it != cacheKeys.end(); ++it) {
       std::string key = *it;
-      cmState::CacheEntryType t =
+      cmStateEnums::CacheEntryType t =
         this->CMakeInstance->GetState()->GetCacheEntryType(*it);
-      if (t == cmState::INTERNAL || t == cmState::STATIC ||
-          t == cmState::UNINITIALIZED) {
+      if (t == cmStateEnums::INTERNAL || t == cmStateEnums::STATIC ||
+          t == cmStateEnums::UNINITIALIZED) {
         continue;
       }
 
@@ -148,10 +149,10 @@ void cmCursesMainForm::InitializeUI()
     for (std::vector<std::string>::const_iterator it = cacheKeys.begin();
          it != cacheKeys.end(); ++it) {
       std::string key = *it;
-      cmState::CacheEntryType t =
+      cmStateEnums::CacheEntryType t =
         this->CMakeInstance->GetState()->GetCacheEntryType(*it);
-      if (t == cmState::INTERNAL || t == cmState::STATIC ||
-          t == cmState::UNINITIALIZED) {
+      if (t == cmStateEnums::INTERNAL || t == cmStateEnums::STATIC ||
+          t == cmStateEnums::UNINITIALIZED) {
         continue;
       }
 
@@ -249,8 +250,9 @@ void cmCursesMainForm::Render(int left, int top, int width, int height)
     cmCursesWidget* cw =
       reinterpret_cast<cmCursesWidget*>(field_userptr(currentField));
     // If in edit mode, get out of it
-    if (cw->GetType() == cmState::STRING || cw->GetType() == cmState::PATH ||
-        cw->GetType() == cmState::FILEPATH) {
+    if (cw->GetType() == cmStateEnums::STRING ||
+        cw->GetType() == cmStateEnums::PATH ||
+        cw->GetType() == cmStateEnums::FILEPATH) {
       cmCursesStringWidget* sw = static_cast<cmCursesStringWidget*>(cw);
       sw->SetInEdit(false);
     }
@@ -345,61 +347,56 @@ void cmCursesMainForm::PrintKeys(int process /* = 0 */)
     cw = reinterpret_cast<cmCursesWidget*>(field_userptr(currentField));
   }
 
-  if (cw) {
-    cw->PrintKeys();
-  }
-
-  //    {
-  //    }
-  //  else
-  //    {
-  char firstLine[512] = "";
-  char secondLine[512] = "";
-  char thirdLine[512] = "";
-  if (process) {
-    const char* clearLine =
-      "                                                                    ";
-    strcpy(firstLine, clearLine);
-    strcpy(secondLine, clearLine);
-    strcpy(thirdLine, clearLine);
-  } else {
-    if (this->OkToGenerate) {
-      sprintf(firstLine,
-              "Press [c] to configure       Press [g] to generate and exit");
-    } else {
-      sprintf(firstLine,
-              "Press [c] to configure                                   ");
-    }
-    {
-      const char* toggleKeyInstruction =
-        "Press [t] to toggle advanced mode (Currently %s)";
-      sprintf(thirdLine, toggleKeyInstruction,
-              this->AdvancedMode ? "On" : "Off");
-    }
-    sprintf(secondLine, "Press [h] for help           "
-                        "Press [q] to quit without generating");
-  }
-
-  curses_move(y - 4, 0);
   char fmt_s[] = "%s";
-  char fmt[512] = "Press [enter] to edit option Press [d] to delete an entry";
-  if (process) {
-    strcpy(fmt, "                           ");
+  if (cw == CM_NULLPTR || !cw->PrintKeys()) {
+    char firstLine[512] = "";
+    char secondLine[512] = "";
+    char thirdLine[512] = "";
+    if (process) {
+      const char* clearLine =
+        "                                                                    ";
+      strcpy(firstLine, clearLine);
+      strcpy(secondLine, clearLine);
+      strcpy(thirdLine, clearLine);
+    } else {
+      if (this->OkToGenerate) {
+        sprintf(firstLine,
+                "Press [c] to configure       Press [g] to generate and exit");
+      } else {
+        sprintf(firstLine,
+                "Press [c] to configure                                     ");
+      }
+      {
+        const char* toggleKeyInstruction =
+          "Press [t] to toggle advanced mode (Currently %s)";
+        sprintf(thirdLine, toggleKeyInstruction,
+                this->AdvancedMode ? "On" : "Off");
+      }
+      sprintf(secondLine, "Press [h] for help           "
+                          "Press [q] to quit without generating");
+    }
+
+    curses_move(y - 4, 0);
+    char fmt[512] =
+      "Press [enter] to edit option Press [d] to delete an entry";
+    if (process) {
+      strcpy(fmt, "                           ");
+    }
+    printw(fmt_s, fmt);
+    curses_move(y - 3, 0);
+    printw(fmt_s, firstLine);
+    curses_move(y - 2, 0);
+    printw(fmt_s, secondLine);
+    curses_move(y - 1, 0);
+    printw(fmt_s, thirdLine);
   }
-  printw(fmt_s, fmt);
-  curses_move(y - 3, 0);
-  printw(fmt_s, firstLine);
-  curses_move(y - 2, 0);
-  printw(fmt_s, secondLine);
-  curses_move(y - 1, 0);
-  printw(fmt_s, thirdLine);
 
   if (cw) {
-    sprintf(firstLine, "Page %d of %d", cw->GetPage(), this->NumberOfPages);
-    curses_move(0, 65 - static_cast<unsigned int>(strlen(firstLine)) - 1);
-    printw(fmt_s, firstLine);
+    char pageLine[512] = "";
+    sprintf(pageLine, "Page %d of %d", cw->GetPage(), this->NumberOfPages);
+    curses_move(0, 65 - static_cast<unsigned int>(strlen(pageLine)) - 1);
+    printw(fmt_s, pageLine);
   }
-  //    }
 
   pos_form_cursor(this->Form);
 }
@@ -579,8 +576,7 @@ int cmCursesMainForm::Configure(int noconfigure)
   }
   this->CMakeInstance->SetProgressCallback(CM_NULLPTR, CM_NULLPTR);
 
-  keypad(stdscr, TRUE); /* Use key symbols as
-                           KEY_DOWN*/
+  keypad(stdscr, true); /* Use key symbols as KEY_DOWN */
 
   if (retVal != 0 || !this->Errors.empty()) {
     // see if there was an error
@@ -633,8 +629,7 @@ int cmCursesMainForm::Generate()
   int retVal = this->CMakeInstance->Generate();
 
   this->CMakeInstance->SetProgressCallback(CM_NULLPTR, CM_NULLPTR);
-  keypad(stdscr, TRUE); /* Use key symbols as
-                           KEY_DOWN*/
+  keypad(stdscr, true); /* Use key symbols as KEY_DOWN */
 
   if (retVal != 0 || !this->Errors.empty()) {
     // see if there was an error
@@ -704,7 +699,7 @@ void cmCursesMainForm::FillCacheManagerFromUI()
       std::string newValue = (*this->Entries)[i]->Entry->GetValue();
       std::string fixedOldValue;
       std::string fixedNewValue;
-      cmState::CacheEntryType t =
+      cmStateEnums::CacheEntryType t =
         this->CMakeInstance->GetState()->GetCacheEntryType(cacheKey);
       this->FixValue(t, oldValue, fixedOldValue);
       this->FixValue(t, newValue, fixedNewValue);
@@ -720,14 +715,14 @@ void cmCursesMainForm::FillCacheManagerFromUI()
   }
 }
 
-void cmCursesMainForm::FixValue(cmState::CacheEntryType type,
+void cmCursesMainForm::FixValue(cmStateEnums::CacheEntryType type,
                                 const std::string& in, std::string& out) const
 {
   out = in.substr(0, in.find_last_not_of(' ') + 1);
-  if (type == cmState::PATH || type == cmState::FILEPATH) {
+  if (type == cmStateEnums::PATH || type == cmStateEnums::FILEPATH) {
     cmSystemTools::ConvertToUnixSlashes(out);
   }
-  if (type == cmState::BOOL) {
+  if (type == cmStateEnums::BOOL) {
     if (cmSystemTools::IsOff(out.c_str())) {
       out = "OFF";
     } else {

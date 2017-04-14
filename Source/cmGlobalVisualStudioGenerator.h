@@ -3,7 +3,22 @@
 #ifndef cmGlobalVisualStudioGenerator_h
 #define cmGlobalVisualStudioGenerator_h
 
+#include <cmConfigure.h>
+
+#include <iosfwd>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "cmGlobalGenerator.h"
+#include "cmTargetDepend.h"
+
+class cmCustomCommand;
+class cmGeneratorTarget;
+class cmLocalGenerator;
+class cmMakefile;
+class cmake;
 
 /** \class cmGlobalVisualStudioGenerator
  * \brief Base class for global Visual Studio generators.
@@ -69,6 +84,9 @@ public:
   // return true if target is fortran only
   bool TargetIsFortranOnly(const cmGeneratorTarget* gt);
 
+  // return true if target is C# only
+  static bool TargetIsCSharpOnly(cmGeneratorTarget const* gt);
+
   /** Get the top-level registry key for this VS version.  */
   std::string GetRegistryBase();
 
@@ -99,7 +117,7 @@ public:
   };
   class OrderedTargetDependSet;
 
-  virtual void FindMakeProgram(cmMakefile*);
+  bool FindMakeProgram(cmMakefile*) CM_OVERRIDE;
 
   virtual std::string ExpandCFGIntDir(const std::string& str,
                                       const std::string& config) const;

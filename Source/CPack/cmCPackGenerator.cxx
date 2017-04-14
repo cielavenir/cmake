@@ -2,23 +2,23 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCPackGenerator.h"
 
-#include "cmCPackComponentGroup.h"
-#include "cmCPackLog.h"
-#include "cmCryptoHash.h"
-#include "cmGeneratedFileStream.h"
-#include "cmGlobalGenerator.h"
-#include "cmMakefile.h"
-#include "cmState.h"
-#include "cmXMLSafe.h"
-#include "cm_auto_ptr.hxx"
-#include "cmake.h"
-
 #include <algorithm>
 #include <cmsys/FStream.hxx>
 #include <cmsys/Glob.hxx>
 #include <cmsys/RegularExpression.hxx>
 #include <list>
 #include <utility>
+
+#include "cmCPackComponentGroup.h"
+#include "cmCPackLog.h"
+#include "cmCryptoHash.h"
+#include "cmGeneratedFileStream.h"
+#include "cmGlobalGenerator.h"
+#include "cmMakefile.h"
+#include "cmStateSnapshot.h"
+#include "cmXMLSafe.h"
+#include "cm_auto_ptr.hxx"
+#include "cmake.h"
 
 #if defined(__HAIKU__)
 #include <FindDirectory.h>
@@ -1072,6 +1072,24 @@ bool cmCPackGenerator::IsSet(const std::string& name) const
 bool cmCPackGenerator::IsOn(const std::string& name) const
 {
   return cmSystemTools::IsOn(GetOption(name));
+}
+
+bool cmCPackGenerator::IsSetToOff(const std::string& op) const
+{
+  const char* ret = this->MakefileMap->GetDefinition(op);
+  if (ret && *ret) {
+    return cmSystemTools::IsOff(ret);
+  }
+  return false;
+}
+
+bool cmCPackGenerator::IsSetToEmpty(const std::string& op) const
+{
+  const char* ret = this->MakefileMap->GetDefinition(op);
+  if (ret) {
+    return !*ret;
+  }
+  return false;
 }
 
 const char* cmCPackGenerator::GetOption(const std::string& op) const

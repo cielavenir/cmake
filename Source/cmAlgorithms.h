@@ -3,9 +3,17 @@
 #ifndef cmAlgorithms_h
 #define cmAlgorithms_h
 
-#include <cmConfigure.h>
+#include <cmConfigure.h> // IWYU pragma: keep
 
-#include "cmStandardIncludes.h"
+#include <algorithm>
+#include <cm_kwiml.h>
+#include <functional>
+#include <iterator>
+#include <sstream>
+#include <string.h>
+#include <string>
+#include <utility>
+#include <vector>
 
 inline bool cmHasLiteralPrefixImpl(const std::string& str1, const char* str2,
                                    size_t N)
@@ -234,7 +242,7 @@ std::string cmJoin(Range const& r, const char* delimiter)
 }
 
 template <typename Range>
-std::string cmJoin(Range const& r, std::string delimiter)
+std::string cmJoin(Range const& r, std::string const& delimiter)
 {
   return cmJoin(r, delimiter.c_str());
 }
@@ -336,13 +344,13 @@ typename Range::const_iterator cmRemoveDuplicates(Range& r)
 }
 
 template <typename Range>
-std::string cmWrap(std::string prefix, Range const& r, std::string suffix,
-                   std::string sep)
+std::string cmWrap(std::string const& prefix, Range const& r,
+                   std::string const& suffix, std::string const& sep)
 {
   if (r.empty()) {
     return std::string();
   }
-  return prefix + cmJoin(r, (suffix + sep + prefix).c_str()) + suffix;
+  return prefix + cmJoin(r, suffix + sep + prefix) + suffix;
 }
 
 template <typename Range>

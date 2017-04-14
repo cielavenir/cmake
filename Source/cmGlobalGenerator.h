@@ -5,12 +5,6 @@
 
 #include <cmConfigure.h>
 
-#include "cmExportSetMap.h"
-#include "cmState.h"
-#include "cmSystemTools.h"
-#include "cmTarget.h"
-#include "cmTargetDepend.h"
-
 #include <iosfwd>
 #include <map>
 #include <set>
@@ -18,22 +12,28 @@
 #include <utility>
 #include <vector>
 
+#include "cmCustomCommandLines.h"
+#include "cmExportSetMap.h"
+#include "cmStateSnapshot.h"
+#include "cmSystemTools.h"
+#include "cmTarget.h"
+#include "cmTargetDepend.h"
+#include "cm_codecvt.hxx"
+#include "cm_unordered_map.hxx"
+
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 #include "cmFileLockPool.h"
-#ifdef CMake_HAVE_CXX_UNORDERED_MAP
-#include <unordered_map>
-#else
-#include <cmsys/hash_map.hxx>
-#endif
 #endif
 
-class cmCustomCommandLines;
-class cmSourceFile;
 class cmExportBuildFileGenerator;
 class cmExternalMakefileProjectGenerator;
 class cmGeneratorTarget;
+class cmLinkLineComputer;
 class cmLocalGenerator;
 class cmMakefile;
+class cmOutputConverter;
+class cmSourceFile;
+class cmStateDirectory;
 class cmake;
 
 /** \class cmGlobalGenerator
@@ -58,6 +58,12 @@ public:
   virtual bool MatchesGeneratorName(const std::string& name) const
   {
     return this->GetName() == name;
+  }
+
+  /** Get encoding used by generator for makefile files */
+  virtual codecvt::Encoding GetMakefileEncoding() const
+  {
+    return codecvt::None;
   }
 
   /** Tell the generator about the target system.  */
@@ -97,6 +103,12 @@ public:
    * requests that they Generate.
    */
   virtual void Generate();
+
+  virtual cmLinkLineComputer* CreateLinkLineComputer(
+    cmOutputConverter* outputConverter, cmStateDirectory stateDir) const;
+
+  cmLinkLineComputer* CreateMSVC60LinkLineComputer(
+    cmOutputConverter* outputConverter, cmStateDirectory stateDir) const;
 
   /**
    * Set/Get and Clear the enabled languages.
@@ -234,7 +246,7 @@ public:
   /*
    * Determine what program to use for building the project.
    */
-  virtual void FindMakeProgram(cmMakefile*);
+  virtual bool FindMakeProgram(cmMakefile*);
 
   ///! Find a target by name by searching the local generators.
   cmTarget* FindTarget(const std::string& name,
@@ -319,6 +331,12 @@ public:
       i.e. "Can I build Debug and Release in the same tree?" */
   virtual bool IsMultiConfig() const { return false; }
 
+  virtual bool UseFolderProperty() const;
+
+  /** Return whether the generator should use EFFECTIVE_PLATFORM_NAME. This is
+      relevant for mixed macOS and iOS builds. */
+  virtual bool UseEffectivePlatformName(cmMakefile*) const { return false; }
+
   std::string GetSharedLibFlagsForLanguage(std::string const& lang) const;
 
   /** Generate an <output>.rule file path for a given command output.  */
@@ -393,8 +411,8 @@ protected:
   // has been populated.
   void FillProjectMap();
   void CheckTargetProperties();
-  bool IsExcluded(cmState::Snapshot const& root,
-                  cmState::Snapshot const& snp) const;
+  bool IsExcluded(cmStateSnapshot const& root,
+                  cmStateSnapshot const& snp) const;
   bool IsExcluded(cmLocalGenerator* root, cmLocalGenerator* gen) const;
   bool IsExcluded(cmLocalGenerator* root, cmGeneratorTarget* target) const;
   virtual void InitializeProgressMarks() {}
@@ -448,25 +466,11 @@ protected:
     std::string const& name) const;
 
   const char* GetPredefinedTargetsFolder();
-  virtual bool UseFolderProperty();
 
 private:
-#if defined(CMAKE_BUILD_WITH_CMAKE)
-#ifdef CMake_HAVE_CXX_UNORDERED_MAP
-  typedef std::unordered_map<std::string, cmTarget*> TargetMap;
-  typedef std::unordered_map<std::string, cmGeneratorTarget*>
-    GeneratorTargetMap;
-  typedef std::unordered_map<std::string, cmMakefile*> MakefileMap;
-#else
-  typedef cmsys::hash_map<std::string, cmTarget*> TargetMap;
-  typedef cmsys::hash_map<std::string, cmGeneratorTarget*> GeneratorTargetMap;
-  typedef cmsys::hash_map<std::string, cmMakefile*> MakefileMap;
-#endif
-#else
-  typedef std::map<std::string, cmTarget*> TargetMap;
-  typedef std::map<std::string, cmGeneratorTarget*> GeneratorTargetMap;
-  typedef std::map<std::string, cmMakefile*> MakefileMap;
-#endif
+  typedef CM_UNORDERED_MAP<std::string, cmTarget*> TargetMap;
+  typedef CM_UNORDERED_MAP<std::string, cmGeneratorTarget*> GeneratorTargetMap;
+  typedef CM_UNORDERED_MAP<std::string, cmMakefile*> MakefileMap;
   // Map efficiently from target name to cmTarget instance.
   // Do not use this structure for looping over all targets.
   // It contains both normal and globally visible imported targets.

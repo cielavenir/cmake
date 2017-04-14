@@ -6,7 +6,6 @@
 #include <cmConfigure.h>
 
 #include "cmCTestHandlerCommand.h"
-#include "cmTypeMacro.h"
 
 #include <string>
 
@@ -38,8 +37,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "ctest_configure"; }
-
-  cmTypeMacro(cmCTestConfigureCommand, cmCTestHandlerCommand);
 
 protected:
   cmCTestGenericHandler* InitializeHandler() CM_OVERRIDE;

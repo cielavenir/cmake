@@ -2,10 +2,11 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCPackLog.h"
 
+#include <cmConfigure.h>
+#include <iostream>
+
 #include "cmGeneratedFileStream.h"
 #include "cmSystemTools.h"
-
-#include <iostream>
 
 cmCPackLog::cmCPackLog()
 {
@@ -15,8 +16,6 @@ cmCPackLog::cmCPackLog()
   this->NewLine = true;
 
   this->LastTag = cmCPackLog::NOTAG;
-#undef cerr
-#undef cout
   this->DefaultOutput = &std::cout;
   this->DefaultError = &std::cerr;
 

@@ -3,7 +3,13 @@
 #ifndef cmGetTestPropertyCommand_h
 #define cmGetTestPropertyCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 class cmGetTestPropertyCommand : public cmCommand
 {
@@ -21,8 +27,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "get_test_property"; }
-
-  cmTypeMacro(cmGetTestPropertyCommand, cmCommand);
 };
 
 #endif

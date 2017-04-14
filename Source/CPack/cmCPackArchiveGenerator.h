@@ -7,7 +7,6 @@
 
 #include "cmArchiveWrite.h"
 #include "cmCPackGenerator.h"
-#include "cmTypeMacro.h"
 
 #include <iosfwd>
 #include <string>
@@ -23,7 +22,7 @@ class cmCPackComponent;
 class cmCPackArchiveGenerator : public cmCPackGenerator
 {
 public:
-  cmTypeMacro(cmCPackArchiveGenerator, cmCPackGenerator);
+  typedef cmCPackGenerator Superclass;
 
   /**
    * Construct generator

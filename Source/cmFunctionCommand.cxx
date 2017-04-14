@@ -2,7 +2,14 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmFunctionCommand.h"
 
-#include "cmake.h"
+#include <sstream>
+
+#include "cmAlgorithms.h"
+#include "cmExecutionStatus.h"
+#include "cmMakefile.h"
+#include "cmPolicies.h"
+#include "cmState.h"
+#include "cmSystemTools.h"
 
 // define the class for function commands
 class cmFunctionHelperCommand : public cmCommand
@@ -14,12 +21,9 @@ public:
   ~cmFunctionHelperCommand() CM_OVERRIDE {}
 
   /**
-   * This is used to avoid including this command
-   * in documentation. This is mainly used by
-   * cmMacroHelperCommand and cmFunctionHelperCommand
-   * which cannot provide appropriate documentation.
+   * This determines if the command is defined in a cmake script.
    */
-  bool ShouldAppearInDocumentation() const CM_OVERRIDE { return false; }
+  bool IsUserDefined() const CM_OVERRIDE { return true; }
 
   /**
    * This is a virtual constructor for the command.
@@ -57,8 +61,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return this->Args[0]; }
-
-  cmTypeMacro(cmFunctionHelperCommand, cmCommand);
 
   std::vector<std::string> Args;
   std::vector<cmListFileFunction> Functions;

@@ -3,7 +3,13 @@
 #ifndef cmInstallProgramsCommand_h
 #define cmInstallProgramsCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmInstallProgramsCommand
  * \brief Specifies where to install some programs
@@ -40,8 +46,6 @@ public:
   void FinalPass() CM_OVERRIDE;
 
   bool HasFinalPass() const CM_OVERRIDE { return true; }
-
-  cmTypeMacro(cmInstallProgramsCommand, cmCommand);
 
 protected:
   std::string FindInstallSource(const char* name) const;

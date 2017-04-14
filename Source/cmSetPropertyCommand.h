@@ -3,7 +3,18 @@
 #ifndef cmSetsPropertiesCommand_h
 #define cmSetsPropertiesCommand_h
 
+#include <cmConfigure.h>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
+class cmInstalledFile;
+class cmSourceFile;
+class cmTarget;
+class cmTest;
 
 class cmSetPropertyCommand : public cmCommand
 {
@@ -28,8 +39,6 @@ public:
    * This determines if the command is invoked when in script mode.
    */
   bool IsScriptable() const CM_OVERRIDE { return true; }
-
-  cmTypeMacro(cmSetPropertyCommand, cmCommand);
 
 private:
   std::set<std::string> Names;

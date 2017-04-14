@@ -5,13 +5,12 @@
 
 #include <cmConfigure.h>
 
-#include "cmStandardIncludes.h"
-
 #include <locale.h>
+#include <string>
 
 class cmLocaleRAII
 {
-  const char* OldLocale;
+  std::string OldLocale;
 
 public:
   cmLocaleRAII()
@@ -19,7 +18,7 @@ public:
   {
     setlocale(LC_CTYPE, "");
   }
-  ~cmLocaleRAII() { setlocale(LC_CTYPE, this->OldLocale); }
+  ~cmLocaleRAII() { setlocale(LC_CTYPE, this->OldLocale.c_str()); }
 };
 
 #endif

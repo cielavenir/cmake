@@ -3,7 +3,14 @@
 #ifndef cmFindProgramCommand_h
 #define cmFindProgramCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmFindBase.h"
+
+class cmCommand;
+class cmExecutionStatus;
 
 /** \class cmFindProgramCommand
  * \brief Define a command to search for an executable program.
@@ -38,8 +45,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "find_program"; }
-
-  cmTypeMacro(cmFindProgramCommand, cmFindBase);
 
 private:
   std::string FindProgram();

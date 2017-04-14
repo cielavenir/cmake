@@ -3,10 +3,16 @@
 #ifndef cmWhileCommand_h
 #define cmWhileCommand_h
 
-#include "cmCommand.h"
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
 
+#include "cmCommand.h"
 #include "cmFunctionBlocker.h"
 #include "cmListFileCache.h"
+
+class cmExecutionStatus;
+class cmMakefile;
 
 class cmWhileFunctionBlocker : public cmFunctionBlocker
 {
@@ -60,8 +66,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "while"; }
-
-  cmTypeMacro(cmWhileCommand, cmCommand);
 };
 
 #endif

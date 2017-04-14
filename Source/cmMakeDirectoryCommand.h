@@ -3,7 +3,13 @@
 #ifndef cmMakeDirectoryCommand_h
 #define cmMakeDirectoryCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmMakeDirectoryCommand
  * \brief Specify auxiliary source code directories.
@@ -38,8 +44,6 @@ public:
    * This determines if the command is invoked when in script mode.
    */
   bool IsScriptable() const CM_OVERRIDE { return true; }
-
-  cmTypeMacro(cmMakeDirectoryCommand, cmCommand);
 };
 
 #endif

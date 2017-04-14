@@ -2,6 +2,11 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmSubdirCommand.h"
 
+#include "cmMakefile.h"
+#include "cmSystemTools.h"
+
+class cmExecutionStatus;
+
 // cmSubdirCommand
 bool cmSubdirCommand::InitialPass(std::vector<std::string> const& args,
                                   cmExecutionStatus&)
@@ -26,12 +31,10 @@ bool cmSubdirCommand::InitialPass(std::vector<std::string> const& args,
 
     // if they specified a relative path then compute the full
     std::string srcPath =
-      std::string(this->Makefile->GetCurrentSourceDirectory()) + "/" +
-      i->c_str();
+      std::string(this->Makefile->GetCurrentSourceDirectory()) + "/" + *i;
     if (cmSystemTools::FileIsDirectory(srcPath)) {
       std::string binPath =
-        std::string(this->Makefile->GetCurrentBinaryDirectory()) + "/" +
-        i->c_str();
+        std::string(this->Makefile->GetCurrentBinaryDirectory()) + "/" + *i;
       this->Makefile->AddSubDirectory(srcPath, binPath, excludeFromAll, false);
     }
     // otherwise it is a full path

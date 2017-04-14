@@ -2,20 +2,36 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmGlobalXCodeGenerator.h"
 
-#include "cmAlgorithms.h"
+#include <assert.h>
+#include <cmsys/RegularExpression.hxx>
+#include <iomanip>
+#include <sstream>
+#include <stdio.h>
+#include <string.h>
+
 #include "cmComputeLinkInformation.h"
 #include "cmCustomCommandGenerator.h"
+#include "cmDocumentationEntry.h"
 #include "cmGeneratedFileStream.h"
+#include "cmGeneratorExpression.h"
 #include "cmGeneratorTarget.h"
 #include "cmGlobalGeneratorFactory.h"
+#include "cmLocalGenerator.h"
 #include "cmLocalXCodeGenerator.h"
 #include "cmMakefile.h"
+#include "cmOutputConverter.h"
 #include "cmSourceFile.h"
+#include "cmSourceGroup.h"
+#include "cmState.h"
+#include "cmStateTypes.h"
+#include "cmSystemTools.h"
+#include "cmTarget.h"
 #include "cmXCode21Object.h"
 #include "cmXCodeObject.h"
+#include "cm_auto_ptr.hxx"
 #include "cmake.h"
 
-#include <cm_auto_ptr.hxx>
+struct cmLinkImplementation;
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 #include "cmXMLParser.h"
@@ -182,7 +198,7 @@ cmGlobalGenerator* cmGlobalXCodeGenerator::Factory::CreateGlobalGenerator(
 #endif
 }
 
-void cmGlobalXCodeGenerator::FindMakeProgram(cmMakefile* mf)
+bool cmGlobalXCodeGenerator::FindMakeProgram(cmMakefile* mf)
 {
   // The Xcode generator knows how to lookup its build tool
   // directly instead of needing a helper module to do it, so we
@@ -191,6 +207,7 @@ void cmGlobalXCodeGenerator::FindMakeProgram(cmMakefile* mf)
     mf->AddDefinition("CMAKE_MAKE_PROGRAM",
                       this->GetXcodeBuildCommand().c_str());
   }
+  return true;
 }
 
 std::string const& cmGlobalXCodeGenerator::GetXcodeBuildCommand()
@@ -220,6 +237,19 @@ bool cmGlobalXCodeGenerator::SetGeneratorToolset(std::string const& ts,
                                                  cmMakefile* mf)
 {
   if (this->XcodeVersion >= 30) {
+    if (ts.find_first_of(",=") != ts.npos) {
+      std::ostringstream e;
+      /* clang-format off */
+      e <<
+        "Generator\n"
+        "  " << this->GetName() << "\n"
+        "does not recognize the toolset\n"
+        "  " << ts << "\n"
+        "that was specified.";
+      /* clang-format on */
+      mf->IssueMessage(cmake::FATAL_ERROR, e.str());
+      return false;
+    }
     this->GeneratorToolset = ts;
     if (!this->GeneratorToolset.empty()) {
       mf->AddDefinition("CMAKE_XCODE_PLATFORM_TOOLSET",
@@ -244,7 +274,7 @@ void cmGlobalXCodeGenerator::EnableLanguage(
         "Semicolon separated list of supported configuration types, "
         "only supports Debug, Release, MinSizeRel, and RelWithDebInfo, "
         "anything else will be ignored.",
-        cmState::STRING);
+        cmStateEnums::STRING);
     }
   }
   mf->AddDefinition("CMAKE_GENERATOR_NO_COMPILER_ENV", "1");
@@ -431,7 +461,7 @@ void cmGlobalXCodeGenerator::AddExtraTargets(
          l != tgts.end(); l++) {
       cmGeneratorTarget* target = *l;
 
-      if (target->GetType() == cmState::GLOBAL_TARGET) {
+      if (target->GetType() == cmStateEnums::GLOBAL_TARGET) {
         continue;
       }
 
@@ -446,12 +476,12 @@ void cmGlobalXCodeGenerator::AddExtraTargets(
       // this will make sure that when the next target is built
       // things are up-to-date
       if (!makeHelper.empty() &&
-          (target->GetType() == cmState::EXECUTABLE ||
+          (target->GetType() == cmStateEnums::EXECUTABLE ||
            // Nope - no post-build for OBJECT_LIRBRARY
-           //          target->GetType() == cmState::OBJECT_LIBRARY ||
-           target->GetType() == cmState::STATIC_LIBRARY ||
-           target->GetType() == cmState::SHARED_LIBRARY ||
-           target->GetType() == cmState::MODULE_LIBRARY)) {
+           //          target->GetType() == cmStateEnums::OBJECT_LIBRARY ||
+           target->GetType() == cmStateEnums::STATIC_LIBRARY ||
+           target->GetType() == cmStateEnums::SHARED_LIBRARY ||
+           target->GetType() == cmStateEnums::MODULE_LIBRARY)) {
         makeHelper[makeHelper.size() - 1] = // fill placeholder
           this->PostBuildMakeTarget(target->GetName(), "$(CONFIGURATION)");
         cmCustomCommandLines commandLines;
@@ -462,7 +492,7 @@ void cmGlobalXCodeGenerator::AddExtraTargets(
           cmTarget::POST_BUILD, "Depend check for xcode", dir.c_str());
       }
 
-      if (target->GetType() != cmState::INTERFACE_LIBRARY &&
+      if (target->GetType() != cmStateEnums::INTERFACE_LIBRARY &&
           !target->GetPropertyAsBool("EXCLUDE_FROM_ALL")) {
         allbuild->AddUtility(target->GetName());
       }
@@ -661,7 +691,24 @@ cmXCodeObject* cmGlobalXCodeGenerator::CreateXCodeSourceFile(
     default:
       break;
   }
-  lg->AppendFlags(flags, sf->GetProperty("COMPILE_FLAGS"));
+  if (const char* cflags = sf->GetProperty("COMPILE_FLAGS")) {
+    cmGeneratorExpression ge;
+    std::string configName = "NO-PER-CONFIG-SUPPORT-IN-XCODE";
+    CM_AUTO_PTR<cmCompiledGeneratorExpression> compiledExpr = ge.Parse(cflags);
+    const char* processed = compiledExpr->Evaluate(lg, configName);
+    if (compiledExpr->GetHadContextSensitiveCondition()) {
+      std::ostringstream e;
+      /* clang-format off */
+      e <<
+        "Xcode does not support per-config per-source COMPILE_FLAGS:\n"
+        "  " << cflags << "\n"
+        "specified for source:\n"
+        "  " << sf->GetFullPath() << "\n";
+      /* clang-format on */
+      lg->IssueMessage(cmake::FATAL_ERROR, e.str());
+    }
+    lg->AppendFlags(flags, processed);
+  }
 
   // Add per-source definitions.
   BuildObjectListOrString flagsBuild(this, false);
@@ -942,12 +989,12 @@ bool cmGlobalXCodeGenerator::CreateXCodeTargets(
       continue;
     }
 
-    if (gtgt->GetType() == cmState::INTERFACE_LIBRARY) {
+    if (gtgt->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
       continue;
     }
 
-    if (gtgt->GetType() == cmState::UTILITY ||
-        gtgt->GetType() == cmState::GLOBAL_TARGET) {
+    if (gtgt->GetType() == cmStateEnums::UTILITY ||
+        gtgt->GetType() == cmStateEnums::GLOBAL_TARGET) {
       cmXCodeObject* t = this->CreateUtilityTarget(gtgt);
       if (!t) {
         return false;
@@ -1175,9 +1222,9 @@ void cmGlobalXCodeGenerator::ForceLinkerLanguages()
 void cmGlobalXCodeGenerator::ForceLinkerLanguage(cmGeneratorTarget* gtgt)
 {
   // This matters only for targets that link.
-  if (gtgt->GetType() != cmState::EXECUTABLE &&
-      gtgt->GetType() != cmState::SHARED_LIBRARY &&
-      gtgt->GetType() != cmState::MODULE_LIBRARY) {
+  if (gtgt->GetType() != cmStateEnums::EXECUTABLE &&
+      gtgt->GetType() != cmStateEnums::SHARED_LIBRARY &&
+      gtgt->GetType() != cmStateEnums::MODULE_LIBRARY) {
     return;
   }
 
@@ -1255,7 +1302,7 @@ void cmGlobalXCodeGenerator::CreateCustomCommands(
   std::vector<cmCustomCommand> const& prelink = gtgt->GetPreLinkCommands();
   std::vector<cmCustomCommand> postbuild = gtgt->GetPostBuildCommands();
 
-  if (gtgt->GetType() == cmState::SHARED_LIBRARY &&
+  if (gtgt->GetType() == cmStateEnums::SHARED_LIBRARY &&
       !gtgt->IsFrameworkOnApple()) {
     cmCustomCommandLines cmd;
     cmd.resize(1);
@@ -1577,16 +1624,16 @@ void cmGlobalXCodeGenerator::CreateBuildSettings(cmGeneratorTarget* gtgt,
                                                  cmXCodeObject* buildSettings,
                                                  const std::string& configName)
 {
-  if (gtgt->GetType() == cmState::INTERFACE_LIBRARY) {
+  if (gtgt->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
     return;
   }
 
   std::string defFlags;
-  bool shared = ((gtgt->GetType() == cmState::SHARED_LIBRARY) ||
-                 (gtgt->GetType() == cmState::MODULE_LIBRARY));
-  bool binary = ((gtgt->GetType() == cmState::OBJECT_LIBRARY) ||
-                 (gtgt->GetType() == cmState::STATIC_LIBRARY) ||
-                 (gtgt->GetType() == cmState::EXECUTABLE) || shared);
+  bool shared = ((gtgt->GetType() == cmStateEnums::SHARED_LIBRARY) ||
+                 (gtgt->GetType() == cmStateEnums::MODULE_LIBRARY));
+  bool binary = ((gtgt->GetType() == cmStateEnums::OBJECT_LIBRARY) ||
+                 (gtgt->GetType() == cmStateEnums::STATIC_LIBRARY) ||
+                 (gtgt->GetType() == cmStateEnums::EXECUTABLE) || shared);
 
   // Compute the compilation flags for each language.
   std::set<std::string> languages;
@@ -1640,11 +1687,11 @@ void cmGlobalXCodeGenerator::CreateBuildSettings(cmGeneratorTarget* gtgt,
 
   std::string extraLinkOptionsVar;
   std::string extraLinkOptions;
-  if (gtgt->GetType() == cmState::EXECUTABLE) {
+  if (gtgt->GetType() == cmStateEnums::EXECUTABLE) {
     extraLinkOptionsVar = "CMAKE_EXE_LINKER_FLAGS";
-  } else if (gtgt->GetType() == cmState::SHARED_LIBRARY) {
+  } else if (gtgt->GetType() == cmStateEnums::SHARED_LIBRARY) {
     extraLinkOptionsVar = "CMAKE_SHARED_LINKER_FLAGS";
-  } else if (gtgt->GetType() == cmState::MODULE_LIBRARY) {
+  } else if (gtgt->GetType() == cmStateEnums::MODULE_LIBRARY) {
     extraLinkOptionsVar = "CMAKE_MODULE_LINKER_FLAGS";
   }
   if (!extraLinkOptionsVar.empty()) {
@@ -1652,8 +1699,8 @@ void cmGlobalXCodeGenerator::CreateBuildSettings(cmGeneratorTarget* gtgt,
       extraLinkOptions, extraLinkOptionsVar, configName);
   }
 
-  if (gtgt->GetType() == cmState::OBJECT_LIBRARY ||
-      gtgt->GetType() == cmState::STATIC_LIBRARY) {
+  if (gtgt->GetType() == cmStateEnums::OBJECT_LIBRARY ||
+      gtgt->GetType() == cmStateEnums::STATIC_LIBRARY) {
     this->CurrentLocalGenerator->GetStaticLibraryFlags(
       extraLinkOptions, cmSystemTools::UpperCase(configName), gtgt);
   } else {
@@ -1723,10 +1770,10 @@ void cmGlobalXCodeGenerator::CreateBuildSettings(cmGeneratorTarget* gtgt,
 
   // Set attributes to specify the proper name for the target.
   std::string pndir = this->CurrentLocalGenerator->GetCurrentBinaryDirectory();
-  if (gtgt->GetType() == cmState::STATIC_LIBRARY ||
-      gtgt->GetType() == cmState::SHARED_LIBRARY ||
-      gtgt->GetType() == cmState::MODULE_LIBRARY ||
-      gtgt->GetType() == cmState::EXECUTABLE) {
+  if (gtgt->GetType() == cmStateEnums::STATIC_LIBRARY ||
+      gtgt->GetType() == cmStateEnums::SHARED_LIBRARY ||
+      gtgt->GetType() == cmStateEnums::MODULE_LIBRARY ||
+      gtgt->GetType() == cmStateEnums::EXECUTABLE) {
     if (this->XcodeVersion >= 21) {
       if (!gtgt->UsesDefaultOutputDir(configName, false)) {
         std::string pncdir = gtgt->GetDirectory(configName);
@@ -1746,7 +1793,7 @@ void cmGlobalXCodeGenerator::CreateBuildSettings(cmGeneratorTarget* gtgt,
                                 this->CreateString(pnprefix));
     buildSettings->AddAttribute("EXECUTABLE_SUFFIX",
                                 this->CreateString(pnsuffix));
-  } else if (gtgt->GetType() == cmState::OBJECT_LIBRARY) {
+  } else if (gtgt->GetType() == cmStateEnums::OBJECT_LIBRARY) {
     pnprefix = "lib";
     pnbase = gtgt->GetName();
     pnsuffix = ".a";
@@ -1769,14 +1816,40 @@ void cmGlobalXCodeGenerator::CreateBuildSettings(cmGeneratorTarget* gtgt,
 
   // Handle settings for each target type.
   switch (gtgt->GetType()) {
-    case cmState::OBJECT_LIBRARY:
-    case cmState::STATIC_LIBRARY: {
+    case cmStateEnums::STATIC_LIBRARY:
+      if (gtgt->GetPropertyAsBool("FRAMEWORK")) {
+        std::string fw_version = gtgt->GetFrameworkVersion();
+        buildSettings->AddAttribute("FRAMEWORK_VERSION",
+                                    this->CreateString(fw_version));
+        const char* ext = gtgt->GetProperty("BUNDLE_EXTENSION");
+        if (ext) {
+          buildSettings->AddAttribute("WRAPPER_EXTENSION",
+                                      this->CreateString(ext));
+        }
+
+        std::string plist = this->ComputeInfoPListLocation(gtgt);
+        // Xcode will create the final version of Info.plist at build time,
+        // so let it replace the framework name. This avoids creating
+        // a per-configuration Info.plist file.
+        this->CurrentLocalGenerator->GenerateFrameworkInfoPList(
+          gtgt, "$(EXECUTABLE_NAME)", plist.c_str());
+        buildSettings->AddAttribute("INFOPLIST_FILE",
+                                    this->CreateString(plist));
+        buildSettings->AddAttribute("MACH_O_TYPE",
+                                    this->CreateString("staticlib"));
+      } else {
+        buildSettings->AddAttribute("LIBRARY_STYLE",
+                                    this->CreateString("STATIC"));
+      }
+      break;
+
+    case cmStateEnums::OBJECT_LIBRARY: {
       buildSettings->AddAttribute("LIBRARY_STYLE",
                                   this->CreateString("STATIC"));
       break;
     }
 
-    case cmState::MODULE_LIBRARY: {
+    case cmStateEnums::MODULE_LIBRARY: {
       buildSettings->AddAttribute("LIBRARY_STYLE",
                                   this->CreateString("BUNDLE"));
       if (gtgt->IsCFBundleOnApple()) {
@@ -1826,7 +1899,7 @@ void cmGlobalXCodeGenerator::CreateBuildSettings(cmGeneratorTarget* gtgt,
       }
       break;
     }
-    case cmState::SHARED_LIBRARY: {
+    case cmStateEnums::SHARED_LIBRARY: {
       if (gtgt->GetPropertyAsBool("FRAMEWORK")) {
         std::string fw_version = gtgt->GetFrameworkVersion();
         buildSettings->AddAttribute("FRAMEWORK_VERSION",
@@ -1859,7 +1932,7 @@ void cmGlobalXCodeGenerator::CreateBuildSettings(cmGeneratorTarget* gtgt,
                                   this->CreateString("DYNAMIC"));
       break;
     }
-    case cmState::EXECUTABLE: {
+    case cmStateEnums::EXECUTABLE: {
       // Add the flags to create an executable.
       std::string createFlags =
         this->LookupFlags("CMAKE_", llang, "_LINK_FLAGS", "");
@@ -1929,6 +2002,22 @@ void cmGlobalXCodeGenerator::CreateBuildSettings(cmGeneratorTarget* gtgt,
   }
   if (!dirs.IsEmpty()) {
     buildSettings->AddAttribute("HEADER_SEARCH_PATHS", dirs.CreateList());
+  }
+
+  if (this->XcodeVersion >= 60) {
+    // Add those per-language flags in addition to HEADER_SEARCH_PATHS to gain
+    // system include directory awareness. We need to also keep on setting
+    // HEADER_SEARCH_PATHS to work around a missing compile options flag for
+    // GNU assembly files (#16449)
+    for (std::set<std::string>::iterator li = languages.begin();
+         li != languages.end(); ++li) {
+      std::string includeFlags = this->CurrentLocalGenerator->GetIncludeFlags(
+        includes, gtgt, *li, true, false, configName);
+
+      if (!includeFlags.empty()) {
+        cflags[*li] += " " + includeFlags;
+      }
+    }
   }
 
   bool same_gflags = true;
@@ -2022,7 +2111,7 @@ void cmGlobalXCodeGenerator::CreateBuildSettings(cmGeneratorTarget* gtgt,
 
   // Create the INSTALL_PATH attribute.
   std::string install_name_dir;
-  if (gtgt->GetType() == cmState::SHARED_LIBRARY) {
+  if (gtgt->GetType() == cmStateEnums::SHARED_LIBRARY) {
     // Get the install_name directory for the build tree.
     install_name_dir = gtgt->GetInstallNameDirForBuildTree(configName);
     // Xcode doesn't create the correct install_name in some cases.
@@ -2095,7 +2184,7 @@ void cmGlobalXCodeGenerator::CreateBuildSettings(cmGeneratorTarget* gtgt,
   }
 
   // Runtime version information.
-  if (gtgt->GetType() == cmState::SHARED_LIBRARY) {
+  if (gtgt->GetType() == cmStateEnums::SHARED_LIBRARY) {
     int major;
     int minor;
     int patch;
@@ -2190,7 +2279,7 @@ cmXCodeObject* cmGlobalXCodeGenerator::CreateUtilityTarget(
   this->XCodeObjectMap[gtgt] = target;
 
   // Add source files without build rules for editing convenience.
-  if (gtgt->GetType() == cmState::UTILITY) {
+  if (gtgt->GetType() == cmStateEnums::UTILITY) {
     std::vector<cmSourceFile*> sources;
     if (!gtgt->GetConfigCommonSourceFiles(sources)) {
       return 0;
@@ -2256,8 +2345,8 @@ const char* cmGlobalXCodeGenerator::GetTargetLinkFlagsVar(
   cmGeneratorTarget const* target) const
 {
   if (this->XcodeVersion >= 60 &&
-      (target->GetType() == cmState::STATIC_LIBRARY ||
-       target->GetType() == cmState::OBJECT_LIBRARY)) {
+      (target->GetType() == cmStateEnums::STATIC_LIBRARY ||
+       target->GetType() == cmStateEnums::OBJECT_LIBRARY)) {
     return "OTHER_LIBTOOLFLAGS";
   } else {
     return "OTHER_LDFLAGS";
@@ -2267,11 +2356,17 @@ const char* cmGlobalXCodeGenerator::GetTargetLinkFlagsVar(
 const char* cmGlobalXCodeGenerator::GetTargetFileType(
   cmGeneratorTarget* target)
 {
+  if (const char* e = target->GetProperty("XCODE_EXPLICIT_FILE_TYPE")) {
+    return e;
+  }
+
   switch (target->GetType()) {
-    case cmState::OBJECT_LIBRARY:
-    case cmState::STATIC_LIBRARY:
+    case cmStateEnums::OBJECT_LIBRARY:
       return "archive.ar";
-    case cmState::MODULE_LIBRARY:
+    case cmStateEnums::STATIC_LIBRARY:
+      return (target->GetPropertyAsBool("FRAMEWORK") ? "wrapper.framework"
+                                                     : "archive.ar");
+    case cmStateEnums::MODULE_LIBRARY:
       if (target->IsXCTestOnApple())
         return "wrapper.cfbundle";
       else if (target->IsCFBundleOnApple())
@@ -2279,11 +2374,11 @@ const char* cmGlobalXCodeGenerator::GetTargetFileType(
       else
         return ((this->XcodeVersion >= 22) ? "compiled.mach-o.executable"
                                            : "compiled.mach-o.dylib");
-    case cmState::SHARED_LIBRARY:
+    case cmStateEnums::SHARED_LIBRARY:
       return (target->GetPropertyAsBool("FRAMEWORK")
                 ? "wrapper.framework"
                 : "compiled.mach-o.dylib");
-    case cmState::EXECUTABLE:
+    case cmStateEnums::EXECUTABLE:
       return "compiled.mach-o.executable";
     default:
       break;
@@ -2294,11 +2389,18 @@ const char* cmGlobalXCodeGenerator::GetTargetFileType(
 const char* cmGlobalXCodeGenerator::GetTargetProductType(
   cmGeneratorTarget* target)
 {
+  if (const char* e = target->GetProperty("XCODE_PRODUCT_TYPE")) {
+    return e;
+  }
+
   switch (target->GetType()) {
-    case cmState::OBJECT_LIBRARY:
-    case cmState::STATIC_LIBRARY:
+    case cmStateEnums::OBJECT_LIBRARY:
       return "com.apple.product-type.library.static";
-    case cmState::MODULE_LIBRARY:
+    case cmStateEnums::STATIC_LIBRARY:
+      return (target->GetPropertyAsBool("FRAMEWORK")
+                ? "com.apple.product-type.framework"
+                : "com.apple.product-type.library.static");
+    case cmStateEnums::MODULE_LIBRARY:
       if (target->IsXCTestOnApple())
         return "com.apple.product-type.bundle.unit-test";
       else if (target->IsCFBundleOnApple())
@@ -2307,11 +2409,11 @@ const char* cmGlobalXCodeGenerator::GetTargetProductType(
         return ((this->XcodeVersion >= 22)
                   ? "com.apple.product-type.tool"
                   : "com.apple.product-type.library.dynamic");
-    case cmState::SHARED_LIBRARY:
+    case cmStateEnums::SHARED_LIBRARY:
       return (target->GetPropertyAsBool("FRAMEWORK")
                 ? "com.apple.product-type.framework"
                 : "com.apple.product-type.library.dynamic");
-    case cmState::EXECUTABLE:
+    case cmStateEnums::EXECUTABLE:
       return (target->GetPropertyAsBool("MACOSX_BUNDLE")
                 ? "com.apple.product-type.application"
                 : "com.apple.product-type.tool");
@@ -2324,7 +2426,7 @@ const char* cmGlobalXCodeGenerator::GetTargetProductType(
 cmXCodeObject* cmGlobalXCodeGenerator::CreateXCodeTarget(
   cmGeneratorTarget* gtgt, cmXCodeObject* buildPhases)
 {
-  if (gtgt->GetType() == cmState::INTERFACE_LIBRARY) {
+  if (gtgt->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
     return 0;
   }
   cmXCodeObject* target = this->CreateObject(cmXCodeObject::PBXNativeTarget);
@@ -2351,7 +2453,7 @@ cmXCodeObject* cmGlobalXCodeGenerator::CreateXCodeTarget(
     fileRef->AddAttribute("explicitFileType", this->CreateString(fileType));
   }
   std::string fullName;
-  if (gtgt->GetType() == cmState::OBJECT_LIBRARY) {
+  if (gtgt->GetType() == cmStateEnums::OBJECT_LIBRARY) {
     fullName = "lib";
     fullName += gtgt->GetName();
     fullName += ".a";
@@ -2403,8 +2505,9 @@ std::string cmGlobalXCodeGenerator::GetOrCreateId(const std::string& name,
     return storedGUID;
   }
 
-  this->CMakeInstance->AddCacheEntry(
-    guidStoreName, id.c_str(), "Stored Xcode object GUID", cmState::INTERNAL);
+  this->CMakeInstance->AddCacheEntry(guidStoreName, id.c_str(),
+                                     "Stored Xcode object GUID",
+                                     cmStateEnums::INTERNAL);
 
   return id;
 }
@@ -2498,7 +2601,7 @@ void cmGlobalXCodeGenerator::AddDependAndLinkInformation(cmXCodeObject* target)
     cmSystemTools::Error("Error no target on xobject\n");
     return;
   }
-  if (gt->GetType() == cmState::INTERFACE_LIBRARY) {
+  if (gt->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
     return;
   }
 
@@ -2535,8 +2638,8 @@ void cmGlobalXCodeGenerator::AddDependAndLinkInformation(cmXCodeObject* target)
     }
 
     // Skip link information for object libraries.
-    if (gt->GetType() == cmState::OBJECT_LIBRARY ||
-        gt->GetType() == cmState::STATIC_LIBRARY) {
+    if (gt->GetType() == cmStateEnums::OBJECT_LIBRARY ||
+        gt->GetType() == cmStateEnums::STATIC_LIBRARY) {
       continue;
     }
 
@@ -2591,7 +2694,7 @@ void cmGlobalXCodeGenerator::AddDependAndLinkInformation(cmXCodeObject* target)
         if (li->IsPath) {
           linkLibs += this->XCodeEscapePath(li->Value);
         } else if (!li->Target ||
-                   li->Target->GetType() != cmState::INTERFACE_LIBRARY) {
+                   li->Target->GetType() != cmStateEnums::INTERFACE_LIBRARY) {
           linkLibs += li->Value;
         }
         if (li->Target && !li->Target->IsImported()) {
@@ -2620,10 +2723,10 @@ bool cmGlobalXCodeGenerator::CreateGroups(
       // end up with (empty anyhow) ALL_BUILD and XCODE_DEPEND_HELPER source
       // groups:
       //
-      if (gtgt->GetType() == cmState::GLOBAL_TARGET) {
+      if (gtgt->GetType() == cmStateEnums::GLOBAL_TARGET) {
         continue;
       }
-      if (gtgt->GetType() == cmState::INTERFACE_LIBRARY) {
+      if (gtgt->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
         continue;
       }
 
@@ -2694,8 +2797,8 @@ cmXCodeObject* cmGlobalXCodeGenerator::CreateOrGetPBXGroup(
 {
   std::string s;
   std::string target;
-  const char* targetFolder = gtgt->GetProperty("FOLDER");
-  if (targetFolder) {
+  const std::string targetFolder = gtgt->GetEffectiveFolderName();
+  if (!targetFolder.empty()) {
     target = targetFolder;
     target += "/";
   }
@@ -2972,10 +3075,14 @@ bool cmGlobalXCodeGenerator::CreateXCodeObjects(
                                 this->CreateString(this->GeneratorToolset));
   }
   if (this->GetLanguageEnabled("Swift")) {
-    std::string swiftVersion = "2.3";
+    std::string swiftVersion;
     if (const char* vers = this->CurrentMakefile->GetDefinition(
           "CMAKE_Swift_LANGUAGE_VERSION")) {
       swiftVersion = vers;
+    } else if (this->XcodeVersion >= 83) {
+      swiftVersion = "3.0";
+    } else {
+      swiftVersion = "2.3";
     }
     buildSettings->AddAttribute("SWIFT_VERSION",
                                 this->CreateString(swiftVersion));
@@ -3120,20 +3227,20 @@ void cmGlobalXCodeGenerator::CreateXCodeDependHackTarget(
       cmXCodeObject* target = *i;
       cmGeneratorTarget* gt = target->GetTarget();
 
-      if (gt->GetType() == cmState::EXECUTABLE ||
+      if (gt->GetType() == cmStateEnums::EXECUTABLE ||
           // Nope - no post-build for OBJECT_LIRBRARY
-          //         gt->GetType() == cmState::OBJECT_LIBRARY ||
-          gt->GetType() == cmState::STATIC_LIBRARY ||
-          gt->GetType() == cmState::SHARED_LIBRARY ||
-          gt->GetType() == cmState::MODULE_LIBRARY) {
+          //         gt->GetType() == cmStateEnums::OBJECT_LIBRARY ||
+          gt->GetType() == cmStateEnums::STATIC_LIBRARY ||
+          gt->GetType() == cmStateEnums::SHARED_LIBRARY ||
+          gt->GetType() == cmStateEnums::MODULE_LIBRARY) {
         // Declare an entry point for the target post-build phase.
         makefileStream << this->PostBuildMakeTarget(gt->GetName(), *ct)
                        << ":\n";
       }
 
-      if (gt->GetType() == cmState::EXECUTABLE ||
-          gt->GetType() == cmState::SHARED_LIBRARY ||
-          gt->GetType() == cmState::MODULE_LIBRARY) {
+      if (gt->GetType() == cmStateEnums::EXECUTABLE ||
+          gt->GetType() == cmStateEnums::SHARED_LIBRARY ||
+          gt->GetType() == cmStateEnums::MODULE_LIBRARY) {
         std::string tfull = gt->GetFullPath(configName);
         std::string trel = this->ConvertToRelativeForMake(tfull.c_str());
 
@@ -3309,14 +3416,14 @@ std::string cmGlobalXCodeGenerator::RelativeToSource(const char* p)
 {
   // We force conversion because Xcode breakpoints do not work unless
   // they are in a file named relative to the source tree.
-  return this->CurrentLocalGenerator->ConvertToRelativePath(
-    this->ProjectSourceDirectoryComponents, p, true);
+  return cmOutputConverter::ForceToRelativePath(
+    cmSystemTools::JoinPath(this->ProjectSourceDirectoryComponents), p);
 }
 
 std::string cmGlobalXCodeGenerator::RelativeToBinary(const char* p)
 {
   return this->CurrentLocalGenerator->ConvertToRelativePath(
-    this->ProjectOutputDirectoryComponents, p);
+    cmSystemTools::JoinPath(this->ProjectOutputDirectoryComponents), p);
 }
 
 std::string cmGlobalXCodeGenerator::XCodeEscapePath(const std::string& p)
@@ -3471,6 +3578,19 @@ bool cmGlobalXCodeGenerator::IsMultiConfig() const
 
   // Newer Xcode versions are multi config:
   return true;
+}
+
+bool cmGlobalXCodeGenerator::UseEffectivePlatformName(cmMakefile* mf) const
+{
+  const char* epnValue =
+    this->GetCMakeInstance()->GetState()->GetGlobalProperty(
+      "XCODE_EMIT_EFFECTIVE_PLATFORM_NAME");
+
+  if (!epnValue) {
+    return mf->PlatformIsAppleIos();
+  }
+
+  return cmSystemTools::IsOn(epnValue);
 }
 
 void cmGlobalXCodeGenerator::ComputeTargetObjectDirectory(

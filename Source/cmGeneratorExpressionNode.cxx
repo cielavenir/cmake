@@ -15,7 +15,7 @@
 #include "cmOutputConverter.h"
 #include "cmPolicies.h"
 #include "cmSourceFile.h"
-#include "cmState.h"
+#include "cmStateTypes.h"
 #include "cmSystemTools.h"
 #include "cmTarget.h"
 #include "cm_auto_ptr.hxx"
@@ -161,6 +161,27 @@ static const struct BoolNode : public cmGeneratorExpressionNode
     return !cmSystemTools::IsOff(parameters.begin()->c_str()) ? "1" : "0";
   }
 } boolNode;
+
+static const struct IfNode : public cmGeneratorExpressionNode
+{
+  IfNode() {}
+
+  int NumExpectedParameters() const CM_OVERRIDE { return 3; }
+
+  std::string Evaluate(const std::vector<std::string>& parameters,
+                       cmGeneratorExpressionContext* context,
+                       const GeneratorExpressionContent* content,
+                       cmGeneratorExpressionDAGChecker*) const CM_OVERRIDE
+  {
+    if (parameters[0] != "1" && parameters[0] != "0") {
+      reportError(context, content->GetOriginalExpression(),
+                  "First parameter to $<IF> must resolve to exactly one '0' "
+                  "or '1' value.");
+      return std::string();
+    }
+    return parameters[0] == "1" ? parameters[1] : parameters[2];
+  }
+} ifNode;
 
 static const struct StrEqualNode : public cmGeneratorExpressionNode
 {
@@ -1035,7 +1056,7 @@ static const struct TargetPropertyNode : public cmGeneratorExpressionNode
 #define TRANSITIVE_PROPERTY_COMPARE(PROPERTY)                                 \
   (#PROPERTY == propertyName || "INTERFACE_" #PROPERTY == propertyName) ||
         if (CM_FOR_EACH_TRANSITIVE_PROPERTY_NAME(
-              TRANSITIVE_PROPERTY_COMPARE) false) {
+              TRANSITIVE_PROPERTY_COMPARE) false) { // NOLINT(clang-tidy)
           reportError(
             context, content->GetOriginalExpression(),
             "$<TARGET_PROPERTY:...> expression in link libraries "
@@ -1052,7 +1073,7 @@ static const struct TargetPropertyNode : public cmGeneratorExpressionNode
 #define ASSERT_TRANSITIVE_PROPERTY_METHOD(METHOD) dagCheckerParent->METHOD() ||
 
         assert(CM_FOR_EACH_TRANSITIVE_PROPERTY_METHOD(
-          ASSERT_TRANSITIVE_PROPERTY_METHOD) false);
+          ASSERT_TRANSITIVE_PROPERTY_METHOD) false); // NOLINT(clang-tidy)
 #undef ASSERT_TRANSITIVE_PROPERTY_METHOD
       }
     }
@@ -1104,7 +1125,7 @@ static const struct TargetPropertyNode : public cmGeneratorExpressionNode
 
     if (!prop) {
       if (target->IsImported() ||
-          target->GetType() == cmState::INTERFACE_LIBRARY) {
+          target->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
         return linkedTargetsContent;
       }
       if (target->IsLinkInterfaceDependentBoolProperty(propertyName,
@@ -1224,7 +1245,7 @@ static const struct TargetObjectsNode : public cmGeneratorExpressionNode
       reportError(context, content->GetOriginalExpression(), e.str());
       return std::string();
     }
-    if (gt->GetType() != cmState::OBJECT_LIBRARY) {
+    if (gt->GetType() != cmStateEnums::OBJECT_LIBRARY) {
       std::ostringstream e;
       e << "Objects of target \"" << tgtName
         << "\" referenced but is not an OBJECT library.";
@@ -1377,7 +1398,7 @@ cmPolicies::PolicyStatus statusForTarget(cmGeneratorTarget const* tgt,
 
 #undef RETURN_POLICY
 
-  assert(0 && "Unreachable code. Not a valid policy");
+  assert(false && "Unreachable code. Not a valid policy");
   return cmPolicies::WARN;
 }
 
@@ -1392,7 +1413,7 @@ cmPolicies::PolicyID policyForString(const char* policy_id)
 
 #undef RETURN_POLICY_ID
 
-  assert(0 && "Unreachable code. Not a valid policy");
+  assert(false && "Unreachable code. Not a valid policy");
   return cmPolicies::CMP0002;
 }
 
@@ -1506,7 +1527,7 @@ struct TargetFilesystemArtifactResultCreator<ArtifactSonameTag>
                     "for DLL target platforms.");
       return std::string();
     }
-    if (target->GetType() != cmState::SHARED_LIBRARY) {
+    if (target->GetType() != cmStateEnums::SHARED_LIBRARY) {
       ::reportError(context, content->GetOriginalExpression(),
                     "TARGET_SONAME_FILE is allowed only for "
                     "SHARED libraries.");
@@ -1542,11 +1563,11 @@ struct TargetFilesystemArtifactResultCreator<ArtifactPdbTag>
       return std::string();
     }
 
-    cmState::TargetType targetType = target->GetType();
+    cmStateEnums::TargetType targetType = target->GetType();
 
-    if (targetType != cmState::SHARED_LIBRARY &&
-        targetType != cmState::MODULE_LIBRARY &&
-        targetType != cmState::EXECUTABLE) {
+    if (targetType != cmStateEnums::SHARED_LIBRARY &&
+        targetType != cmStateEnums::MODULE_LIBRARY &&
+        targetType != cmStateEnums::EXECUTABLE) {
       ::reportError(context, content->GetOriginalExpression(),
                     "TARGET_PDB_FILE is allowed only for "
                     "targets with linker created artifacts.");
@@ -1646,8 +1667,8 @@ struct TargetFilesystemArtifact : public cmGeneratorExpressionNode
                     "No target \"" + name + "\"");
       return std::string();
     }
-    if (target->GetType() >= cmState::OBJECT_LIBRARY &&
-        target->GetType() != cmState::UNKNOWN_LIBRARY) {
+    if (target->GetType() >= cmStateEnums::OBJECT_LIBRARY &&
+        target->GetType() != cmStateEnums::UNKNOWN_LIBRARY) {
       ::reportError(context, content->GetOriginalExpression(), "Target \"" +
                       name + "\" is not an executable or library.");
       return std::string();
@@ -1757,6 +1778,7 @@ const cmGeneratorExpressionNode* cmGeneratorExpressionNode::GetNode(
     nodeMap["UPPER_CASE"] = &upperCaseNode;
     nodeMap["MAKE_C_IDENTIFIER"] = &makeCIdentifierNode;
     nodeMap["BOOL"] = &boolNode;
+    nodeMap["IF"] = &ifNode;
     nodeMap["ANGLE-R"] = &angle_rNode;
     nodeMap["COMMA"] = &commaNode;
     nodeMap["SEMICOLON"] = &semicolonNode;

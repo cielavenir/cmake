@@ -1,5 +1,7 @@
 #include "cmVisualStudioGeneratorOptions.h"
 
+#include "cmAlgorithms.h"
+#include "cmLocalVisualStudioGenerator.h"
 #include "cmOutputConverter.h"
 #include "cmSystemTools.h"
 #include "cmVisualStudio10TargetGenerator.h"
@@ -129,12 +131,27 @@ void cmVisualStudioGeneratorOptions::SetVerboseMakefile(bool verbose)
 
 bool cmVisualStudioGeneratorOptions::IsDebug() const
 {
-  return this->FlagMap.find("DebugInformationFormat") != this->FlagMap.end();
+  if (this->CurrentTool != CSharpCompiler) {
+    return this->FlagMap.find("DebugInformationFormat") != this->FlagMap.end();
+  }
+  std::map<std::string, FlagValue>::const_iterator i =
+    this->FlagMap.find("DebugType");
+  if (i != this->FlagMap.end()) {
+    if (i->second.size() == 1) {
+      return i->second[0] != "none";
+    }
+  }
+  return false;
 }
 
 bool cmVisualStudioGeneratorOptions::IsWinRt() const
 {
   return this->FlagMap.find("CompileAsWinRT") != this->FlagMap.end();
+}
+
+bool cmVisualStudioGeneratorOptions::IsManaged() const
+{
+  return this->FlagMap.find("CompileAsManaged") != this->FlagMap.end();
 }
 
 bool cmVisualStudioGeneratorOptions::UsingUnicode() const
@@ -251,8 +268,10 @@ void cmVisualStudioGeneratorOptions::OutputPreprocessorDefinitions(
     fout << prefix << "PreprocessorDefinitions=\"";
   }
   const char* sep = "";
+  std::vector<std::string>::const_iterator de =
+    cmRemoveDuplicates(this->Defines);
   for (std::vector<std::string>::const_iterator di = this->Defines.begin();
-       di != this->Defines.end(); ++di) {
+       di != de; ++di) {
     // Escape the definition for the compiler.
     std::string define;
     if (this->Version < cmGlobalVisualStudioGenerator::VS10) {
@@ -329,8 +348,9 @@ void cmVisualStudioGeneratorOptions::OutputAdditionalOptions(
       } else {
         fout << "<AdditionalOptions>";
       }
-      fout << cmVisualStudio10GeneratorOptionsEscapeForXML(this->FlagString)
-           << " %(AdditionalOptions)</AdditionalOptions>\n";
+      fout << "%(AdditionalOptions) "
+           << cmVisualStudio10GeneratorOptionsEscapeForXML(this->FlagString)
+           << "</AdditionalOptions>\n";
     } else {
       fout << prefix << "AdditionalOptions=\"";
       fout << cmVisualStudioGeneratorOptionsEscapeForXML(this->FlagString);

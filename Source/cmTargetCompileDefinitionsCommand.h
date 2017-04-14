@@ -3,7 +3,15 @@
 #ifndef cmTargetCompileDefinitionsCommand_h
 #define cmTargetCompileDefinitionsCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmTargetPropCommandBase.h"
+
+class cmCommand;
+class cmExecutionStatus;
+class cmTarget;
 
 class cmTargetCompileDefinitionsCommand : public cmTargetPropCommandBase
 {
@@ -30,8 +38,6 @@ public:
   {
     return "target_compile_definitions";
   }
-
-  cmTypeMacro(cmTargetCompileDefinitionsCommand, cmTargetPropCommandBase);
 
 private:
   void HandleImportedTarget(const std::string& tgt) CM_OVERRIDE;

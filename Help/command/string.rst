@@ -206,15 +206,38 @@ Comparison
 
 Compare the strings and store true or false in the output variable.
 
+.. _`Supported Hash Algorithms`:
+
 Hashing
 ^^^^^^^
 
 ::
 
-  string(<MD5|SHA1|SHA224|SHA256|SHA384|SHA512>
-         <output variable> <input>)
+  string(<HASH> <output variable> <input>)
 
 Compute a cryptographic hash of the input string.
+The supported ``<HASH>`` algorithm names are:
+
+``MD5``
+  Message-Digest Algorithm 5, RFC 1321.
+``SHA1``
+  US Secure Hash Algorithm 1, RFC 3174.
+``SHA224``
+  US Secure Hash Algorithms, RFC 4634.
+``SHA256``
+  US Secure Hash Algorithms, RFC 4634.
+``SHA384``
+  US Secure Hash Algorithms, RFC 4634.
+``SHA512``
+  US Secure Hash Algorithms, RFC 4634.
+``SHA3_224``
+  Keccak SHA-3.
+``SHA3_256``
+  Keccak SHA-3.
+``SHA3_384``
+  Keccak SHA-3.
+``SHA3_512``
+  Keccak SHA-3.
 
 Generation
 ^^^^^^^^^^
@@ -273,6 +296,7 @@ specifiers:
 
 ::
 
+   %%        A literal percent sign (%).
    %d        The day of the current month (01-31).
    %H        The hour on a 24-hour clock (00-23).
    %I        The hour on a 12-hour clock (01-12).
@@ -305,6 +329,12 @@ If no explicit ``<format string>`` is given it will default to:
   string(MAKE_C_IDENTIFIER <input string> <output variable>)
 
 Write a string which can be used as an identifier in C.
+
+.. note::
+
+  If the ``SOURCE_DATE_EPOCH`` environment variable is set,
+  its value will be used instead of the current time.
+  See https://reproducible-builds.org/specs/source-date-epoch/ for details.
 
 UUID
 """"

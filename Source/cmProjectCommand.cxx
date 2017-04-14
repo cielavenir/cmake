@@ -2,6 +2,18 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmProjectCommand.h"
 
+#include <cmsys/RegularExpression.hxx>
+#include <sstream>
+#include <stdio.h>
+
+#include "cmMakefile.h"
+#include "cmPolicies.h"
+#include "cmStateTypes.h"
+#include "cmSystemTools.h"
+#include "cmake.h"
+
+class cmExecutionStatus;
+
 // cmProjectCommand
 bool cmProjectCommand::InitialPass(std::vector<std::string> const& args,
                                    cmExecutionStatus&)
@@ -19,10 +31,10 @@ bool cmProjectCommand::InitialPass(std::vector<std::string> const& args,
 
   this->Makefile->AddCacheDefinition(
     bindir, this->Makefile->GetCurrentBinaryDirectory(),
-    "Value Computed by CMake", cmState::STATIC);
+    "Value Computed by CMake", cmStateEnums::STATIC);
   this->Makefile->AddCacheDefinition(
     srcdir, this->Makefile->GetCurrentSourceDirectory(),
-    "Value Computed by CMake", cmState::STATIC);
+    "Value Computed by CMake", cmStateEnums::STATIC);
 
   bindir = "PROJECT_BINARY_DIR";
   srcdir = "PROJECT_SOURCE_DIR";
@@ -45,7 +57,7 @@ bool cmProjectCommand::InitialPass(std::vector<std::string> const& args,
     this->Makefile->AddDefinition("CMAKE_PROJECT_NAME", args[0].c_str());
     this->Makefile->AddCacheDefinition("CMAKE_PROJECT_NAME", args[0].c_str(),
                                        "Value Computed by CMake",
-                                       cmState::STATIC);
+                                       cmStateEnums::STATIC);
   }
 
   bool haveVersion = false;

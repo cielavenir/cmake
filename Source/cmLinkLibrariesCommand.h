@@ -3,7 +3,13 @@
 #ifndef cmLinkLibrariesCommand_h
 #define cmLinkLibrariesCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmLinkLibrariesCommand
  * \brief Specify a list of libraries to link into executables.
@@ -31,8 +37,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "link_libraries"; }
-
-  cmTypeMacro(cmLinkLibrariesCommand, cmCommand);
 };
 
 #endif

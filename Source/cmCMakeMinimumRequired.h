@@ -3,7 +3,13 @@
 #ifndef cmCMakeMinimumRequired_h
 #define cmCMakeMinimumRequired_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmCMakeMinimumRequired
  * \brief cmake_minimum_required command
@@ -34,8 +40,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "cmake_minimum_required"; }
-
-  cmTypeMacro(cmCMakeMinimumRequired, cmCommand);
 
 private:
   std::vector<std::string> UnknownArguments;

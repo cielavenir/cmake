@@ -2,35 +2,47 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmFileCommand.h"
 
+#include <algorithm>
+#include <assert.h>
+#include <cm_kwiml.h>
+#include <cmsys/Directory.hxx>
+#include <cmsys/FStream.hxx>
+#include <cmsys/Glob.hxx>
+#include <cmsys/RegularExpression.hxx>
+#include <cmsys/String.hxx>
+#include <list>
+#include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <sys/types.h>
+// include sys/stat.h after sys/types.h
+#include <sys/stat.h>
+
 #include "cmAlgorithms.h"
+#include "cmCommandArgumentsHelper.h"
 #include "cmCryptoHash.h"
-#include "cmCryptoHash.h"
+#include "cmFileLockPool.h"
 #include "cmFileTimeComparison.h"
+#include "cmGeneratorExpression.h"
 #include "cmGlobalGenerator.h"
 #include "cmHexFileConverter.h"
 #include "cmInstallType.h"
-#include "cmake.h"
-
+#include "cmListFileCache.h"
+#include "cmMakefile.h"
+#include "cmPolicies.h"
+#include "cmSystemTools.h"
 #include "cmTimestamp.h"
+#include "cm_auto_ptr.hxx"
+#include "cmake.h"
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 #include "cmCurl.h"
 #include "cmFileLockResult.h"
 #endif
 
-#undef GetCurrentDirectory
-#include <assert.h>
-
-#include <sys/types.h>
-// include sys/stat.h after sys/types.h
-#include <sys/stat.h>
-
-#include <cm_auto_ptr.hxx>
-#include <cmsys/Directory.hxx>
-#include <cmsys/Encoding.hxx>
-#include <cmsys/FStream.hxx>
-#include <cmsys/Glob.hxx>
-#include <cmsys/RegularExpression.hxx>
+class cmSystemToolsFileTime;
 
 // Table of permissions flags.
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -59,7 +71,7 @@ static mode_t mode_setuid = S_ISUID;
 static mode_t mode_setgid = S_ISGID;
 #endif
 
-#if defined(_WIN32) && defined(CMAKE_ENCODING_UTF8)
+#if defined(_WIN32)
 // libcurl doesn't support file:// urls for unicode filenames on Windows.
 // Convert string from UTF-8 to ACP if this is a file:// URL.
 static std::string fix_file_url_windows(const std::string& url)
@@ -110,46 +122,66 @@ bool cmFileCommand::InitialPass(std::vector<std::string> const& args,
   }
   if (subCommand == "MD5" || subCommand == "SHA1" || subCommand == "SHA224" ||
       subCommand == "SHA256" || subCommand == "SHA384" ||
-      subCommand == "SHA512") {
+      subCommand == "SHA512" || subCommand == "SHA3_224" ||
+      subCommand == "SHA3_256" || subCommand == "SHA3_384" ||
+      subCommand == "SHA3_512") {
     return this->HandleHashCommand(args);
   }
   if (subCommand == "STRINGS") {
     return this->HandleStringsCommand(args);
-  } else if (subCommand == "GLOB") {
+  }
+  if (subCommand == "GLOB") {
     return this->HandleGlobCommand(args, false);
-  } else if (subCommand == "GLOB_RECURSE") {
+  }
+  if (subCommand == "GLOB_RECURSE") {
     return this->HandleGlobCommand(args, true);
-  } else if (subCommand == "MAKE_DIRECTORY") {
+  }
+  if (subCommand == "MAKE_DIRECTORY") {
     return this->HandleMakeDirectoryCommand(args);
-  } else if (subCommand == "RENAME") {
+  }
+  if (subCommand == "RENAME") {
     return this->HandleRename(args);
-  } else if (subCommand == "REMOVE") {
+  }
+  if (subCommand == "REMOVE") {
     return this->HandleRemove(args, false);
-  } else if (subCommand == "REMOVE_RECURSE") {
+  }
+  if (subCommand == "REMOVE_RECURSE") {
     return this->HandleRemove(args, true);
-  } else if (subCommand == "COPY") {
+  }
+  if (subCommand == "COPY") {
     return this->HandleCopyCommand(args);
-  } else if (subCommand == "INSTALL") {
+  }
+  if (subCommand == "INSTALL") {
     return this->HandleInstallCommand(args);
-  } else if (subCommand == "DIFFERENT") {
+  }
+  if (subCommand == "DIFFERENT") {
     return this->HandleDifferentCommand(args);
-  } else if (subCommand == "RPATH_CHANGE" || subCommand == "CHRPATH") {
+  }
+  if (subCommand == "RPATH_CHANGE" || subCommand == "CHRPATH") {
     return this->HandleRPathChangeCommand(args);
-  } else if (subCommand == "RPATH_CHECK") {
+  }
+  if (subCommand == "RPATH_CHECK") {
     return this->HandleRPathCheckCommand(args);
-  } else if (subCommand == "RPATH_REMOVE") {
+  }
+  if (subCommand == "RPATH_REMOVE") {
     return this->HandleRPathRemoveCommand(args);
-  } else if (subCommand == "RELATIVE_PATH") {
+  }
+  if (subCommand == "RELATIVE_PATH") {
     return this->HandleRelativePathCommand(args);
-  } else if (subCommand == "TO_CMAKE_PATH") {
+  }
+  if (subCommand == "TO_CMAKE_PATH") {
     return this->HandleCMakePathCommand(args, false);
-  } else if (subCommand == "TO_NATIVE_PATH") {
+  }
+  if (subCommand == "TO_NATIVE_PATH") {
     return this->HandleCMakePathCommand(args, true);
-  } else if (subCommand == "TIMESTAMP") {
+  }
+  if (subCommand == "TIMESTAMP") {
     return this->HandleTimestampCommand(args);
-  } else if (subCommand == "GENERATE") {
+  }
+  if (subCommand == "GENERATE") {
     return this->HandleGenerateCommand(args);
-  } else if (subCommand == "LOCK") {
+  }
+  if (subCommand == "LOCK") {
     return this->HandleLockCommand(args);
   }
 
@@ -736,7 +768,7 @@ bool cmFileCommand::HandleGlobCommand(std::vector<std::string> const& args,
     }
   }
 
-  std::string output = "";
+  std::string output;
   bool first = true;
   for (; i != args.end(); ++i) {
     if (*i == "LIST_DIRECTORIES") {
@@ -756,7 +788,7 @@ bool cmFileCommand::HandleGlobCommand(std::vector<std::string> const& args,
         this->SetError("LIST_DIRECTORIES missing bool value.");
         return false;
       }
-      ++i;
+      continue;
     }
 
     if (recurse && (*i == "FOLLOW_SYMLINKS")) {
@@ -2311,9 +2343,8 @@ size_t cmWriteToMemoryCallback(void* ptr, size_t size, size_t nmemb,
   return realsize;
 }
 
-static size_t cmFileCommandCurlDebugCallback(CURL*, curl_infotype type,
-                                             char* chPtr, size_t size,
-                                             void* data)
+size_t cmFileCommandCurlDebugCallback(CURL*, curl_infotype type, char* chPtr,
+                                      size_t size, void* data)
 {
   cmFileCommandVectorOfChar* vec =
     static_cast<cmFileCommandVectorOfChar*>(data);
@@ -2382,9 +2413,8 @@ private:
   std::string Text;
 };
 
-static int cmFileDownloadProgressCallback(void* clientp, double dltotal,
-                                          double dlnow, double ultotal,
-                                          double ulnow)
+int cmFileDownloadProgressCallback(void* clientp, double dltotal, double dlnow,
+                                   double ultotal, double ulnow)
 {
   cURLProgressHelper* helper = reinterpret_cast<cURLProgressHelper*>(clientp);
 
@@ -2401,9 +2431,8 @@ static int cmFileDownloadProgressCallback(void* clientp, double dltotal,
   return 0;
 }
 
-static int cmFileUploadProgressCallback(void* clientp, double dltotal,
-                                        double dlnow, double ultotal,
-                                        double ulnow)
+int cmFileUploadProgressCallback(void* clientp, double dltotal, double dlnow,
+                                 double ultotal, double ulnow)
 {
   cURLProgressHelper* helper = reinterpret_cast<cURLProgressHelper*>(clientp);
 
@@ -2431,18 +2460,14 @@ public:
   {
   }
 
-  ~cURLEasyGuard(void)
+  ~cURLEasyGuard()
   {
     if (this->Easy) {
       ::curl_easy_cleanup(this->Easy);
     }
   }
 
-  inline void release(void)
-  {
-    this->Easy = CM_NULLPTR;
-    return;
-  }
+  void release() { this->Easy = CM_NULLPTR; }
 
 private:
   ::CURL* Easy;
@@ -2539,7 +2564,8 @@ bool cmFileCommand::HandleDownloadCommand(std::vector<std::string> const& args)
         this->SetError("DOWNLOAD missing sum value for EXPECTED_MD5.");
         return false;
       }
-      hash = CM_AUTO_PTR<cmCryptoHash>(cmCryptoHash::New("MD5"));
+      hash =
+        CM_AUTO_PTR<cmCryptoHash>(new cmCryptoHash(cmCryptoHash::AlgoMD5));
       hashMatchMSG = "MD5 sum";
       expectedHash = cmSystemTools::LowerCase(*i);
     } else if (*i == "SHOW_PROGRESS") {
@@ -2586,7 +2612,7 @@ bool cmFileCommand::HandleDownloadCommand(std::vector<std::string> const& args)
       // Do not return error for compatibility reason.
       std::string err = "Unexpected argument: ";
       err += *i;
-      this->Makefile->IssueMessage(cmake::AUTHOR_WARNING, err.c_str());
+      this->Makefile->IssueMessage(cmake::AUTHOR_WARNING, err);
     }
     ++i;
   }
@@ -2628,7 +2654,7 @@ bool cmFileCommand::HandleDownloadCommand(std::vector<std::string> const& args)
     return false;
   }
 
-#if defined(_WIN32) && defined(CMAKE_ENCODING_UTF8)
+#if defined(_WIN32)
   url = fix_file_url_windows(url);
 #endif
 
@@ -2870,7 +2896,7 @@ bool cmFileCommand::HandleUploadCommand(std::vector<std::string> const& args)
       // Do not return error for compatibility reason.
       std::string err = "Unexpected argument: ";
       err += *i;
-      this->Makefile->IssueMessage(cmake::AUTHOR_WARNING, err.c_str());
+      this->Makefile->IssueMessage(cmake::AUTHOR_WARNING, err);
     }
 
     ++i;
@@ -2888,7 +2914,7 @@ bool cmFileCommand::HandleUploadCommand(std::vector<std::string> const& args)
 
   unsigned long file_size = cmsys::SystemTools::FileLength(filename);
 
-#if defined(_WIN32) && defined(CMAKE_ENCODING_UTF8)
+#if defined(_WIN32)
   url = fix_file_url_windows(url);
 #endif
 

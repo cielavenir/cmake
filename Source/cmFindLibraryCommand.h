@@ -3,7 +3,14 @@
 #ifndef cmFindLibraryCommand_h
 #define cmFindLibraryCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmFindBase.h"
+
+class cmCommand;
+class cmExecutionStatus;
 
 /** \class cmFindLibraryCommand
  * \brief Define a command to search for a library.
@@ -37,8 +44,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "find_library"; }
-
-  cmTypeMacro(cmFindLibraryCommand, cmFindBase);
 
 protected:
   void AddArchitecturePaths(const char* suffix);

@@ -3,7 +3,13 @@
 #ifndef cmParseArgumentsCommand_h
 #define cmParseArgumentsCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmParseArgumentsCommand
  *
@@ -32,8 +38,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "cmake_parse_arguments"; }
-
-  cmTypeMacro(cmParseArgumentsCommand, cmCommand);
 };
 
 #endif

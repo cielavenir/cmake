@@ -2,6 +2,8 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmSourceFile.h"
 
+#include <sstream>
+
 #include "cmCustomCommand.h"
 #include "cmGlobalGenerator.h"
 #include "cmMakefile.h"
@@ -9,8 +11,6 @@
 #include "cmState.h"
 #include "cmSystemTools.h"
 #include "cmake.h"
-
-#include <sstream>
 
 cmSourceFile::cmSourceFile(cmMakefile* mf, const std::string& name)
   : Location(mf, name)

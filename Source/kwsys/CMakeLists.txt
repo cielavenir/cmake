@@ -1,14 +1,5 @@
-#=============================================================================
-# KWSys - Kitware System Library
-# Copyright 2000-2011 Kitware, Inc., Insight Software Consortium
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing#kwsys for details.
 
 # The Kitware System Library is intended to be included in other
 # projects.  It is completely configurable in that the library's
@@ -76,12 +67,15 @@
 # written.
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6.3 FATAL_ERROR)
-IF(POLICY CMP0025)
-  CMAKE_POLICY(SET CMP0025 NEW)
-ENDIF()
-IF(POLICY CMP0056)
-  CMAKE_POLICY(SET CMP0056 NEW)
-ENDIF()
+FOREACH(p
+    CMP0025 # CMake 3.0, Compiler id for Apple Clang is now AppleClang.
+    CMP0056 # CMake 3.2, Honor link flags in try_compile() source-file signature.
+    CMP0063 # CMake 3.3, Honor visibility properties for all target types.
+    )
+  IF(POLICY ${p})
+    CMAKE_POLICY(SET ${p} NEW)
+  ENDIF()
+ENDFOREACH()
 SET(CMAKE_LEGACY_CYGWIN_WIN32 0)
 
 #-----------------------------------------------------------------------------
@@ -434,6 +428,17 @@ KWSYS_PLATFORM_C_TEST(KWSYS_C_HAS_SSIZE_T
 SET_SOURCE_FILES_PROPERTIES(ProcessUNIX.c System.c PROPERTIES
   COMPILE_FLAGS "-DKWSYS_C_HAS_PTRDIFF_T=${KWSYS_C_HAS_PTRDIFF_T} -DKWSYS_C_HAS_SSIZE_T=${KWSYS_C_HAS_SSIZE_T}"
   )
+
+IF(KWSYS_USE_DynamicLoader)
+  GET_PROPERTY(KWSYS_SUPPORTS_SHARED_LIBS GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS)
+  IF(KWSYS_SUPPORTS_SHARED_LIBS)
+    SET(KWSYS_SUPPORTS_SHARED_LIBS 1)
+  ELSE()
+    SET(KWSYS_SUPPORTS_SHARED_LIBS 0)
+  ENDIF()
+  SET_PROPERTY(SOURCE DynamicLoader.cxx APPEND PROPERTY COMPILE_DEFINITIONS
+    KWSYS_SUPPORTS_SHARED_LIBS=${KWSYS_SUPPORTS_SHARED_LIBS})
+ENDIF()
 
 IF(KWSYS_USE_SystemTools)
   KWSYS_PLATFORM_CXX_TEST(KWSYS_CXX_HAS_SETENV
@@ -813,6 +818,9 @@ IF(KWSYS_C_SRCS OR KWSYS_CXX_SRCS)
         # for symbol lookup using dladdr
         TARGET_LINK_LIBRARIES(${KWSYS_NAMESPACE} ${CMAKE_DL_LIBS})
       ENDIF()
+      IF (CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+        TARGET_LINK_LIBRARIES(${KWSYS_NAMESPACE} socket)
+      ENDIF()
     ENDIF()
   ENDIF()
 
@@ -874,7 +882,7 @@ ENDIF()
 
 IF(KWSYS_USE_Encoding)
   # Set default 8 bit encoding in "EndcodingC.c".
-  SET_PROPERTY(SOURCE EncodingC.c APPEND PROPERTY COMPILE_DEFINITIONS
+  SET_PROPERTY(SOURCE EncodingC.c EncodingCXX.cxx APPEND PROPERTY COMPILE_DEFINITIONS
     KWSYS_ENCODING_DEFAULT_CODEPAGE=${KWSYS_ENCODING_DEFAULT_CODEPAGE})
 ENDIF()
 

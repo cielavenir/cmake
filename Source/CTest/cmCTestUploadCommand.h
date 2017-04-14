@@ -7,7 +7,6 @@
 
 #include "cmCTest.h"
 #include "cmCTestHandlerCommand.h"
-#include "cmTypeMacro.h"
 
 #include <string>
 
@@ -41,7 +40,7 @@ public:
    */
   std::string GetName() const CM_OVERRIDE { return "ctest_upload"; }
 
-  cmTypeMacro(cmCTestUploadCommand, cmCTestHandlerCommand);
+  typedef cmCTestHandlerCommand Superclass;
 
 protected:
   cmCTestGenericHandler* InitializeHandler() CM_OVERRIDE;

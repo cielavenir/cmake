@@ -3,7 +3,13 @@
 #ifndef cmBreakCommand_h
 #define cmBreakCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmBreakCommand
  * \brief Break from an enclosing foreach or while loop
@@ -34,8 +40,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "break"; }
-
-  cmTypeMacro(cmBreakCommand, cmCommand);
 };
 
 #endif

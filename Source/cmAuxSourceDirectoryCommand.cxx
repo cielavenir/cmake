@@ -2,9 +2,17 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmAuxSourceDirectoryCommand.h"
 
-#include "cmSourceFile.h"
-
+#include <algorithm>
 #include <cmsys/Directory.hxx>
+#include <stddef.h>
+
+#include "cmAlgorithms.h"
+#include "cmMakefile.h"
+#include "cmSourceFile.h"
+#include "cmSystemTools.h"
+#include "cmake.h"
+
+class cmExecutionStatus;
 
 // cmAuxSourceDirectoryCommand
 bool cmAuxSourceDirectoryCommand::InitialPass(
@@ -36,12 +44,12 @@ bool cmAuxSourceDirectoryCommand::InitialPass(
 
   // Load all the files in the directory
   cmsys::Directory dir;
-  if (dir.Load(tdir.c_str())) {
+  if (dir.Load(tdir)) {
     size_t numfiles = dir.GetNumberOfFiles();
     for (size_t i = 0; i < numfiles; ++i) {
       std::string file = dir.GetFile(static_cast<unsigned long>(i));
       // Split the filename into base and extension
-      std::string::size_type dotpos = file.rfind(".");
+      std::string::size_type dotpos = file.rfind('.');
       if (dotpos != std::string::npos) {
         std::string ext = file.substr(dotpos + 1);
         std::string base = file.substr(0, dotpos);

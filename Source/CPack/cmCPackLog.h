@@ -3,10 +3,7 @@
 #ifndef cmCPackLog_h
 #define cmCPackLog_h
 
-#include <cmConfigure.h>
-
-#include "cmObject.h"
-#include "cmTypeMacro.h"
+#include <cmConfigure.h> // IWYU pragma: keep
 
 #include <ostream>
 #include <string.h>
@@ -17,29 +14,17 @@
     std::ostringstream cmCPackLog_msg;                                        \
     cmCPackLog_msg << msg;                                                    \
     (ctSelf)->Log(logType, __FILE__, __LINE__, cmCPackLog_msg.str().c_str()); \
-  } while (0)
-
-#ifdef cerr
-#undef cerr
-#endif
-#define cerr no_cerr_use_cmCPack_Log
-
-#ifdef cout
-#undef cout
-#endif
-#define cout no_cout_use_cmCPack_Log
+  } while (false)
 
 /** \class cmCPackLog
  * \brief A container for CPack generators
  *
  */
-class cmCPackLog : public cmObject
+class cmCPackLog
 {
 public:
-  cmTypeMacro(cmCPackLog, cmObject);
-
   cmCPackLog();
-  ~cmCPackLog() CM_OVERRIDE;
+  ~cmCPackLog();
 
   enum __log_tags
   {

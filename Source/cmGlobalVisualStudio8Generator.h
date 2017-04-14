@@ -23,6 +23,9 @@ public:
   /** Get the documentation entry for this generator.  */
   static void GetDocumentation(cmDocumentationEntry& entry);
 
+  /** Get the name of the main stamp list file. */
+  static std::string GetGenerateStampList();
+
   virtual void EnableLanguage(std::vector<std::string> const& languages,
                               cmMakefile*, bool optional);
   virtual void AddPlatformDefinitions(cmMakefile* mf);
@@ -72,14 +75,14 @@ protected:
   bool AddCheckTarget();
 
   /** Return true if the configuration needs to be deployed */
-  virtual bool NeedsDeploy(cmState::TargetType type) const;
+  virtual bool NeedsDeploy(cmStateEnums::TargetType type) const;
 
   static cmIDEFlagTable const* GetExtraFlagTableVS8();
   virtual void WriteSLNHeader(std::ostream& fout);
   virtual void WriteSolutionConfigurations(
     std::ostream& fout, std::vector<std::string> const& configs);
   virtual void WriteProjectConfigurations(
-    std::ostream& fout, const std::string& name, cmState::TargetType type,
+    std::ostream& fout, const std::string& name, cmStateEnums::TargetType type,
     std::vector<std::string> const& configs,
     const std::set<std::string>& configsPartOfDefaultBuild,
     const std::string& platformMapping = "");

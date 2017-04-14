@@ -3,7 +3,13 @@
 #ifndef cmIncludeCommand_h
 #define cmIncludeCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 /** \class cmIncludeCommand
  * \brief cmIncludeCommand defines a list of distant
@@ -35,8 +41,6 @@ public:
    * The name of the command as specified in CMakeList.txt.
    */
   std::string GetName() const CM_OVERRIDE { return "include"; }
-
-  cmTypeMacro(cmIncludeCommand, cmCommand);
 };
 
 #endif

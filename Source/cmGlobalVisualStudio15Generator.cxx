@@ -3,8 +3,12 @@
 #include "cmGlobalVisualStudio15Generator.h"
 
 #include "cmAlgorithms.h"
+#include "cmDocumentationEntry.h"
 #include "cmLocalVisualStudio10Generator.h"
 #include "cmMakefile.h"
+#include "cmVS141CLFlagTable.h"
+#include "cmVS141CSharpFlagTable.h"
+#include "cmVSSetupHelper.h"
 
 static const char vs15generatorName[] = "Visual Studio 15 2017";
 
@@ -77,12 +81,10 @@ cmGlobalVisualStudio15Generator::cmGlobalVisualStudio15Generator(
   cmake* cm, const std::string& name, const std::string& platformName)
   : cmGlobalVisualStudio14Generator(cm, name, platformName)
 {
-  std::string vc15Express;
-  this->ExpressEdition = cmSystemTools::ReadRegistryValue(
-    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VCExpress\\15.0\\Setup\\VC;"
-    "ProductDir",
-    vc15Express, cmSystemTools::KeyWOW64_32);
+  this->ExpressEdition = false;
   this->DefaultPlatformToolset = "v141";
+  this->DefaultClFlagTable = cmVS141CLFlagTable;
+  this->DefaultCSharpFlagTable = cmVS141CSharpFlagTable;
   this->Version = VS15;
 }
 
@@ -107,13 +109,25 @@ void cmGlobalVisualStudio15Generator::WriteSLNHeader(std::ostream& fout)
   }
 }
 
+bool cmGlobalVisualStudio15Generator::InitializeWindows(cmMakefile* mf)
+{
+  // If the Win 8.1 SDK is installed then we can select a SDK matching
+  // the target Windows version.
+  if (this->IsWin81SDKInstalled()) {
+    return cmGlobalVisualStudio14Generator::InitializeWindows(mf);
+  }
+  // Otherwise we must choose a Win 10 SDK even if we are not targeting
+  // Windows 10.
+  return this->SelectWindows10SDK(mf, false);
+}
+
 bool cmGlobalVisualStudio15Generator::SelectWindowsStoreToolset(
   std::string& toolset) const
 {
   if (cmHasLiteralPrefix(this->SystemVersion, "10.0")) {
     if (this->IsWindowsStoreToolsetInstalled() &&
         this->IsWindowsDesktopToolsetInstalled()) {
-      toolset = "v140"; // VS 15 uses v140 toolset
+      toolset = "v141"; // VS 15 uses v141 toolset
       return true;
     } else {
       return false;
@@ -125,21 +139,66 @@ bool cmGlobalVisualStudio15Generator::SelectWindowsStoreToolset(
 
 bool cmGlobalVisualStudio15Generator::IsWindowsDesktopToolsetInstalled() const
 {
-  const char desktop10Key[] = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\"
-                              "VisualStudio\\15.0\\VC\\Runtimes";
-
-  std::vector<std::string> vc15;
-  return cmSystemTools::GetRegistrySubKeys(desktop10Key, vc15,
-                                           cmSystemTools::KeyWOW64_32);
+  return vsSetupAPIHelper.IsVS2017Installed();
 }
 
 bool cmGlobalVisualStudio15Generator::IsWindowsStoreToolsetInstalled() const
 {
-  const char universal10Key[] =
-    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\"
-    "VisualStudio\\15.0\\Setup\\Build Tools for Windows 10;SrcPath";
+  return vsSetupAPIHelper.IsWin10SDKInstalled();
+}
 
-  std::string win10SDK;
-  return cmSystemTools::ReadRegistryValue(universal10Key, win10SDK,
-                                          cmSystemTools::KeyWOW64_32);
+bool cmGlobalVisualStudio15Generator::IsWin81SDKInstalled() const
+{
+  // Does the VS installer tool know about one?
+  if (vsSetupAPIHelper.IsWin81SDKInstalled()) {
+    return true;
+  }
+
+  // Does the registry know about one (e.g. from VS 2015)?
+  std::string win81Root;
+  if (cmSystemTools::ReadRegistryValue(
+        "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\"
+        "Windows Kits\\Installed Roots;KitsRoot81",
+        win81Root, cmSystemTools::KeyWOW64_32) ||
+      cmSystemTools::ReadRegistryValue(
+        "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\"
+        "Windows Kits\\Installed Roots;KitsRoot81",
+        win81Root, cmSystemTools::KeyWOW64_32)) {
+    return true;
+  }
+  return false;
+}
+
+std::string cmGlobalVisualStudio15Generator::FindMSBuildCommand()
+{
+  std::string msbuild;
+
+  // Ask Visual Studio Installer tool.
+  std::string vs;
+  if (vsSetupAPIHelper.GetVSInstanceInfo(vs)) {
+    msbuild = vs + "/MSBuild/15.0/Bin/MSBuild.exe";
+    if (cmSystemTools::FileExists(msbuild)) {
+      return msbuild;
+    }
+  }
+
+  msbuild = "MSBuild.exe";
+  return msbuild;
+}
+
+std::string cmGlobalVisualStudio15Generator::FindDevEnvCommand()
+{
+  std::string devenv;
+
+  // Ask Visual Studio Installer tool.
+  std::string vs;
+  if (vsSetupAPIHelper.GetVSInstanceInfo(vs)) {
+    devenv = vs + "/Common7/IDE/devenv.com";
+    if (cmSystemTools::FileExists(devenv)) {
+      return devenv;
+    }
+  }
+
+  devenv = "devenv.com";
+  return devenv;
 }

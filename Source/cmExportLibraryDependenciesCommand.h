@@ -3,12 +3,17 @@
 #ifndef cmExportLibraryDependenciesCommand_h
 #define cmExportLibraryDependenciesCommand_h
 
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
 #include "cmCommand.h"
+
+class cmExecutionStatus;
 
 class cmExportLibraryDependenciesCommand : public cmCommand
 {
 public:
-  cmTypeMacro(cmExportLibraryDependenciesCommand, cmCommand);
   cmCommand* Clone() CM_OVERRIDE
   {
     return new cmExportLibraryDependenciesCommand;

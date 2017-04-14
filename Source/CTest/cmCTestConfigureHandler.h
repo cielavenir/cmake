@@ -6,7 +6,6 @@
 #include <cmConfigure.h>
 
 #include "cmCTestGenericHandler.h"
-#include "cmTypeMacro.h"
 
 /** \class cmCTestConfigureHandler
  * \brief A class that handles ctest -S invocations
@@ -15,7 +14,7 @@
 class cmCTestConfigureHandler : public cmCTestGenericHandler
 {
 public:
-  cmTypeMacro(cmCTestConfigureHandler, cmCTestGenericHandler);
+  typedef cmCTestGenericHandler Superclass;
 
   /*
    * The main entry point for this class
