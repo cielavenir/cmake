@@ -3,6 +3,7 @@ cmake (3.8.0-1) UNRELEASED; urgency=medium
   * New upstream release.
   * Refresh fix-ftbfs-on-kfreebsd.patch
   * Drop mips-rld-map-rel.patch, merged upstream.
+  * Add librhash-dev to Build-Depends.
 
  -- Felix Geyer <fgeyer@debian.org>  Fri, 14 Apr 2017 19:02:17 +0200
 
