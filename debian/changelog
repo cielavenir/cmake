@@ -1,4 +1,4 @@
-cmake (3.8.0-1) UNRELEASED; urgency=medium
+cmake (3.8.0-1) experimental; urgency=medium
 
   * New upstream release.
     - CPackDeb: print warning when "file" tool is missing. (Closes: #847307)
@@ -6,7 +6,7 @@ cmake (3.8.0-1) UNRELEASED; urgency=medium
   * Drop mips-rld-map-rel.patch, merged upstream.
   * Add librhash-dev to Build-Depends.
 
- -- Felix Geyer <fgeyer@debian.org>  Fri, 14 Apr 2017 19:02:17 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Sat, 15 Apr 2017 12:08:12 +0200
 
 cmake (3.7.2-1) unstable; urgency=medium
 
