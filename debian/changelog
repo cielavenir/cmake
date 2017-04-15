@@ -1,6 +1,7 @@
 cmake (3.8.0-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+    - CPackDeb: print warning when "file" tool is missing. (Closes: #847307)
   * Refresh fix-ftbfs-on-kfreebsd.patch
   * Drop mips-rld-map-rel.patch, merged upstream.
   * Add librhash-dev to Build-Depends.
