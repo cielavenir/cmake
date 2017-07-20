@@ -52,7 +52,6 @@ Description: cross-platform, open-source make system
 Package: cmake-data
 Architecture: all
 Depends: ${misc:Depends}
-Conflicts: emacsen-common (<< 2.0.0)
 Description: CMake data files (modules, templates and documentation)
  This package provides CMake architecture independent data files (modules,
  templates, documentation etc.). Unless you have cmake installed, you probably
@@ -95,14 +94,6 @@ Architecture: all
 Section: doc
 Depends: ${misc:Depends}, ${sphinxdoc:Depends}, cmake-data (= ${source:Version})
 Recommends: doc-base
-Breaks: cmake (<= 2.8.2-1),
-        cmake-curses-gui (<= 2.8.2-1),
-        cmake-data (<= 2.8.2-1),
-        cmake-qt-gui (<= 2.8.2-1)
-Replaces: cmake (<= 2.8.2-1),
-          cmake-curses-gui (<= 2.8.2-1),
-          cmake-data (<= 2.8.2-1),
-          cmake-qt-gui (<= 2.8.2-1)
 Suggests: cmake
 Description: extended documentation in various formats for CMake
  CMake is used to control the software compilation process using simple
