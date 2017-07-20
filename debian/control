@@ -33,7 +33,7 @@ Depends: cmake-data (= ${source:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Recommends: gcc, make
-Suggests: codeblocks, eclipse, ninja-build
+Suggests: ninja-build
 Description: cross-platform, open-source make system
  CMake is used to control the software compilation process using
  simple platform and compiler independent configuration files. CMake
