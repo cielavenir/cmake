@@ -8,6 +8,7 @@
 #include "cmMakefile.h"
 #include "cmVS141CLFlagTable.h"
 #include "cmVS141CSharpFlagTable.h"
+#include "cmVS141LinkFlagTable.h"
 #include "cmVSSetupHelper.h"
 
 static const char vs15generatorName[] = "Visual Studio 15 2017";
@@ -85,6 +86,7 @@ cmGlobalVisualStudio15Generator::cmGlobalVisualStudio15Generator(
   this->DefaultPlatformToolset = "v141";
   this->DefaultClFlagTable = cmVS141CLFlagTable;
   this->DefaultCSharpFlagTable = cmVS141CSharpFlagTable;
+  this->DefaultLinkFlagTable = cmVS141LinkFlagTable;
   this->Version = VS15;
 }
 
@@ -164,7 +166,7 @@ bool cmGlobalVisualStudio15Generator::IsWin81SDKInstalled() const
         "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\"
         "Windows Kits\\Installed Roots;KitsRoot81",
         win81Root, cmSystemTools::KeyWOW64_32)) {
-    return true;
+    return cmSystemTools::FileExists(win81Root + "/um/windows.h", true);
   }
   return false;
 }
