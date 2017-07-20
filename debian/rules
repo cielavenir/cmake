@@ -1,5 +1,7 @@
 #!/usr/bin/make -f
 
+include /usr/share/dpkg/pkg-info.mk
+
 export DEB_CXXFLAGS_MAINT_APPEND := $(shell dpkg-buildflags --get CPPFLAGS)
 export DEB_CFLAGS_MAINT_APPEND := $(shell dpkg-buildflags --get CPPFLAGS)
 export DEB_LDFLAGS_MAINT_APPEND := -Wl,--as-needed
@@ -9,8 +11,7 @@ ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
     BOOTSTRAP_PARALLEL = --parallel=$(NUMJOBS)
 endif
 
-LAST_CHANGE = $(shell dpkg-parsechangelog -S Date)
-BUILD_DATE = $(shell LC_ALL=C date -u "+%B %d, %Y" -d "$(LAST_CHANGE)")
+BUILD_DATE = $(shell LC_ALL=C date -u "+%B %d, %Y" -d "@$(SOURCE_DATE_EPOCH)")
 
 
 BUILD_FLAGS_FILE = build-flags.cmake
