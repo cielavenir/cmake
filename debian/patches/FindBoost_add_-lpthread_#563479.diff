@@ -15,7 +15,7 @@ Forwarded: http://cmake.org/Bug/file_download.php?file_id=3629&type=bug
 +++ b/Modules/FindBoost.cmake
 @@ -861,6 +861,22 @@ function(_Boost_MISSING_DEPENDENCIES com
    endif()
- endmacro()
+ endfunction()
  
 +function(_Boost_consider_adding_pthreads _outvar)
 +  # On Unix platforms (excluding cygwin) add pthreads to Boost_LIBRARIES

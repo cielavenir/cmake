@@ -1,6 +1,7 @@
 cmake (3.9.0-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Refresh patches.
 
  -- Felix Geyer <fgeyer@debian.org>  Thu, 20 Jul 2017 19:39:13 +0200
 
