@@ -4,6 +4,7 @@ cmake (3.9.0-1) UNRELEASED; urgency=medium
   * Refresh patches.
   * Drop ancient Breaks/Replaces/Conflicts.
   * No longer suggest eclipse and codeblocks. (Closes: #750465)
+  * Add Python and Java to findmodules autopkgtest.
 
  -- Felix Geyer <fgeyer@debian.org>  Thu, 20 Jul 2017 19:39:13 +0200
 
