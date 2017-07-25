@@ -1,4 +1,4 @@
-cmake (3.9.0-1) UNRELEASED; urgency=medium
+cmake (3.9.0-1) unstable; urgency=medium
 
   * New upstream release.
   * Refresh patches.
@@ -8,7 +8,7 @@ cmake (3.9.0-1) UNRELEASED; urgency=medium
   * Fix detection of OpenJDK 9 early access builds. (Closes: #868327)
     - Add fix-java9-detection.patch
 
- -- Felix Geyer <fgeyer@debian.org>  Thu, 20 Jul 2017 19:39:13 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Tue, 25 Jul 2017 18:14:02 +0200
 
 cmake (3.8.0-1) experimental; urgency=medium
 
