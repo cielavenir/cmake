@@ -1,9 +1,9 @@
-cmake (3.9.1-1) UNRELEASED; urgency=medium
+cmake (3.9.1-1) unstable; urgency=medium
 
   * New upstream release.
   * Remove fix-java9-detection.patch, applied upstream.
 
- -- Felix Geyer <fgeyer@debian.org>  Fri, 11 Aug 2017 09:33:43 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Fri, 11 Aug 2017 12:26:36 +0200
 
 cmake (3.9.0-1) unstable; urgency=medium
 
