@@ -1,4 +1,4 @@
-cmake (3.9.3-1) UNRELEASED; urgency=medium
+cmake (3.9.3-1) unstable; urgency=medium
 
   * New upstream release.
   * Increase test timeout to 2000s.
@@ -7,7 +7,7 @@ cmake (3.9.3-1) UNRELEASED; urgency=medium
   * Switch to python3 sphinx.
   * Remove upgrade maintainer scripts from before stretch.
 
- -- Felix Geyer <fgeyer@debian.org>  Thu, 21 Sep 2017 19:04:21 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 24 Sep 2017 12:12:40 +0200
 
 cmake (3.9.1-1) unstable; urgency=medium
 
