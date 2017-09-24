@@ -1,6 +1,9 @@
 cmake (3.9.3-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Increase test timeout to 2000s.
+    - Hopefully this gives slow buildds enough time to run the Qt5Autogen test.
+      (Closes: #876378)
 
  -- Felix Geyer <fgeyer@debian.org>  Thu, 21 Sep 2017 19:04:21 +0200
 
