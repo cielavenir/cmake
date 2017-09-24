@@ -16,7 +16,7 @@ Build-Depends: debhelper (>= 9.20160114~),
                librhash-dev,
                libuv1-dev,
                procps [!hurd-any],
-               python-sphinx,
+               python3-sphinx,
                qtbase5-dev <!stage1>,
                zlib1g-dev
 Standards-Version: 3.9.6
