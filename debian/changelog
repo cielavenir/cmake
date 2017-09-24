@@ -5,6 +5,7 @@ cmake (3.9.3-1) UNRELEASED; urgency=medium
     - Hopefully this gives slow buildds enough time to run the Qt5Autogen test.
       (Closes: #876378)
   * Switch to python3 sphinx.
+  * Remove upgrade maintainer scripts from before stretch.
 
  -- Felix Geyer <fgeyer@debian.org>  Thu, 21 Sep 2017 19:04:21 +0200
 
