@@ -1,6 +1,7 @@
 cmake (3.9.5-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Set Rules-Requires-Root: no
 
  -- Felix Geyer <fgeyer@debian.org>  Sat, 04 Nov 2017 09:28:49 +0100
 
