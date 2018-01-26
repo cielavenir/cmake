@@ -141,13 +141,16 @@ add_RunCMake_test(DisallowedCommands)
 add_RunCMake_test(ExternalData)
 add_RunCMake_test(FeatureSummary)
 add_RunCMake_test(FPHSA)
+add_RunCMake_test(FindBoost)
 if(NOT CMAKE_C_COMPILER_ID MATCHES "Watcom")
   add_RunCMake_test(GenerateExportHeader)
 endif()
 add_RunCMake_test(GeneratorExpression)
 add_RunCMake_test(GeneratorPlatform)
 add_RunCMake_test(GeneratorToolset)
+add_RunCMake_test(GetPrerequisites)
 add_RunCMake_test(GNUInstallDirs -DSYSTEM_NAME=${CMAKE_SYSTEM_NAME})
+add_RunCMake_test(GoogleTest) # Note: does not actually depend on Google Test
 add_RunCMake_test(TargetPropertyGeneratorExpressions)
 add_RunCMake_test(Languages)
 add_RunCMake_test(LinkStatic)
@@ -179,10 +182,14 @@ add_RunCMake_test(Syntax)
 add_RunCMake_test(add_custom_command)
 add_RunCMake_test(add_custom_target)
 add_RunCMake_test(add_dependencies)
+add_RunCMake_test(add_executable)
+add_RunCMake_test(add_library)
 add_RunCMake_test(add_subdirectory)
 add_RunCMake_test(build_command)
+add_executable(exit_code exit_code.c)
+set(execute_process_ARGS -DEXIT_CODE_EXE=$<TARGET_FILE:exit_code>)
 if(NOT CMake_TEST_EXTERNAL_CMAKE)
-  set(execute_process_ARGS -DTEST_ENCODING_EXE=$<TARGET_FILE:testEncoding>)
+  list(APPEND execute_process_ARGS -DTEST_ENCODING_EXE=$<TARGET_FILE:testEncoding>)
 endif()
 add_RunCMake_test(execute_process)
 add_RunCMake_test(export)
@@ -213,6 +220,7 @@ add_RunCMake_test(get_property)
 add_RunCMake_test(if)
 add_RunCMake_test(include)
 add_RunCMake_test(include_directories)
+add_RunCMake_test(include_guard)
 add_RunCMake_test(list)
 add_RunCMake_test(message)
 add_RunCMake_test(project -DCMake_TEST_RESOURCES=${CMake_TEST_RESOURCES})
@@ -220,20 +228,39 @@ add_RunCMake_test(return)
 add_RunCMake_test(separate_arguments)
 add_RunCMake_test(set_property)
 add_RunCMake_test(string)
-foreach(var
-    CMAKE_C_COMPILER_ID
-    CMAKE_C_COMPILER_VERSION
-    CMAKE_C_STANDARD_DEFAULT
-    CMAKE_CXX_COMPILER_ID
-    CMAKE_CXX_COMPILER_VERSION
-    CMAKE_CXX_STANDARD_DEFAULT
-    CMake_TEST_CUDA
-    )
-  if(DEFINED ${var})
-    list(APPEND try_compile_ARGS -D${var}=${${var}})
+add_RunCMake_test(test_include_dirs)
+
+function(add_RunCMake_test_try_compile)
+  if(CMAKE_VERSION VERSION_LESS 3.9.20170907 AND "x${CMAKE_CXX_COMPILER_ID}" STREQUAL "xMSVC")
+    # Older CMake versions do not know about MSVC language standards.
+    # Approximate our logic from MSVC-CXX.cmake.
+    if ((CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.0.24215.1 AND
+         CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.10) OR
+       CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.10.25017)
+      set(CMAKE_CXX_STANDARD_DEFAULT 14)
+    elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16.0)
+      set(CMAKE_CXX_STANDARD_DEFAULT "")
+    else()
+      unset(CMAKE_CXX_STANDARD_DEFAULT)
+    endif()
   endif()
-endforeach()
-add_RunCMake_test(try_compile)
+  foreach(var
+      CMAKE_C_COMPILER_ID
+      CMAKE_C_COMPILER_VERSION
+      CMAKE_C_STANDARD_DEFAULT
+      CMAKE_CXX_COMPILER_ID
+      CMAKE_CXX_COMPILER_VERSION
+      CMAKE_CXX_STANDARD_DEFAULT
+      CMake_TEST_CUDA
+      )
+    if(DEFINED ${var})
+      list(APPEND try_compile_ARGS -D${var}=${${var}})
+    endif()
+  endforeach()
+  add_RunCMake_test(try_compile)
+endfunction()
+add_RunCMake_test_try_compile()
+
 add_RunCMake_test(try_run)
 add_RunCMake_test(set)
 add_RunCMake_test(variable_watch)
@@ -338,10 +365,22 @@ if("${CMAKE_GENERATOR}" MATCHES "Make|Ninja")
   add_executable(pseudo_tidy pseudo_tidy.c)
   add_executable(pseudo_iwyu pseudo_iwyu.c)
   add_executable(pseudo_cpplint pseudo_cpplint.c)
+  add_executable(pseudo_cppcheck pseudo_cppcheck.c)
   add_RunCMake_test(ClangTidy -DPSEUDO_TIDY=$<TARGET_FILE:pseudo_tidy>)
   add_RunCMake_test(IncludeWhatYouUse -DPSEUDO_IWYU=$<TARGET_FILE:pseudo_iwyu>)
   add_RunCMake_test(Cpplint -DPSEUDO_CPPLINT=$<TARGET_FILE:pseudo_cpplint>)
+  add_RunCMake_test(Cppcheck -DPSEUDO_CPPCHECK=$<TARGET_FILE:pseudo_cppcheck>)
+  add_RunCMake_test(MultiLint
+    -DPSEUDO_TIDY=$<TARGET_FILE:pseudo_tidy>
+    -DPSEUDO_IWYU=$<TARGET_FILE:pseudo_iwyu>
+    -DPSEUDO_CPPLINT=$<TARGET_FILE:pseudo_cpplint>
+    -DPSEUDO_CPPCHECK=$<TARGET_FILE:pseudo_cppcheck>
+    )
+  if(DEFINED CMake_TEST_CUDA)
+    list(APPEND CompilerLauncher_ARGS -DCMake_TEST_CUDA=${CMake_TEST_CUDA})
+  endif()
   add_RunCMake_test(CompilerLauncher)
+  add_RunCMake_test(ctest_labels_for_subprojects)
 endif()
 
 add_RunCMake_test_group(CPack "DEB;RPM;7Z;TBZ2;TGZ;TXZ;TZ;ZIP;STGZ")
@@ -370,4 +409,8 @@ if(CMake_TEST_ANDROID_NDK OR CMake_TEST_ANDROID_STANDALONE_TOOLCHAIN)
     set(CMake_TEST_ANDROID_TIMEOUT 3000)
   endif()
   set_property(TEST RunCMake.Android PROPERTY TIMEOUT ${CMake_TEST_ANDROID_TIMEOUT})
+endif()
+
+if(${CMAKE_GENERATOR} MATCHES "Visual Studio ([^89]|[89][0-9])")
+  add_RunCMake_test(CSharpCustomCommand)
 endif()

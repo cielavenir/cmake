@@ -8,6 +8,80 @@ See documentation on `CMake Development`_ for more information.
 
 .. contents:: Maintainer Processes:
 
+Review a Merge Request
+======================
+
+The `CMake Review Process`_ requires a maintainer to issue the ``Do: merge``
+command to integrate a merge request.  Please check at least the following:
+
+* If the MR source branch is not named well for the change it makes
+  (e.g. it is just ``master`` or the patch changed during review),
+  add a ``Topic-rename: <topic>`` trailing line to the MR description
+  to provide a better topic name.
+
+* If the MR introduces a new feature or a user-facing behavior change,
+  such as a policy, ensure that a ``Help/release/dev/$topic.rst`` file
+  is added with a release note.
+
+* If a commit changes a specific area, such as a module, its commit
+  message should have an ``area:`` prefix on its first line.
+
+* If a commit fixes a tracked issue, its commit message should have
+  a trailing line such as ``Fixes: #00000``.
+
+* Ensure that the MR adds sufficient documentation and test cases.
+
+* Ensure that the MR has been tested sufficiently.  Typically it should
+  be staged for nightly testing with ``Do: stage``.  Then manually
+  review the `CMake CDash Page`_ to verify that no regressions were
+  introduced.  (Learn to tolerate spurious failures due to idiosyncrasies
+  of various nightly builders.)
+
+* Ensure that the MR targets the ``master`` branch.  A MR intended for
+  the ``release`` branch should be based on ``release`` but still merged
+  to ``master`` first (via ``Do: merge``).  A maintainer may then merge
+  the MR topic to ``release`` manually.
+
+Maintain Current Release
+========================
+
+The ``release`` branch is used to maintain the current release or release
+candidate.  The branch is published with no version number but maintained
+using a local branch named ``release-$ver``, where ``$ver`` is the version
+number of the current release in the form ``$major.$minor``.  It is always
+merged into ``master`` before publishing.
+
+To merge some ``$topic`` branch into ``release``, first create the local
+branch:
+
+.. code-block:: shell
+
+  git fetch origin
+  git checkout -b release-$ver origin/release
+
+Merge the ``$topic`` branch into the local ``release-$ver`` branch:
+
+.. code-block:: shell
+
+  git merge --no-ff $topic
+
+Merge the ``release-$ver`` branch to ``master``:
+
+.. code-block:: shell
+
+  git checkout master
+  git pull
+  git merge --no-ff release-$ver
+
+Publish both ``master`` and ``release`` simultaneously:
+
+.. code-block:: shell
+
+  git push --atomic origin master release-$ver:release
+
+.. _`CMake Review Process`: review.rst
+.. _`CMake CDash Page`: https://open.cdash.org/index.php?project=CMake
+
 Branch a New Release
 ====================
 

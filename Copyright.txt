@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 The following individuals and institutions are among the Contributors:
 
 * Aaron C. Meadows <cmake@shadowguarddev.com>
+* Adriaan de Groot <groot@kde.org>
 * Aleksey Avdeev <solo@altlinux.ru>
 * Alexander Neundorf <neundorf@kde.org>
 * Alexander Smorkalov <alexander.smorkalov@itseez.com>
@@ -75,6 +76,7 @@ The following individuals and institutions are among the Contributors:
 * Nicolas Bock <nicolasbock@gmail.com>
 * Nicolas Despres <nicolas.despres@gmail.com>
 * Nikita Krupen'ko <krnekit@gmail.com>
+* NVIDIA Corporation <www.nvidia.com>
 * OpenGamma Ltd. <opengamma.com>
 * Per Øyvind Karlsen <peroyvind@mandriva.org>
 * Peter Collingbourne <peter@pcc.me.uk>

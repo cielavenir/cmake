@@ -307,8 +307,9 @@ set(SRCS
   cmPropertyDefinitionMap.h
   cmPropertyMap.cxx
   cmPropertyMap.h
-  cmQtAutoGeneratorCommon.cxx
-  cmQtAutoGeneratorCommon.h
+  cmQtAutoGen.cxx
+  cmQtAutoGen.h
+  cmQtAutoGenDigest.h
   cmQtAutoGeneratorInitializer.cxx
   cmQtAutoGeneratorInitializer.h
   cmQtAutoGenerators.cxx
@@ -469,6 +470,8 @@ set(SRCS
   cmIncludeDirectoryCommand.h
   cmIncludeExternalMSProjectCommand.cxx
   cmIncludeExternalMSProjectCommand.h
+  cmIncludeGuardCommand.cxx
+  cmIncludeGuardCommand.h
   cmIncludeRegularExpressionCommand.cxx
   cmIncludeRegularExpressionCommand.h
   cmInstallCommand.cxx
@@ -584,7 +587,6 @@ set(SRCS
   cmWriteFileCommand.cxx
   cmWriteFileCommand.h
 
-  cm_auto_ptr.hxx
   cm_get_date.h
   cm_get_date.c
   cm_utf8.h
@@ -777,6 +779,8 @@ if(WIN32 AND NOT UNIX)
   target_link_libraries(CMakeLib rpcrt4 crypt32)
 endif()
 
+target_compile_definitions(CMakeLib PUBLIC ${CLANG_TIDY_DEFINITIONS})
+
 #
 # CTestLib
 #
@@ -874,6 +878,7 @@ set(CPACK_SRCS
   CPack/cmCPackTarCompressGenerator.cxx
   CPack/cmCPackZIPGenerator.cxx
   CPack/cmCPack7zGenerator.cxx
+  CPack/cmCPackDebGenerator.cxx
   )
 # CPack IFW generator
 set(CPACK_SRCS ${CPACK_SRCS}
@@ -896,11 +901,39 @@ if(CYGWIN)
     )
 endif()
 
+option(CPACK_ENABLE_FREEBSD_PKG "Add FreeBSD pkg(8) generator to CPack." OFF)
+
 if(UNIX)
   set(CPACK_SRCS ${CPACK_SRCS}
-    CPack/cmCPackDebGenerator.cxx
     CPack/cmCPackRPMGenerator.cxx
     )
+
+  # Optionally, try to use pkg(8)
+  if(CPACK_ENABLE_FREEBSD_PKG)
+    # On UNIX, you may find FreeBSD's pkg(8) and attendant
+    # library -- it can be used on FreeBSD, Dragonfly, NetBSD,
+    # OpenBSD and also Linux and OSX. Look for the header and
+    # the library; it's a warning on FreeBSD if they're not
+    # found, and informational on other platforms.
+    find_path(FREEBSD_PKG_INCLUDE_DIRS "pkg.h" PATHS /usr/local)
+    if(FREEBSD_PKG_INCLUDE_DIRS)
+      find_library(FREEBSD_PKG_LIBRARIES
+        pkg
+        DOC "FreeBSD pkg(8) library")
+      if(FREEBSD_PKG_LIBRARIES)
+        set(CPACK_SRCS ${CPACK_SRCS}
+          CPack/cmCPackFreeBSDGenerator.cxx
+          )
+      endif()
+    endif()
+
+    if (NOT FREEBSD_PKG_INCLUDE_DIRS OR NOT FREEBSD_PKG_LIBRARIES)
+      message(FATAL_ERROR "CPack needs libpkg(3) to produce FreeBSD packages natively.")
+    endif()
+  else()
+    set(FREEBSD_PKG_INCLUDE_DIRS NOTFOUND)
+    set(FREEBSD_PKG_LIBRARIES NOTFOUND)
+  endif()
 endif()
 
 if(WIN32)
@@ -958,6 +991,11 @@ if(APPLE)
       "See CMakeFiles/CMakeError.log for details of the failure.")
   endif()
 endif()
+if(CPACK_ENABLE_FREEBSD_PKG AND FREEBSD_PKG_INCLUDE_DIRS AND FREEBSD_PKG_LIBRARIES)
+  target_link_libraries(CPackLib ${FREEBSD_PKG_LIBRARIES})
+  include_directories(${FREEBSD_PKG_INCLUDE_DIRS})
+  add_definitions(-DHAVE_FREEBSD_PKG)
+endif()
 
 if(APPLE)
   add_executable(cmakexbuild cmakexbuild.cxx)
@@ -974,18 +1012,16 @@ add_executable(cmake cmakemain.cxx cmcmd.cxx cmcmd.h ${MANIFEST_FILE})
 list(APPEND _tools cmake)
 target_link_libraries(cmake CMakeLib)
 
-if(CMake_ENABLE_SERVER_MODE)
-  add_library(CMakeServerLib
-    cmFileMonitor.cxx cmFileMonitor.h
-    cmServer.cxx cmServer.h
-    cmServerConnection.cxx cmServerConnection.h
-    cmServerProtocol.cxx cmServerProtocol.h
-    )
-  target_link_libraries(CMakeServerLib CMakeLib)
-  set_property(SOURCE cmcmd.cxx APPEND PROPERTY COMPILE_DEFINITIONS HAVE_SERVER_MODE=1)
-
-  target_link_libraries(cmake CMakeServerLib)
-endif()
+add_library(CMakeServerLib
+  cmConnection.h cmConnection.cxx
+  cmFileMonitor.cxx cmFileMonitor.h
+  cmPipeConnection.cxx cmPipeConnection.h
+  cmServer.cxx cmServer.h
+  cmServerConnection.cxx cmServerConnection.h
+  cmServerProtocol.cxx cmServerProtocol.h
+  )
+target_link_libraries(CMakeServerLib CMakeLib)
+target_link_libraries(cmake CMakeServerLib)
 
 # Build CTest executable
 add_executable(ctest ctest.cxx ${MANIFEST_FILE})

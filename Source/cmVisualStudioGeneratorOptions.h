@@ -3,7 +3,7 @@
 #ifndef cmVisualStudioGeneratorOptions_h
 #define cmVisualStudioGeneratorOptions_h
 
-#include "cmConfigure.h"
+#include "cmConfigure.h" // IWYU pragma: keep
 
 #include <iosfwd>
 #include <string>
@@ -76,6 +76,8 @@ public:
   CudaRuntime GetCudaRuntime() const;
 
   void FixCudaCodeGeneration();
+
+  void FixManifestUACFlags();
 
   bool IsDebug() const;
   bool IsWinRt() const;

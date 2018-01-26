@@ -2,7 +2,6 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmFindBase.h"
 
-#include "cmConfigure.h"
 #include <deque>
 #include <iostream>
 #include <iterator>
@@ -281,10 +280,8 @@ void cmFindBase::FillUserHintsPath()
 {
   cmSearchPath& paths = this->LabeledPaths[PathLabel::Hints];
 
-  for (std::vector<std::string>::const_iterator p =
-         this->UserHintsArgs.begin();
-       p != this->UserHintsArgs.end(); ++p) {
-    paths.AddUserPath(*p);
+  for (std::string const& p : this->UserHintsArgs) {
+    paths.AddUserPath(p);
   }
   paths.AddSuffixes(this->SearchPathSuffixes);
 }
@@ -293,10 +290,8 @@ void cmFindBase::FillUserGuessPath()
 {
   cmSearchPath& paths = this->LabeledPaths[PathLabel::Guess];
 
-  for (std::vector<std::string>::const_iterator p =
-         this->UserGuessArgs.begin();
-       p != this->UserGuessArgs.end(); ++p) {
-    paths.AddUserPath(*p);
+  for (std::string const& p : this->UserGuessArgs) {
+    paths.AddUserPath(p);
   }
   paths.AddSuffixes(this->SearchPathSuffixes);
 }
@@ -335,7 +330,7 @@ bool cmFindBase::CheckForVariableInCache()
     cmState* state = this->Makefile->GetState();
     const char* cacheEntry = state->GetCacheEntryValue(this->VariableName);
     bool found = !cmSystemTools::IsNOTFOUND(cacheValue);
-    bool cached = cacheEntry != CM_NULLPTR;
+    bool cached = cacheEntry != nullptr;
     if (found) {
       // If the user specifies the entry on the command line without a
       // type we should add the type and docstring but keep the

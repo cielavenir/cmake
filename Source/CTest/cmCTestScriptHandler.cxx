@@ -52,9 +52,9 @@ class cmCTestScriptFunctionBlocker : public cmFunctionBlocker
 {
 public:
   cmCTestScriptFunctionBlocker() {}
-  ~cmCTestScriptFunctionBlocker() CM_OVERRIDE {}
+  ~cmCTestScriptFunctionBlocker() override {}
   bool IsFunctionBlocked(const cmListFileFunction& lff, cmMakefile& mf,
-                         cmExecutionStatus& /*status*/) CM_OVERRIDE;
+                         cmExecutionStatus& /*status*/) override;
   // virtual bool ShouldRemove(const cmListFileFunction& lff, cmMakefile &mf);
   // virtual void ScopeEnded(cmMakefile &mf);
 
@@ -75,9 +75,9 @@ cmCTestScriptHandler::cmCTestScriptHandler()
   this->Backup = false;
   this->EmptyBinDir = false;
   this->EmptyBinDirOnce = false;
-  this->Makefile = CM_NULLPTR;
-  this->CMake = CM_NULLPTR;
-  this->GlobalGenerator = CM_NULLPTR;
+  this->Makefile = nullptr;
+  this->CMake = nullptr;
+  this->GlobalGenerator = nullptr;
 
   this->ScriptStartTime = 0;
 
@@ -93,18 +93,18 @@ void cmCTestScriptHandler::Initialize()
   this->EmptyBinDir = false;
   this->EmptyBinDirOnce = false;
 
-  this->SourceDir = "";
-  this->BinaryDir = "";
-  this->BackupSourceDir = "";
-  this->BackupBinaryDir = "";
-  this->CTestRoot = "";
-  this->CVSCheckOut = "";
-  this->CTestCmd = "";
-  this->UpdateCmd = "";
-  this->CTestEnv = "";
-  this->InitialCache = "";
-  this->CMakeCmd = "";
-  this->CMOutFile = "";
+  this->SourceDir.clear();
+  this->BinaryDir.clear();
+  this->BackupSourceDir.clear();
+  this->BackupBinaryDir.clear();
+  this->CTestRoot.clear();
+  this->CVSCheckOut.clear();
+  this->CTestCmd.clear();
+  this->UpdateCmd.clear();
+  this->CTestEnv.clear();
+  this->InitialCache.clear();
+  this->CMakeCmd.clear();
+  this->CMOutFile.clear();
   this->ExtraUpdates.clear();
 
   this->MinimumInterval = 20 * 60;
@@ -114,10 +114,10 @@ void cmCTestScriptHandler::Initialize()
   this->ScriptStartTime = 0;
 
   delete this->Makefile;
-  this->Makefile = CM_NULLPTR;
+  this->Makefile = nullptr;
 
   delete this->GlobalGenerator;
-  this->GlobalGenerator = CM_NULLPTR;
+  this->GlobalGenerator = nullptr;
 
   delete this->CMake;
 }
@@ -193,7 +193,7 @@ int cmCTestScriptHandler::ExecuteScript(const std::string& total_script_arg)
   for (size_t i = 1; i < initArgs.size(); ++i) {
     argv.push_back(initArgs[i].c_str());
   }
-  argv.push_back(CM_NULLPTR);
+  argv.push_back(nullptr);
 
   // Now create process object
   cmsysProcess* cp = cmsysProcess_New();
@@ -219,7 +219,7 @@ int cmCTestScriptHandler::ExecuteScript(const std::string& total_script_arg)
   }
 
   // Properly handle output of the build command
-  cmsysProcess_WaitForExit(cp, CM_NULLPTR);
+  cmsysProcess_WaitForExit(cp, nullptr);
   int result = cmsysProcess_GetState(cp);
   int retVal = 0;
   bool failed = false;
@@ -245,10 +245,9 @@ int cmCTestScriptHandler::ExecuteScript(const std::string& total_script_arg)
     std::ostringstream message;
     message << "Error running command: [";
     message << result << "] ";
-    for (std::vector<const char*>::iterator i = argv.begin(); i != argv.end();
-         ++i) {
-      if (*i) {
-        message << *i << " ";
+    for (const char* arg : argv) {
+      if (arg) {
+        message << arg << " ";
       }
     }
     cmCTestLog(this->CTest, ERROR_MESSAGE, message.str() << argv[0]
@@ -377,9 +376,8 @@ int cmCTestScriptHandler::ReadInScript(const std::string& total_script_arg)
   // Add definitions of variables passed in on the command line:
   const std::map<std::string, std::string>& defs =
     this->CTest->GetDefinitions();
-  for (std::map<std::string, std::string>::const_iterator it = defs.begin();
-       it != defs.end(); ++it) {
-    this->Makefile->AddDefinition(it->first, it->second.c_str());
+  for (auto const& d : defs) {
+    this->Makefile->AddDefinition(d.first, d.second.c_str());
   }
 
   // finally read in the script
@@ -394,7 +392,7 @@ int cmCTestScriptHandler::ReadInScript(const std::string& total_script_arg)
   return 0;
 }
 
-// extract variabels from the script to set ivars
+// extract variables from the script to set ivars
 int cmCTestScriptHandler::ExtractVariables()
 {
   // Temporary variables
@@ -595,7 +593,7 @@ int cmCTestScriptHandler::CheckOutSourceDir()
   if (!cmSystemTools::FileExists(this->SourceDir.c_str()) &&
       !this->CVSCheckOut.empty()) {
     // we must now checkout the src dir
-    output = "";
+    output.clear();
     cmCTestLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
                "Run cvs: " << this->CVSCheckOut << std::endl);
     res = cmSystemTools::RunSingleCommand(
@@ -654,15 +652,14 @@ int cmCTestScriptHandler::PerformExtraUpdates()
 
   // do an initial cvs update as required
   command = this->UpdateCmd;
-  std::vector<std::string>::iterator it;
-  for (it = this->ExtraUpdates.begin(); it != this->ExtraUpdates.end(); ++it) {
+  for (std::string const& eu : this->ExtraUpdates) {
     std::vector<std::string> cvsArgs;
-    cmSystemTools::ExpandListArgument(*it, cvsArgs);
+    cmSystemTools::ExpandListArgument(eu, cvsArgs);
     if (cvsArgs.size() == 2) {
       std::string fullCommand = command;
       fullCommand += " update ";
       fullCommand += cvsArgs[1];
-      output = "";
+      output.clear();
       retVal = 0;
       cmCTestLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
                  "Run Update: " << fullCommand << std::endl);
@@ -670,7 +667,7 @@ int cmCTestScriptHandler::PerformExtraUpdates()
         fullCommand.c_str(), &output, &output, &retVal, cvsArgs[0].c_str(),
         this->HandlerVerbose, 0 /*this->TimeOut*/);
       if (!res || retVal != 0) {
-        cmSystemTools::Error("Unable to perform extra updates:\n", it->c_str(),
+        cmSystemTools::Error("Unable to perform extra updates:\n", eu.c_str(),
                              "\nWith output:\n", output.c_str());
         return 0;
       }
@@ -765,7 +762,7 @@ int cmCTestScriptHandler::RunConfigurationDashboard()
     command = this->CMakeCmd;
     command += " \"";
     command += this->SourceDir;
-    output = "";
+    output.clear();
     command += "\"";
     retVal = 0;
     cmCTestLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
@@ -803,9 +800,9 @@ int cmCTestScriptHandler::RunConfigurationDashboard()
   std::vector<std::string> ctestCommands;
   cmSystemTools::ExpandListArgument(this->CTestCmd, ctestCommands);
   // for each variable/argument do a putenv
-  for (unsigned i = 0; i < ctestCommands.size(); ++i) {
-    command = ctestCommands[i];
-    output = "";
+  for (std::string const& ctestCommand : ctestCommands) {
+    command = ctestCommand;
+    output.clear();
     retVal = 0;
     cmCTestLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
                "Run ctest command: " << command << std::endl);
@@ -852,7 +849,7 @@ bool cmCTestScriptHandler::WriteInitialCache(const char* directory,
     return false;
   }
 
-  if (text != CM_NULLPTR) {
+  if (text != nullptr) {
     fout.write(text, strlen(text));
   }
 

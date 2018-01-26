@@ -22,8 +22,8 @@ cmWIXPatchNode::~cmWIXPatchNode()
 
 cmWIXPatchElement::~cmWIXPatchElement()
 {
-  for (child_list_t::iterator i = children.begin(); i != children.end(); ++i) {
-    delete *i;
+  for (cmWIXPatchNode* child : children) {
+    delete child;
   }
 }
 
@@ -72,7 +72,7 @@ void cmWIXPatchParser::StartElement(const std::string& name, const char** atts)
 
 void cmWIXPatchParser::StartFragment(const char** attributes)
 {
-  cmWIXPatchElement* new_element = CM_NULLPTR;
+  cmWIXPatchElement* new_element = nullptr;
   /* find the id of for fragment */
   for (size_t i = 0; attributes[i]; i += 2) {
     const std::string key = attributes[i];

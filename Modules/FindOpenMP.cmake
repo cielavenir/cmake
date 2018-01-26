@@ -16,6 +16,19 @@
 # Variables
 # ^^^^^^^^^
 #
+# The module exposes the components ``C``, ``CXX``, and ``Fortran``.
+# Each of these controls the various languages to search OpenMP support for.
+#
+# Depending on the enabled components the following variables will be set:
+#
+# ``OpenMP_FOUND``
+#   Variable indicating that OpenMP flags for all requested languages have been found.
+#   If no components are specified, this is true if OpenMP settings for all enabled languages
+#   were detected.
+# ``OpenMP_VERSION``
+#   Minimal version of the OpenMP standard detected among the requested languages,
+#   or all enabled languages if no components were specified.
+#
 # This module will set the following variables per language in your
 # project, where ``<lang>`` is one of C, CXX, or Fortran:
 #
@@ -60,18 +73,9 @@
 # The specification date is formatted as given in the OpenMP standard:
 # ``yyyymm`` where ``yyyy`` and ``mm`` represents the year and month of
 # the OpenMP specification implemented by the ``<lang>`` compiler.
-#
-# Backward Compatibility
-# ^^^^^^^^^^^^^^^^^^^^^^
-#
-# For backward compatibility with older versions of FindOpenMP, these
-# variables are set, but deprecated::
-#
-#   OpenMP_FOUND
-#
-# In new projects, please use the ``OpenMP_<lang>_XXX`` equivalents.
 
 cmake_policy(PUSH)
+cmake_policy(SET CMP0054 NEW) # if() quoted variables not dereferenced
 cmake_policy(SET CMP0057 NEW) # if IN_LIST
 
 function(_OPENMP_FLAG_CANDIDATES LANG)
@@ -95,10 +99,11 @@ function(_OPENMP_FLAG_CANDIDATES LANG)
     set(OMP_FLAG_NAG "-openmp")
     set(OMP_FLAG_Absoft "-openmp")
     set(OMP_FLAG_PGI "-mp")
+    set(OMP_FLAG_Flang "-fopenmp")
     set(OMP_FLAG_SunPro "-xopenmp")
     set(OMP_FLAG_XL "-qsmp=omp")
-    # Cray compiles with OpenMP automatically
-    set(OMP_FLAG_Cray " ")
+    # Cray compiler activate OpenMP with -h omp, which is enabled by default.
+    set(OMP_FLAG_Cray " " "-h omp")
 
     # If we know the correct flags, use those
     if(DEFINED OMP_FLAG_${CMAKE_${LANG}_COMPILER_ID})
@@ -118,7 +123,9 @@ set(OpenMP_C_CXX_TEST_SOURCE
 "
 #include <omp.h>
 int main() {
-#ifndef _OPENMP
+#ifdef _OPENMP
+  return 0;
+#else
   breaks_on_purpose
 #endif
 }
@@ -161,14 +168,23 @@ function(_OPENMP_GET_FLAGS LANG FLAG_MODE OPENMP_FLAG_VAR OPENMP_LIB_NAMES_VAR)
   _OPENMP_FLAG_CANDIDATES("${LANG}")
   _OPENMP_WRITE_SOURCE_FILE("${LANG}" "TEST_SOURCE" OpenMPTryFlag _OPENMP_TEST_SRC)
 
+  unset(OpenMP_VERBOSE_COMPILE_OPTIONS)
+  separate_arguments(OpenMP_VERBOSE_OPTIONS NATIVE_COMMAND "${CMAKE_${LANG}_VERBOSE_FLAG}")
+  foreach(_VERBOSE_OPTION IN LISTS OpenMP_VERBOSE_OPTIONS)
+    if(NOT _VERBOSE_OPTION MATCHES "^-Wl,")
+      list(APPEND OpenMP_VERBOSE_COMPILE_OPTIONS ${_VERBOSE_OPTION})
+    endif()
+  endforeach()
+
   foreach(OPENMP_FLAG IN LISTS OpenMP_${LANG}_FLAG_CANDIDATES)
     set(OPENMP_FLAGS_TEST "${OPENMP_FLAG}")
-    if(CMAKE_${LANG}_VERBOSE_FLAG)
-      string(APPEND OPENMP_FLAGS_TEST " ${CMAKE_${LANG}_VERBOSE_FLAG}")
+    if(OpenMP_VERBOSE_COMPILE_OPTIONS)
+      string(APPEND OPENMP_FLAGS_TEST " ${OpenMP_VERBOSE_COMPILE_OPTIONS}")
     endif()
     string(REGEX REPLACE "[-/=+]" "" OPENMP_PLAIN_FLAG "${OPENMP_FLAG}")
     try_compile( OpenMP_COMPILE_RESULT_${FLAG_MODE}_${OPENMP_PLAIN_FLAG} ${CMAKE_BINARY_DIR} ${_OPENMP_TEST_SRC}
       CMAKE_FLAGS "-DCOMPILE_DEFINITIONS:STRING=${OPENMP_FLAGS_TEST}"
+      LINK_LIBRARIES ${CMAKE_${LANG}_VERBOSE_FLAG}
       OUTPUT_VARIABLE OpenMP_TRY_COMPILE_OUTPUT
     )
 
@@ -197,13 +213,27 @@ function(_OPENMP_GET_FLAGS LANG FLAG_MODE OPENMP_FLAG_VAR OPENMP_LIB_NAMES_VAR)
 
         unset(_OPENMP_LIB_NAMES)
         foreach(_OPENMP_IMPLICIT_LIB IN LISTS OpenMP_${LANG}_IMPLICIT_LIBRARIES)
-          if(NOT "${_OPENMP_IMPLICIT_LIB}" IN_LIST CMAKE_${LANG}_IMPLICIT_LINK_LIBRARIES)
-            find_library(OpenMP_${_OPENMP_IMPLICIT_LIB}_LIBRARY
-              NAMES "${_OPENMP_IMPLICIT_LIB}"
-              HINTS ${OpenMP_${LANG}_IMPLICIT_LINK_DIRS}
-            )
-            mark_as_advanced(OpenMP_${_OPENMP_IMPLICIT_LIB}_LIBRARY)
-            list(APPEND _OPENMP_LIB_NAMES ${_OPENMP_IMPLICIT_LIB})
+          get_filename_component(_OPENMP_IMPLICIT_LIB_DIR "${_OPENMP_IMPLICIT_LIB}" DIRECTORY)
+          get_filename_component(_OPENMP_IMPLICIT_LIB_NAME "${_OPENMP_IMPLICIT_LIB}" NAME)
+          get_filename_component(_OPENMP_IMPLICIT_LIB_PLAIN "${_OPENMP_IMPLICIT_LIB}" NAME_WE)
+          string(REGEX REPLACE "([][+.*?()^$])" "\\\\\\1" _OPENMP_IMPLICIT_LIB_PLAIN_ESC "${_OPENMP_IMPLICIT_LIB_PLAIN}")
+          string(REGEX REPLACE "([][+.*?()^$])" "\\\\\\1" _OPENMP_IMPLICIT_LIB_PATH_ESC "${_OPENMP_IMPLICIT_LIB}")
+          if(NOT ( "${_OPENMP_IMPLICIT_LIB}" IN_LIST CMAKE_${LANG}_IMPLICIT_LINK_LIBRARIES
+            OR "${CMAKE_${LANG}_STANDARD_LIBRARIES}" MATCHES "(^| )(-Wl,)?(-l)?(${_OPENMP_IMPLICIT_LIB_PLAIN_ESC}|${_OPENMP_IMPLICIT_LIB_PATH_ESC})( |$)"
+            OR "${CMAKE_${LANG}_LINK_EXECUTABLE}" MATCHES "(^| )(-Wl,)?(-l)?(${_OPENMP_IMPLICIT_LIB_PLAIN_ESC}|${_OPENMP_IMPLICIT_LIB_PATH_ESC})( |$)" ) )
+            if(_OPENMP_IMPLICIT_LIB_DIR)
+              set(OpenMP_${_OPENMP_IMPLICIT_LIB_PLAIN}_LIBRARY "${_OPENMP_IMPLICIT_LIB}" CACHE FILEPATH
+                "Path to the ${_OPENMP_IMPLICIT_LIB_PLAIN} library for OpenMP")
+            else()
+              find_library(OpenMP_${_OPENMP_IMPLICIT_LIB_PLAIN}_LIBRARY
+                NAMES "${_OPENMP_IMPLICIT_LIB_NAME}"
+                DOC "Path to the ${_OPENMP_IMPLICIT_LIB_PLAIN} library for OpenMP"
+                HINTS ${OpenMP_${LANG}_IMPLICIT_LINK_DIRS}
+                CMAKE_FIND_ROOT_PATH_BOTH
+              )
+            endif()
+            mark_as_advanced(OpenMP_${_OPENMP_IMPLICIT_LIB_PLAIN}_LIBRARY)
+            list(APPEND _OPENMP_LIB_NAMES ${_OPENMP_IMPLICIT_LIB_PLAIN})
           endif()
         endforeach()
         set("${OPENMP_LIB_NAMES_VAR}" "${_OPENMP_LIB_NAMES}" PARENT_SCOPE)
@@ -225,6 +255,8 @@ function(_OPENMP_GET_FLAGS LANG FLAG_MODE OPENMP_FLAG_VAR OPENMP_LIB_NAMES_VAR)
     set("${OPENMP_LIB_NAMES_VAR}" "NOTFOUND" PARENT_SCOPE)
     set("${OPENMP_FLAG_VAR}" "NOTFOUND" PARENT_SCOPE)
   endforeach()
+
+  unset(OpenMP_VERBOSE_COMPILE_OPTIONS)
 endfunction()
 
 set(OpenMP_C_CXX_CHECK_VERSION_SOURCE
@@ -243,6 +275,7 @@ const char ompver_str[] = { 'I', 'N', 'F', 'O', ':', 'O', 'p', 'e', 'n', 'M',
 int main()
 {
   puts(ompver_str);
+  return 0;
 }
 ")
 
@@ -285,6 +318,8 @@ endfunction()
 
 macro(_OPENMP_SET_VERSION_BY_SPEC_DATE LANG)
   set(OpenMP_SPEC_DATE_MAP
+    # Preview versions
+    "201611=5.0" # OpenMP 5.0 preview 1
     # Combined versions, 2.5 onwards
     "201511=4.5"
     "201307=4.0"
@@ -303,7 +338,11 @@ macro(_OPENMP_SET_VERSION_BY_SPEC_DATE LANG)
     "199710=1.0"
   )
 
-  string(REGEX MATCHALL "${OpenMP_${LANG}_SPEC_DATE}=([0-9]+)\\.([0-9]+)" _version_match "${OpenMP_SPEC_DATE_MAP}")
+  if(OpenMP_${LANG}_SPEC_DATE)
+    string(REGEX MATCHALL "${OpenMP_${LANG}_SPEC_DATE}=([0-9]+)\\.([0-9]+)" _version_match "${OpenMP_SPEC_DATE_MAP}")
+  else()
+    set(_version_match "")
+  endif()
   if(NOT _version_match STREQUAL "")
     set(OpenMP_${LANG}_VERSION_MAJOR ${CMAKE_MATCH_1})
     set(OpenMP_${LANG}_VERSION_MINOR ${CMAKE_MATCH_2})
@@ -372,11 +411,17 @@ if(CMAKE_Fortran_COMPILER_LOADED)
   endif()
 endif()
 
-set(OPENMP_FOUND TRUE)
+if(NOT OpenMP_FIND_COMPONENTS)
+  set(OpenMP_FINDLIST C CXX Fortran)
+else()
+  set(OpenMP_FINDLIST ${OpenMP_FIND_COMPONENTS})
+endif()
 
-foreach(LANG IN ITEMS C CXX Fortran)
+unset(_OpenMP_MIN_VERSION)
+
+foreach(LANG IN LISTS OpenMP_FINDLIST)
   if(CMAKE_${LANG}_COMPILER_LOADED)
-    if (NOT OpenMP_${LANG}_SPEC_DATE)
+    if (NOT OpenMP_${LANG}_SPEC_DATE AND OpenMP_${LANG}_FLAGS)
       _OPENMP_GET_SPEC_DATE("${LANG}" OpenMP_${LANG}_SPEC_DATE_INTERNAL)
       set(OpenMP_${LANG}_SPEC_DATE "${OpenMP_${LANG}_SPEC_DATE_INTERNAL}" CACHE
         INTERNAL "${LANG} compiler's OpenMP specification date")
@@ -405,6 +450,11 @@ foreach(LANG IN ITEMS C CXX Fortran)
     )
 
     if(OpenMP_${LANG}_FOUND)
+      if(DEFINED OpenMP_${LANG}_VERSION)
+        if(NOT _OpenMP_MIN_VERSION OR _OpenMP_MIN_VERSION VERSION_GREATER OpenMP_${LANG}_VERSION)
+          set(_OpenMP_MIN_VERSION OpenMP_${LANG}_VERSION)
+        endif()
+      endif()
       set(OpenMP_${LANG}_LIBRARIES "")
       foreach(_OPENMP_IMPLICIT_LIB IN LISTS OpenMP_${LANG}_LIB_NAMES)
         list(APPEND OpenMP_${LANG}_LIBRARIES "${OpenMP_${_OPENMP_IMPLICIT_LIB}_LIBRARY}")
@@ -423,13 +473,23 @@ foreach(LANG IN ITEMS C CXX Fortran)
         set_property(TARGET OpenMP::OpenMP_${LANG} PROPERTY
           INTERFACE_LINK_LIBRARIES "${OpenMP_${LANG}_LIBRARIES}")
       endif()
-    else()
-      set(OPENMP_FOUND FALSE)
     endif()
   endif()
 endforeach()
 
-set(OpenMP_FOUND ${OPENMP_FOUND})
+unset(_OpenMP_REQ_VARS)
+foreach(LANG IN ITEMS C CXX Fortran)
+  if((NOT OpenMP_FIND_COMPONENTS AND CMAKE_${LANG}_COMPILER_LOADED) OR LANG IN_LIST OpenMP_FIND_COMPONENTS)
+    list(APPEND _OpenMP_REQ_VARS "OpenMP_${LANG}_FOUND")
+  endif()
+endforeach()
+
+find_package_handle_standard_args(OpenMP
+    REQUIRED_VARS ${_OpenMP_REQ_VARS}
+    VERSION_VAR ${_OpenMP_MIN_VERSION}
+    HANDLE_COMPONENTS)
+
+set(OPENMP_FOUND ${OpenMP_FOUND})
 
 if(CMAKE_Fortran_COMPILER_LOADED AND OpenMP_Fortran_FOUND)
   if(NOT DEFINED OpenMP_Fortran_HAVE_OMPLIB_MODULE)

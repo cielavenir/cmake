@@ -146,6 +146,10 @@ if(BUILD_TESTING)
 
   if(NOT CMake_TEST_EXTERNAL_CMAKE)
     add_subdirectory(CMakeLib)
+
+    if(CMake_TEST_SERVER_MODE)
+      add_subdirectory(CMakeServerLib)
+    endif()
   endif()
   add_subdirectory(CMakeOnly)
   add_subdirectory(RunCMake)
@@ -264,7 +268,7 @@ if(BUILD_TESTING)
   endif()
 
   add_test(NAME CMake.Copyright
-    COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/CMakeCopyright.cmake)
+    COMMAND ${CMAKE_CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/CMakeCopyright.cmake)
 
   # add a bunch of standard build-and-test style tests
   ADD_TEST_MACRO(CommandLineTest CommandLineTest)
@@ -325,7 +329,7 @@ if(BUILD_TESTING)
       set(CMAKE_SKIP_VSGNUFortran TRUE)
     endif()
     if(NOT CMAKE_SKIP_VSGNUFortran)
-      ADD_TEST_MACRO(VSGNUFortran ${CMAKE_COMMAND} -P runtest.cmake)
+      ADD_TEST_MACRO(VSGNUFortran ${CMAKE_CMAKE_COMMAND} -P runtest.cmake)
     endif()
   endif()
 
@@ -403,11 +407,14 @@ if(BUILD_TESTING)
 
   list(APPEND TEST_BUILD_DIRS ${CMake_TEST_INSTALL_PREFIX})
 
-  if(NOT QT4_FOUND)
+  if(NOT DEFINED CMake_TEST_Qt4)
+    set(CMake_TEST_Qt4 1)
+  endif()
+  if(CMake_TEST_Qt4 AND NOT QT4_FOUND)
     find_package(Qt4 QUIET)
   endif()
 
-  if(QT4_FOUND)
+  if(CMake_TEST_Qt4 AND QT4_FOUND)
     # test whether the Qt4 which has been found works, on some machines
     # which run nightly builds there were errors like "wrong file format"
     # for libQtCore.so. So first check it works, and only if it does add
@@ -808,31 +815,6 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     --test-command working
     )
   list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/CustomCommandWorkingDirectory")
-
-   #add_test(SimpleExclude ${CMAKE_CTEST_COMMAND}
-   #  --build-and-test
-   #  "${CMake_SOURCE_DIR}/Tests/SimpleExclude"
-   #  "${CMake_BINARY_DIR}/Tests/SimpleExclude"
-   #  ${build_generator_args}
-   #  --build-project SimpleExclude
-   #  --build-two-config
-   #  --build-options ${build_options}
-   #  --test-command t4
-   #--test-command "${CMAKE_COMMAND}"
-   #"-DCONFIGURATION=\${CTEST_CONFIGURATION_TYPE}"
-   #-P "${CMake_BINARY_DIR}/Tests/SimpleExclude/run.cmake"
-   #)
-
-#  add_test(SameName  ${CMAKE_CTEST_COMMAND}
-#    --build-and-test
-#    "${CMake_SOURCE_DIR}/Tests/SameName"
-#    "${CMake_BINARY_DIR}/Tests/SameName"
-#    ${build_generator_args}
-#    --build-project SameName
-#    --build-two-config
-#    --build-options ${build_options}
-#    --test-command
-#    "${CMake_BINARY_DIR}/Tests/SameName/Exe1/mytest2")
 
   add_test(OutOfSource ${CMAKE_CTEST_COMMAND}
     --build-and-test
@@ -1274,8 +1256,13 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     set(QtAutogen_BUILD_OPTIONS -DCMAKE_BUILD_TYPE=$<CONFIGURATION>)
   endif()
 
-  find_package(Qt5Widgets QUIET NO_MODULE)
-  if(Qt5Widgets_FOUND)
+  if(NOT DEFINED CMake_TEST_Qt5)
+    set(CMake_TEST_Qt5 1)
+  endif()
+  if(CMake_TEST_Qt5)
+    find_package(Qt5Widgets QUIET NO_MODULE)
+  endif()
+  if(CMake_TEST_Qt5 AND Qt5Widgets_FOUND)
     add_test(NAME Qt5Autogen COMMAND ${CMAKE_CTEST_COMMAND}
       --build-and-test
       "${CMake_SOURCE_DIR}/Tests/QtAutogen"
@@ -1285,11 +1272,27 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
       --build-exe-dir "${CMake_BINARY_DIR}/Tests/Qt5Autogen"
       --force-new-ctest-process
       --build-options ${build_options}
-        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE} -DQT_TEST_VERSION=5
+        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE}
+        -DQT_TEST_VERSION=5
         ${QtAutogen_BUILD_OPTIONS}
       --test-command ${run_autogen_test}
       )
     list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Qt5Autogen")
+
+    add_test(NAME Qt5AutogenRerun COMMAND ${CMAKE_CTEST_COMMAND}
+      --build-and-test
+      "${CMake_SOURCE_DIR}/Tests/QtAutogenRerun"
+      "${CMake_BINARY_DIR}/Tests/Qt5AutogenRerun"
+      ${build_generator_args}
+      --build-project QtAutogenRerun
+      --build-exe-dir "${CMake_BINARY_DIR}/Tests/Qt5AutogenRerun"
+      --force-new-ctest-process
+      --build-options ${build_options}
+        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE}
+        -DQT_TEST_VERSION=5
+        ${QtAutogen_BUILD_OPTIONS}
+      )
+    list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Qt5AutogenRerun")
 
     add_test(Qt5AutoUicInterface ${CMAKE_CTEST_COMMAND}
       --build-and-test
@@ -1315,11 +1318,27 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
       --build-exe-dir "${CMake_BINARY_DIR}/Tests/Qt4Autogen"
       --force-new-ctest-process
       --build-options ${build_options}
-        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE} -DQT_TEST_VERSION=4
+        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE}
+        -DQT_TEST_VERSION=4
         ${QtAutogen_BUILD_OPTIONS}
       --test-command ${run_autogen_test}
       )
     list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Qt4Autogen")
+
+    add_test(NAME Qt4AutogenRerun COMMAND ${CMAKE_CTEST_COMMAND}
+      --build-and-test
+      "${CMake_SOURCE_DIR}/Tests/QtAutogenRerun"
+      "${CMake_BINARY_DIR}/Tests/Qt4AutogenRerun"
+      ${build_generator_args}
+      --build-project QtAutogenRerun
+      --build-exe-dir "${CMake_BINARY_DIR}/Tests/Qt4AutogenRerun"
+      --force-new-ctest-process
+      --build-options ${build_options}
+        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE}
+        -DQT_TEST_VERSION=4
+        ${QtAutogen_BUILD_OPTIONS}
+      )
+    list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Qt4AutogenRerun")
 
     add_test(Qt4AutoUicInterface ${CMAKE_CTEST_COMMAND}
       --build-and-test
@@ -1330,7 +1349,8 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
       --build-exe-dir "${CMake_BINARY_DIR}/Tests/Qt4AutoUicInterface"
       --force-new-ctest-process
       --build-options ${build_options}
-        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE} -DQT_TEST_VERSION=4
+        -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE}
+        -DQT_TEST_VERSION=4
       --test-command ${run_autouic_test}
       )
     list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Qt4AutoUicInterface")
@@ -1394,6 +1414,14 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     add_subdirectory(FindDoxygen)
   endif()
 
+  if(CMake_TEST_FindEXPAT)
+    add_subdirectory(FindEXPAT)
+  endif()
+
+  if(CMake_TEST_FindFreetype)
+    add_subdirectory(FindFreetype)
+  endif()
+
   if(CMake_TEST_FindGSL)
     add_subdirectory(FindGSL)
   endif()
@@ -1445,6 +1473,10 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
 
   if(CMake_TEST_FindPNG)
     add_subdirectory(FindPNG)
+  endif()
+
+  if(CMake_TEST_FindPatch)
+    add_subdirectory(FindPatch)
   endif()
 
   if(CMake_TEST_FindProtobuf)
@@ -2082,7 +2114,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     set(reg_nasm "[HKEY_CURRENT_USER\\SOFTWARE\\nasm]")
     foreach(reg vs10 vs11 vs12 vs14 ws80 ws81 ws10_0 wp80 wp81 wince tegra nasm)
       get_filename_component(r "${reg_${reg}}" ABSOLUTE)
-      if(IS_DIRECTORY "${r}")
+      if(IS_DIRECTORY "${r}" AND NOT "${r}" STREQUAL "/registry")
         set(${reg} 1)
       else()
         set(${reg} 0)
@@ -2617,7 +2649,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   file(COPY "${CMake_SOURCE_DIR}/Tests/MumpsCoverage/VistA-FOIA"
     DESTINATION "${CMake_BINARY_DIR}/Testing/MumpsCoverage")
   add_test(NAME CTestGTMCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/MumpsCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestGTMCoverage PROPERTIES
@@ -2635,7 +2667,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   file(COPY "${CMake_SOURCE_DIR}/Tests/MumpsCoverage/VistA-FOIA"
     DESTINATION "${CMake_BINARY_DIR}/Testing/MumpsCacheCoverage")
   add_test(NAME CTestCacheCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/MumpsCacheCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestCacheCoverage PROPERTIES
@@ -2653,7 +2685,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   file(COPY "${CMake_SOURCE_DIR}/Tests/PythonCoverage/coveragetest"
     DESTINATION "${CMake_BINARY_DIR}/Testing/PythonCoverage")
   add_test(NAME CTestPythonCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/PythonCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestPythonCoverage PROPERTIES
@@ -2671,7 +2703,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   file(COPY "${CMake_SOURCE_DIR}/Tests/CoberturaCoverage/src"
     DESTINATION "${CMake_BINARY_DIR}/Testing/CoberturaCoverage")
   add_test(NAME CTestCoberturaCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/CoberturaCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestCoberturaCoverage PROPERTIES
@@ -2690,7 +2722,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   configure_file("${CMake_BINARY_DIR}/Testing/JacocoCoverage/Coverage/target/site/jacoco.xml.in"
     "${CMake_BINARY_DIR}/Testing/JacocoCoverage/Coverage/target/site/jacoco.xml")
   add_test(NAME CTestJacocoCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/JacocoCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestJacocoCoverage PROPERTIES
@@ -2709,7 +2741,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     DESTINATION "${CMake_BINARY_DIR}/Testing/JavascriptCoverage"
     FILES_MATCHING PATTERN "*.js")
   add_test(NAME CTestJavascriptCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/JavascriptCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestJavascriptCoverage PROPERTIES
@@ -2727,7 +2759,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     "${CMake_SOURCE_DIR}/Tests/DelphiCoverage/UTCovTest(UTCovTest.pas).html.in"
     "${CMake_BINARY_DIR}/Testing/DelphiCoverage/UTCovTest(UTCovTest.pas).html")
   add_test(NAME CTestDelphiCoverage
-    COMMAND cmake -E chdir
+    COMMAND ${CMAKE_CMAKE_COMMAND} -E chdir
     ${CMake_BINARY_DIR}/Testing/DelphiCoverage
     $<TARGET_FILE:ctest> -T Coverage --debug)
   set_tests_properties(CTestDelphiCoverage PROPERTIES
@@ -2785,13 +2817,11 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   ADD_TEST_MACRO(CMakeCommands.target_compile_definitions target_compile_definitions)
   ADD_TEST_MACRO(CMakeCommands.target_compile_options target_compile_options)
 
-  if(CMake_TEST_SERVER_MODE)
-    # The cmake server-mode test requires python for a simple client.
-    find_package(PythonInterp QUIET)
-    if(PYTHON_EXECUTABLE)
-      set(Server_BUILD_OPTIONS -DPYTHON_EXECUTABLE:FILEPATH=${PYTHON_EXECUTABLE})
-      ADD_TEST_MACRO(Server Server)
-    endif()
+  # The cmake server-mode test requires python for a simple client.
+  find_package(PythonInterp QUIET)
+  if(PYTHON_EXECUTABLE)
+    set(Server_BUILD_OPTIONS -DPYTHON_EXECUTABLE:FILEPATH=${PYTHON_EXECUTABLE})
+    ADD_TEST_MACRO(Server Server)
   endif()
 
   configure_file(

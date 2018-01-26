@@ -14,8 +14,11 @@ function(cm_check_cxx_feature name)
       CMAKE_FLAGS ${maybe_cxx_standard}
       OUTPUT_VARIABLE OUTPUT
       )
+    set(check_output "${OUTPUT}")
     # Filter out MSBuild output that looks like a warning.
-    string(REGEX REPLACE " +0 Warning\\(s\\)" "" check_output "${OUTPUT}")
+    string(REGEX REPLACE " +0 Warning\\(s\\)" "" check_output "${check_output}")
+    # Filter out warnings caused by user flags.
+    string(REGEX REPLACE "[^\n]*warning:[^\n]*-Winvalid-command-line-argument[^\n]*" "" check_output "${check_output}")
     # If using the feature causes warnings, treat it as broken/unavailable.
     if(check_output MATCHES "[Ww]arning")
       set(CMake_HAVE_CXX_${FEATURE} OFF CACHE INTERNAL "TRY_COMPILE" FORCE)
@@ -38,8 +41,6 @@ function(cm_check_cxx_feature name)
   endif()
 endfunction()
 
-cm_check_cxx_feature(auto_ptr)
-cm_check_cxx_feature(eq_delete)
 cm_check_cxx_feature(fallthrough)
 if(NOT CMake_HAVE_CXX_FALLTHROUGH)
   cm_check_cxx_feature(gnu_fallthrough)
@@ -51,8 +52,4 @@ cm_check_cxx_feature(make_unique)
 if(CMake_HAVE_CXX_MAKE_UNIQUE)
   set(CMake_HAVE_CXX_UNIQUE_PTR 1)
 endif()
-cm_check_cxx_feature(nullptr)
-cm_check_cxx_feature(override)
 cm_check_cxx_feature(unique_ptr)
-cm_check_cxx_feature(unordered_map)
-cm_check_cxx_feature(unordered_set)

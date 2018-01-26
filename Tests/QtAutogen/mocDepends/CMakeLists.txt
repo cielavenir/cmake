@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.9)
+cmake_policy(SET CMP0071 NEW)
 project(mocDepends CXX)
 
 if (QT_TEST_VERSION STREQUAL 4)
@@ -43,7 +44,6 @@ add_custom_command(
 add_executable(mocDepGenFile testGenFile.cpp ${CBD}/GenFile.hpp)
 target_link_libraries(mocDepGenFile ${QT_CORE_TARGET})
 set_target_properties(mocDepGenFile PROPERTIES AUTOMOC TRUE)
-set_property(TARGET mocDepGenFile PROPERTY __UNDOCUMENTED_AUTOGEN_GENERATED_FILES 1)
 
 
 # -- Test dependency on header generating custom target

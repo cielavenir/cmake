@@ -363,7 +363,7 @@ void cmGhsMultiTargetGenerator::WriteTargetLinkLibraries(
       this->GeneratorTarget->GetCreateRuleVariable(language, config);
     bool useWatcomQuote =
       this->Makefile->IsOn(createRule + "_USE_WATCOM_QUOTE");
-    CM_AUTO_PTR<cmLinkLineComputer> linkLineComputer(
+    std::unique_ptr<cmLinkLineComputer> linkLineComputer(
       this->GetGlobalGenerator()->CreateLinkLineComputer(
         this->LocalGenerator,
         this->LocalGenerator->GetStateSnapshot().GetDirectory()));
@@ -439,7 +439,7 @@ cmGhsMultiTargetGenerator::GetObjectNames(
   cmLocalGhsMultiGenerator* const localGhsMultiGenerator,
   cmGeneratorTarget* const generatorTarget)
 {
-  std::map<std::string, std::vector<cmSourceFile*> > filenameToSource;
+  std::map<std::string, std::vector<cmSourceFile*>> filenameToSource;
   std::map<cmSourceFile*, std::string> sourceToFilename;
   for (std::vector<cmSourceFile*>::const_iterator sf = objectSources->begin();
        sf != objectSources->end(); ++sf) {
@@ -451,7 +451,7 @@ cmGhsMultiTargetGenerator::GetObjectNames(
   }
 
   std::vector<cmSourceFile*> duplicateSources;
-  for (std::map<std::string, std::vector<cmSourceFile*> >::const_iterator
+  for (std::map<std::string, std::vector<cmSourceFile*>>::const_iterator
          msvSourceI = filenameToSource.begin();
        msvSourceI != filenameToSource.end(); ++msvSourceI) {
     if (msvSourceI->second.size() > 1) {
