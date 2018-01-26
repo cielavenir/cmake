@@ -2,6 +2,7 @@ cmake (3.10.2-1) UNRELEASED; urgency=medium
 
   * New upstream release.
   * Disable CTestTestUpload in autopkgtest.
+  * Point Vcs-* control fields to the new repo on salsa.
 
  -- Felix Geyer <fgeyer@debian.org>  Fri, 26 Jan 2018 17:07:25 +0100
 
