@@ -42,6 +42,7 @@
 #include "cmIfCommand.h"
 #include "cmIncludeCommand.h"
 #include "cmIncludeDirectoryCommand.h"
+#include "cmIncludeGuardCommand.h"
 #include "cmIncludeRegularExpressionCommand.h"
 #include "cmInstallCommand.h"
 #include "cmInstallFilesCommand.h"
@@ -67,7 +68,12 @@
 #include "cmSiteNameCommand.h"
 #include "cmStringCommand.h"
 #include "cmSubdirCommand.h"
+#include "cmTargetCompileDefinitionsCommand.h"
+#include "cmTargetCompileFeaturesCommand.h"
+#include "cmTargetCompileOptionsCommand.h"
+#include "cmTargetIncludeDirectoriesCommand.h"
 #include "cmTargetLinkLibrariesCommand.h"
+#include "cmTargetSourcesCommand.h"
 #include "cmTryCompileCommand.h"
 #include "cmTryRunCommand.h"
 #include "cmUnsetCommand.h"
@@ -93,11 +99,6 @@
 #include "cmRemoveDefinitionsCommand.h"
 #include "cmSourceGroupCommand.h"
 #include "cmSubdirDependsCommand.h"
-#include "cmTargetCompileDefinitionsCommand.h"
-#include "cmTargetCompileFeaturesCommand.h"
-#include "cmTargetCompileOptionsCommand.h"
-#include "cmTargetIncludeDirectoriesCommand.h"
-#include "cmTargetSourcesCommand.h"
 #include "cmUseMangledMesaCommand.h"
 #include "cmUtilitySourceCommand.h"
 #include "cmVariableRequiresCommand.h"
@@ -132,6 +133,7 @@ void GetScriptingCommands(cmState* state)
   state->AddBuiltinCommand("get_property", new cmGetPropertyCommand);
   state->AddBuiltinCommand("if", new cmIfCommand);
   state->AddBuiltinCommand("include", new cmIncludeCommand);
+  state->AddBuiltinCommand("include_guard", new cmIncludeGuardCommand);
   state->AddBuiltinCommand("list", new cmListCommand);
   state->AddBuiltinCommand("macro", new cmMacroCommand);
   state->AddBuiltinCommand("make_directory", new cmMakeDirectoryCommand);
@@ -145,8 +147,6 @@ void GetScriptingCommands(cmState* state)
   state->AddBuiltinCommand("separate_arguments",
                            new cmSeparateArgumentsCommand);
   state->AddBuiltinCommand("set", new cmSetCommand);
-  state->AddBuiltinCommand("set_directory_properties",
-                           new cmSetDirectoryPropertiesCommand);
   state->AddBuiltinCommand("set_property", new cmSetPropertyCommand);
   state->AddBuiltinCommand("site_name", new cmSiteNameCommand);
   state->AddBuiltinCommand("string", new cmStringCommand);
@@ -229,6 +229,8 @@ void GetProjectCommands(cmState* state)
   state->AddBuiltinCommand("install_targets", new cmInstallTargetsCommand);
   state->AddBuiltinCommand("link_directories", new cmLinkDirectoriesCommand);
   state->AddBuiltinCommand("project", new cmProjectCommand);
+  state->AddBuiltinCommand("set_directory_properties",
+                           new cmSetDirectoryPropertiesCommand);
   state->AddBuiltinCommand("set_source_files_properties",
                            new cmSetSourceFilesPropertiesCommand);
   state->AddBuiltinCommand("set_target_properties",
@@ -236,8 +238,17 @@ void GetProjectCommands(cmState* state)
   state->AddBuiltinCommand("set_tests_properties",
                            new cmSetTestsPropertiesCommand);
   state->AddBuiltinCommand("subdirs", new cmSubdirCommand);
+  state->AddBuiltinCommand("target_compile_definitions",
+                           new cmTargetCompileDefinitionsCommand);
+  state->AddBuiltinCommand("target_compile_features",
+                           new cmTargetCompileFeaturesCommand);
+  state->AddBuiltinCommand("target_compile_options",
+                           new cmTargetCompileOptionsCommand);
+  state->AddBuiltinCommand("target_include_directories",
+                           new cmTargetIncludeDirectoriesCommand);
   state->AddBuiltinCommand("target_link_libraries",
                            new cmTargetLinkLibrariesCommand);
+  state->AddBuiltinCommand("target_sources", new cmTargetSourcesCommand);
   state->AddBuiltinCommand("try_compile", new cmTryCompileCommand);
   state->AddBuiltinCommand("try_run", new cmTryRunCommand);
 
@@ -258,15 +269,6 @@ void GetProjectCommands(cmState* state)
   state->AddBuiltinCommand("remove_definitions",
                            new cmRemoveDefinitionsCommand);
   state->AddBuiltinCommand("source_group", new cmSourceGroupCommand);
-  state->AddBuiltinCommand("target_compile_definitions",
-                           new cmTargetCompileDefinitionsCommand);
-  state->AddBuiltinCommand("target_compile_features",
-                           new cmTargetCompileFeaturesCommand);
-  state->AddBuiltinCommand("target_compile_options",
-                           new cmTargetCompileOptionsCommand);
-  state->AddBuiltinCommand("target_include_directories",
-                           new cmTargetIncludeDirectoriesCommand);
-  state->AddBuiltinCommand("target_sources", new cmTargetSourcesCommand);
 
   state->AddDisallowedCommand(
     "export_library_dependencies", new cmExportLibraryDependenciesCommand,

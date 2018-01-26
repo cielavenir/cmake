@@ -4,7 +4,11 @@ project (CudaOnlyWithDefs CUDA)
 
 #verify that we can pass explicit cuda arch flags
 string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_30,code=compute_30")
-set(debug_compile_flags --generate-code arch=compute_20,code=sm_20)
+if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 9)
+  set(debug_compile_flags --generate-code arch=compute_32,code=sm_32)
+else()
+  set(debug_compile_flags --generate-code arch=compute_20,code=sm_20)
+endif()
 if(CMAKE_CUDA_SIMULATE_ID STREQUAL "MSVC")
   list(APPEND debug_compile_flags -Xcompiler=-WX)
 else()
@@ -37,8 +41,7 @@ target_compile_definitions(CudaOnlyWithDefs
     $<$<CONFIG:RELEASE>:$<BUILD_INTERFACE:${release_compile_defs}>>
   )
 
-#we need to add an rpath for the cuda library so that everything
-#loads properly on the mac
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set_target_properties(CudaOnlyWithDefs PROPERTIES LINK_FLAGS "-Wl,-rpath,${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
+if(APPLE)
+  # Help the static cuda runtime find the driver (libcuda.dyllib) at runtime.
+  set_property(TARGET CudaOnlyWithDefs PROPERTY BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 endif()

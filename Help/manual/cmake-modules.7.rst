@@ -60,6 +60,7 @@ All Modules
    /module/CPackCygwin
    /module/CPackDeb
    /module/CPackDMG
+   /module/CPackFreeBSD
    /module/CPackIFW
    /module/CPackIFWConfigureFile
    /module/CPackNSIS
@@ -152,6 +153,7 @@ All Modules
    /module/FindMPEG2
    /module/FindMPEG
    /module/FindMPI
+   /module/FindOpenACC
    /module/FindOpenAL
    /module/FindOpenCL
    /module/FindOpenGL
@@ -181,6 +183,7 @@ All Modules
    /module/FindosgWidget
    /module/FindPackageHandleStandardArgs
    /module/FindPackageMessage
+   /module/FindPatch
    /module/FindPerlLibs
    /module/FindPerl
    /module/FindPHP4

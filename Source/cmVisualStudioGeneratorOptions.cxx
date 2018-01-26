@@ -89,7 +89,7 @@ void cmVisualStudioGeneratorOptions::AddTable(cmVS7FlagTable const* table)
 void cmVisualStudioGeneratorOptions::ClearTables()
 {
   for (int i = 0; i < FlagTableCount; ++i) {
-    this->FlagTable[i] = CM_NULLPTR;
+    this->FlagTable[i] = nullptr;
   }
 }
 
@@ -254,6 +254,74 @@ void cmVisualStudioGeneratorOptions::FixCudaCodeGeneration()
     cmSystemTools::ReplaceString(entry, "code=", "");
     result.push_back(entry);
   }
+}
+
+void cmVisualStudioGeneratorOptions::FixManifestUACFlags()
+{
+  static const char* ENABLE_UAC = "EnableUAC";
+  if (!HasFlag(ENABLE_UAC)) {
+    return;
+  }
+
+  const std::string uacFlag = GetFlag(ENABLE_UAC);
+  std::vector<std::string> subOptions;
+  cmsys::SystemTools::Split(uacFlag, subOptions, ' ');
+  if (subOptions.empty()) {
+    AddFlag(ENABLE_UAC, "true");
+    return;
+  }
+
+  if (subOptions.size() == 1 && subOptions[0] == "NO") {
+    AddFlag(ENABLE_UAC, "false");
+    return;
+  }
+
+  std::map<std::string, std::string> uacMap;
+  uacMap["level"] = "UACExecutionLevel";
+  uacMap["uiAccess"] = "UACUIAccess";
+
+  std::map<std::string, std::string> uacExecuteLevelMap;
+  uacExecuteLevelMap["asInvoker"] = "AsInvoker";
+  uacExecuteLevelMap["highestAvailable"] = "HighestAvailable";
+  uacExecuteLevelMap["requireAdministrator"] = "RequireAdministrator";
+
+  for (auto const& subopt : subOptions) {
+    std::vector<std::string> keyValue;
+    cmsys::SystemTools::Split(subopt, keyValue, '=');
+    if (keyValue.size() != 2 || (uacMap.find(keyValue[0]) == uacMap.end())) {
+      // ignore none key=value option or unknown flags
+      continue;
+    }
+
+    if (keyValue[1].front() == '\'' && keyValue[1].back() == '\'') {
+      keyValue[1] =
+        keyValue[1].substr(1, std::max<int>(0, keyValue[1].size() - 2));
+    }
+
+    if (keyValue[0] == "level") {
+      if (uacExecuteLevelMap.find(keyValue[1]) == uacExecuteLevelMap.end()) {
+        // unknown level value
+        continue;
+      }
+
+      AddFlag(uacMap[keyValue[0]].c_str(),
+              uacExecuteLevelMap[keyValue[1]].c_str());
+      continue;
+    }
+
+    if (keyValue[0] == "uiAccess") {
+      if (keyValue[1] != "true" && keyValue[1] != "false") {
+        // unknown uiAccess value
+        continue;
+      }
+      AddFlag(uacMap[keyValue[0]].c_str(), keyValue[1].c_str());
+      continue;
+    }
+
+    // unknwon sub option
+  }
+
+  AddFlag(ENABLE_UAC, "true");
 }
 
 void cmVisualStudioGeneratorOptions::Parse(const char* flags)

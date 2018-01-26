@@ -22,19 +22,18 @@
 
 #include "cmSystemTools.h" // IWYU pragma: keep
 
-static const char* cmDocumentationName[][2] = { { CM_NULLPTR,
+static const char* cmDocumentationName[][2] = { { nullptr,
                                                   "  cmake-gui - CMake GUI." },
-                                                { CM_NULLPTR, CM_NULLPTR } };
+                                                { nullptr, nullptr } };
 
 static const char* cmDocumentationUsage[][2] = {
-  { CM_NULLPTR, "  cmake-gui [options]\n"
-                "  cmake-gui [options] <path-to-source>\n"
-                "  cmake-gui [options] <path-to-existing-build>" },
-  { CM_NULLPTR, CM_NULLPTR }
+  { nullptr, "  cmake-gui [options]\n"
+             "  cmake-gui [options] <path-to-source>\n"
+             "  cmake-gui [options] <path-to-existing-build>" },
+  { nullptr, nullptr }
 };
 
-static const char* cmDocumentationOptions[]
-                                         [2] = { { CM_NULLPTR, CM_NULLPTR } };
+static const char* cmDocumentationOptions[][2] = { { nullptr, nullptr } };
 
 #if defined(Q_OS_MAC)
 static int cmOSXInstall(std::string dir);
@@ -43,6 +42,10 @@ static void cmAddPluginPath();
 
 #if defined(USE_QXcbIntegrationPlugin)
 Q_IMPORT_PLUGIN(QXcbIntegrationPlugin);
+#endif
+
+#if defined(USE_QWindowsIntegrationPlugin)
+Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin);
 #endif
 
 int main(int argc, char** argv)
@@ -91,6 +94,10 @@ int main(int argc, char** argv)
 // searching for the platform plugins
 #if defined(Q_OS_MAC)
   cmAddPluginPath();
+#endif
+
+#if QT_VERSION >= 0x050600
+  QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 #endif
 
   QApplication app(argc, argv);

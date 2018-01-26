@@ -62,8 +62,8 @@ cmLocalVisualStudio7Generator::~cmLocalVisualStudio7Generator()
 void cmLocalVisualStudio7Generator::AddHelperCommands()
 {
   // Now create GUIDs for targets
-  std::vector<cmGeneratorTarget*> tgts = this->GetGeneratorTargets();
-  for (std::vector<cmGeneratorTarget*>::iterator l = tgts.begin();
+  const std::vector<cmGeneratorTarget*>& tgts = this->GetGeneratorTargets();
+  for (std::vector<cmGeneratorTarget*>::const_iterator l = tgts.begin();
        l != tgts.end(); ++l) {
     if ((*l)->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
       continue;
@@ -91,8 +91,9 @@ void cmLocalVisualStudio7Generator::AddCMakeListsRules()
     // specification source changes.
     if (cmSourceFile* sf = this->CreateVCProjBuildRule()) {
       // Add the rule to targets that need it.
-      std::vector<cmGeneratorTarget*> tgts = this->GetGeneratorTargets();
-      for (std::vector<cmGeneratorTarget*>::iterator l = tgts.begin();
+      const std::vector<cmGeneratorTarget*>& tgts =
+        this->GetGeneratorTargets();
+      for (std::vector<cmGeneratorTarget*>::const_iterator l = tgts.begin();
            l != tgts.end(); ++l) {
         if ((*l)->GetType() == cmStateEnums::GLOBAL_TARGET) {
           continue;
@@ -110,8 +111,8 @@ void cmLocalVisualStudio7Generator::FixGlobalTargets()
   // Visual Studio .NET 2003 Service Pack 1 will not run post-build
   // commands for targets in which no sources are built.  Add dummy
   // rules to force these targets to build.
-  std::vector<cmGeneratorTarget*> tgts = this->GetGeneratorTargets();
-  for (std::vector<cmGeneratorTarget*>::iterator l = tgts.begin();
+  const std::vector<cmGeneratorTarget*>& tgts = this->GetGeneratorTargets();
+  for (std::vector<cmGeneratorTarget*>::const_iterator l = tgts.begin();
        l != tgts.end(); l++) {
     if ((*l)->GetType() == cmStateEnums::GLOBAL_TARGET) {
       std::vector<std::string> no_depends;
@@ -120,7 +121,7 @@ void cmLocalVisualStudio7Generator::FixGlobalTargets()
       force_command.push_back(".");
       cmCustomCommandLines force_commands;
       force_commands.push_back(force_command);
-      std::string no_main_dependency = "";
+      std::string no_main_dependency;
       std::string force = this->GetCurrentBinaryDirectory();
       force += cmake::GetCMakeFilesDirectory();
       force += "/";
@@ -150,10 +151,10 @@ void cmLocalVisualStudio7Generator::WriteProjectFiles()
   }
 
   // Get the set of targets in this directory.
-  std::vector<cmGeneratorTarget*> tgts = this->GetGeneratorTargets();
+  const std::vector<cmGeneratorTarget*>& tgts = this->GetGeneratorTargets();
 
   // Create the project file for each target.
-  for (std::vector<cmGeneratorTarget*>::iterator l = tgts.begin();
+  for (std::vector<cmGeneratorTarget*>::const_iterator l = tgts.begin();
        l != tgts.end(); l++) {
     if ((*l)->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
       continue;
@@ -525,6 +526,7 @@ cmVS7FlagTable cmLocalVisualStudio7GeneratorLinkFlagTable[] = {
   { "TargetMachine", "MACHINE:SH5", "Machine SH5", "15", 0 },
   { "TargetMachine", "MACHINE:THUMB", "Machine THUMB", "16", 0 },
   { "TargetMachine", "MACHINE:X64", "Machine x64", "17", 0 },
+  { "TargetMachine", "MACHINE:ARM64", "Machine ARM64", "18", 0 },
   { "TurnOffAssemblyGeneration", "NOASSEMBLY",
     "No assembly even if CLR information is present in objects.", "true", 0 },
   { "ModuleDefinitionFile", "DEF:", "add an export def file", "",
@@ -1451,8 +1453,8 @@ cmLocalVisualStudio7GeneratorFCInfo::cmLocalVisualStudio7GeneratorFCInfo(
     }
     if (const char* cflags = sf.GetProperty("COMPILE_FLAGS")) {
       cmGeneratorExpression ge;
-      CM_AUTO_PTR<cmCompiledGeneratorExpression> cge = ge.Parse(cflags);
-      fc.CompileFlags = cge->Evaluate(lg, *i);
+      std::unique_ptr<cmCompiledGeneratorExpression> cge = ge.Parse(cflags);
+      fc.CompileFlags = cge->Evaluate(lg, *i, false, gt);
       needfc = true;
     }
     if (lg->FortranProject) {
@@ -1589,7 +1591,7 @@ bool cmLocalVisualStudio7Generator::WriteGroup(
 
   // If the group has a name, write the header.
   std::string name = sg->GetName();
-  if (name != "") {
+  if (!name.empty()) {
     this->WriteVCProjBeginGroup(fout, name.c_str(), "");
   }
 
@@ -1707,7 +1709,7 @@ bool cmLocalVisualStudio7Generator::WriteGroup(
   }
 
   // If the group has a name, write the footer.
-  if (name != "") {
+  if (!name.empty()) {
     this->WriteVCProjEndGroup(fout);
   }
 
@@ -1847,7 +1849,7 @@ void cmLocalVisualStudio7Generator::OutputTargetRules(
   if (!addedPrelink) {
     event.Write(target->GetPreLinkCommands());
   }
-  CM_AUTO_PTR<cmCustomCommand> pcc(
+  std::unique_ptr<cmCustomCommand> pcc(
     this->MaybeCreateImplibDir(target, configName, this->FortranProject));
   if (pcc.get()) {
     event.Write(*pcc);
@@ -2004,7 +2006,7 @@ void cmLocalVisualStudio7Generator::WriteVCProjFooter(
        i != props.end(); ++i) {
     if (i->find("VS_GLOBAL_") == 0) {
       std::string name = i->substr(10);
-      if (name != "") {
+      if (!name.empty()) {
         /* clang-format off */
         fout << "\t\t<Global\n"
              << "\t\t\tName=\"" << name << "\"\n"
@@ -2077,9 +2079,12 @@ public:
         if (strcmp(atts[i], "ProjectGUID") == 0) {
           if (atts[i + 1]) {
             this->GUID = atts[i + 1];
-            this->GUID = this->GUID.substr(1, this->GUID.size() - 2);
+            if (this->GUID[0] == '{') {
+              // remove surrounding curly brackets
+              this->GUID = this->GUID.substr(1, this->GUID.size() - 2);
+            }
           } else {
-            this->GUID = "";
+            this->GUID.clear();
           }
           return;
         }

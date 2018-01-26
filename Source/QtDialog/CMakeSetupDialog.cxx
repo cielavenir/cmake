@@ -32,7 +32,7 @@
 
 QCMakeThread::QCMakeThread(QObject* p)
   : QThread(p)
-  , CMakeInstance(CM_NULLPTR)
+  , CMakeInstance(nullptr)
 {
 }
 
@@ -48,7 +48,7 @@ void QCMakeThread::run()
   emit this->cmakeInitialized();
   this->exec();
   delete this->CMakeInstance;
-  this->CMakeInstance = CM_NULLPTR;
+  this->CMakeInstance = nullptr;
 }
 
 CMakeSetupDialog::CMakeSetupDialog()
@@ -1195,7 +1195,7 @@ void CMakeSetupDialog::setSearchFilter(const QString& str)
   this->CacheValues->setSearchFilter(str);
 }
 
-void CMakeSetupDialog::doOutputContextMenu(const QPoint& pt)
+void CMakeSetupDialog::doOutputContextMenu(QPoint pt)
 {
   QMenu* menu = this->Output->createStandardContextMenu();
 

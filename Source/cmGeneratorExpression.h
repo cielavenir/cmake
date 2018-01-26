@@ -3,12 +3,12 @@
 #ifndef cmGeneratorExpression_h
 #define cmGeneratorExpression_h
 
-#include "cmConfigure.h"
+#include "cmConfigure.h" // IWYU pragma: keep
 
 #include "cmListFileCache.h"
 
-#include "cm_auto_ptr.hxx"
 #include <map>
+#include <memory> // IWYU pragma: keep
 #include <set>
 #include <string>
 #include <vector>
@@ -39,8 +39,9 @@ public:
     cmListFileBacktrace const& backtrace = cmListFileBacktrace());
   ~cmGeneratorExpression();
 
-  CM_AUTO_PTR<cmCompiledGeneratorExpression> Parse(std::string const& input);
-  CM_AUTO_PTR<cmCompiledGeneratorExpression> Parse(const char* input);
+  std::unique_ptr<cmCompiledGeneratorExpression> Parse(
+    std::string const& input);
+  std::unique_ptr<cmCompiledGeneratorExpression> Parse(const char* input);
 
   enum PreprocessContext
   {
@@ -71,12 +72,12 @@ class cmCompiledGeneratorExpression
   CM_DISABLE_COPY(cmCompiledGeneratorExpression)
 
 public:
-  const char* Evaluate(
-    cmLocalGenerator* lg, const std::string& config, bool quiet = false,
-    cmGeneratorTarget const* headTarget = CM_NULLPTR,
-    cmGeneratorTarget const* currentTarget = CM_NULLPTR,
-    cmGeneratorExpressionDAGChecker* dagChecker = CM_NULLPTR,
-    std::string const& language = std::string()) const;
+  const char* Evaluate(cmLocalGenerator* lg, const std::string& config,
+                       bool quiet = false,
+                       cmGeneratorTarget const* headTarget = nullptr,
+                       cmGeneratorTarget const* currentTarget = nullptr,
+                       cmGeneratorExpressionDAGChecker* dagChecker = nullptr,
+                       std::string const& language = std::string()) const;
   const char* Evaluate(cmLocalGenerator* lg, const std::string& config,
                        bool quiet, cmGeneratorTarget const* headTarget,
                        cmGeneratorExpressionDAGChecker* dagChecker,
@@ -143,7 +144,7 @@ private:
   mutable std::set<cmGeneratorTarget const*> AllTargetsSeen;
   mutable std::set<std::string> SeenTargetProperties;
   mutable std::map<cmGeneratorTarget const*,
-                   std::map<std::string, std::string> >
+                   std::map<std::string, std::string>>
     MaxLanguageStandard;
   mutable std::string Output;
   mutable bool HadContextSensitiveCondition;

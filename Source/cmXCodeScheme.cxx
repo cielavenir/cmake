@@ -10,13 +10,12 @@
 #include "cmGeneratorTarget.h"
 #include "cmXMLSafe.h"
 
-cmXCodeScheme::cmXCodeScheme(cmXCodeObject* xcObj,
+cmXCodeScheme::cmXCodeScheme(cmXCodeObject* xcObj, const TestObjects& tests,
                              const std::vector<std::string>& configList,
                              unsigned int xcVersion)
   : Target(xcObj)
+  , Tests(tests)
   , TargetName(xcObj->GetTarget()->GetName())
-  , BuildableName(xcObj->GetTarget()->GetFullName())
-  , TargetId(xcObj->GetId())
   , ConfigList(configList)
   , XcodeVersion(xcVersion)
 {
@@ -58,7 +57,7 @@ void cmXCodeScheme::WriteXCodeXCScheme(std::ostream& fout,
   xout.Attribute("version", "1.3");
 
   WriteBuildAction(xout, container);
-  WriteTestAction(xout, FindConfiguration("Debug"));
+  WriteTestAction(xout, FindConfiguration("Debug"), container);
   WriteLaunchAction(xout, FindConfiguration("Debug"), container);
   WriteProfileAction(xout, FindConfiguration("Release"));
   WriteAnalyzeAction(xout, FindConfiguration("Debug"));
@@ -84,14 +83,7 @@ void cmXCodeScheme::WriteBuildAction(cmXMLWriter& xout,
   xout.Attribute("buildForArchiving", "YES");
   xout.Attribute("buildForAnalyzing", "YES");
 
-  xout.StartElement("BuildableReference");
-  xout.BreakAttributes();
-  xout.Attribute("BuildableIdentifier", "primary");
-  xout.Attribute("BlueprintIdentifier", this->TargetId);
-  xout.Attribute("BuildableName", this->BuildableName);
-  xout.Attribute("BlueprintName", this->TargetName);
-  xout.Attribute("ReferencedContainer", "container:" + container);
-  xout.EndElement();
+  WriteBuildableReference(xout, this->Target, container);
 
   xout.EndElement(); // BuildActionEntry
   xout.EndElement(); // BuildActionEntries
@@ -99,7 +91,8 @@ void cmXCodeScheme::WriteBuildAction(cmXMLWriter& xout,
 }
 
 void cmXCodeScheme::WriteTestAction(cmXMLWriter& xout,
-                                    std::string configuration)
+                                    const std::string& configuration,
+                                    const std::string& container)
 {
   xout.StartElement("TestAction");
   xout.BreakAttributes();
@@ -111,7 +104,20 @@ void cmXCodeScheme::WriteTestAction(cmXMLWriter& xout,
   xout.Attribute("shouldUseLaunchSchemeArgsEnv", "YES");
 
   xout.StartElement("Testables");
+  for (auto test : this->Tests) {
+    xout.StartElement("TestableReference");
+    xout.BreakAttributes();
+    xout.Attribute("skipped", "NO");
+    WriteBuildableReference(xout, test, container);
+    xout.EndElement(); // TestableReference
+  }
   xout.EndElement();
+
+  if (IsTestable()) {
+    xout.StartElement("MacroExpansion");
+    WriteBuildableReference(xout, this->Target, container);
+    xout.EndElement(); // MacroExpansion
+  }
 
   xout.StartElement("AdditionalOptions");
   xout.EndElement();
@@ -120,7 +126,7 @@ void cmXCodeScheme::WriteTestAction(cmXMLWriter& xout,
 }
 
 void cmXCodeScheme::WriteLaunchAction(cmXMLWriter& xout,
-                                      std::string configuration,
+                                      const std::string& configuration,
                                       const std::string& container)
 {
   xout.StartElement("LaunchAction");
@@ -146,14 +152,7 @@ void cmXCodeScheme::WriteLaunchAction(cmXMLWriter& xout,
     xout.StartElement("MacroExpansion");
   }
 
-  xout.StartElement("BuildableReference");
-  xout.BreakAttributes();
-  xout.Attribute("BuildableIdentifier", "primary");
-  xout.Attribute("BlueprintIdentifier", this->TargetId);
-  xout.Attribute("BuildableName", this->BuildableName);
-  xout.Attribute("BlueprintName", this->TargetName);
-  xout.Attribute("ReferencedContainer", "container:" + container);
-  xout.EndElement();
+  WriteBuildableReference(xout, this->Target, container);
 
   xout.EndElement(); // MacroExpansion
 
@@ -164,7 +163,7 @@ void cmXCodeScheme::WriteLaunchAction(cmXMLWriter& xout,
 }
 
 void cmXCodeScheme::WriteProfileAction(cmXMLWriter& xout,
-                                       std::string configuration)
+                                       const std::string& configuration)
 {
   xout.StartElement("ProfileAction");
   xout.BreakAttributes();
@@ -177,7 +176,7 @@ void cmXCodeScheme::WriteProfileAction(cmXMLWriter& xout,
 }
 
 void cmXCodeScheme::WriteAnalyzeAction(cmXMLWriter& xout,
-                                       std::string configuration)
+                                       const std::string& configuration)
 {
   xout.StartElement("AnalyzeAction");
   xout.BreakAttributes();
@@ -186,12 +185,26 @@ void cmXCodeScheme::WriteAnalyzeAction(cmXMLWriter& xout,
 }
 
 void cmXCodeScheme::WriteArchiveAction(cmXMLWriter& xout,
-                                       std::string configuration)
+                                       const std::string& configuration)
 {
   xout.StartElement("ArchiveAction");
   xout.BreakAttributes();
   xout.Attribute("buildConfiguration", configuration);
   xout.Attribute("revealArchiveInOrganizer", "YES");
+  xout.EndElement();
+}
+
+void cmXCodeScheme::WriteBuildableReference(cmXMLWriter& xout,
+                                            const cmXCodeObject* xcObj,
+                                            const std::string& container)
+{
+  xout.StartElement("BuildableReference");
+  xout.BreakAttributes();
+  xout.Attribute("BuildableIdentifier", "primary");
+  xout.Attribute("BlueprintIdentifier", xcObj->GetId());
+  xout.Attribute("BuildableName", xcObj->GetTarget()->GetFullName());
+  xout.Attribute("BlueprintName", xcObj->GetTarget()->GetName());
+  xout.Attribute("ReferencedContainer", "container:" + container);
   xout.EndElement();
 }
 
@@ -209,10 +222,16 @@ std::string cmXCodeScheme::FindConfiguration(const std::string& name)
   //
   if (std::find(this->ConfigList.begin(), this->ConfigList.end(), name) ==
         this->ConfigList.end() &&
-      this->ConfigList.size() > 0)
+      !this->ConfigList.empty()) {
     return this->ConfigList[0];
+  }
 
   return name;
+}
+
+bool cmXCodeScheme::IsTestable() const
+{
+  return !this->Tests.empty() || IsExecutable(this->Target);
 }
 
 bool cmXCodeScheme::IsExecutable(const cmXCodeObject* target)

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
+#include <memory>
 #include <sstream>
 #include <string.h>
 #include <string>
@@ -119,7 +120,7 @@ struct cmIsPair
 };
 
 template <typename K, typename V>
-struct cmIsPair<std::pair<K, V> >
+struct cmIsPair<std::pair<K, V>>
 {
   enum
   {
@@ -369,8 +370,7 @@ std::string cmWrap(char prefix, Range const& r, char suffix,
 template <typename Range, typename T>
 typename Range::const_iterator cmFindNot(Range const& r, T const& t)
 {
-  return std::find_if(r.begin(), r.end(),
-                      std::bind1st(std::not_equal_to<T>(), t));
+  return std::find_if(r.begin(), r.end(), [&t](T const& i) { return i != t; });
 }
 
 template <typename Range>
@@ -401,5 +401,23 @@ inline void cmStripSuffixIfExists(std::string& str, const std::string& suffix)
     str.resize(str.size() - suffix.size());
   }
 }
+
+namespace cm {
+
+#if defined(CMake_HAVE_CXX_MAKE_UNIQUE)
+
+using std::make_unique;
+
+#else
+
+template <typename T, typename... Args>
+std::unique_ptr<T> make_unique(Args&&... args)
+{
+  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
+#endif
+
+} // namespace cm
 
 #endif

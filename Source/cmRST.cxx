@@ -86,7 +86,7 @@ void cmRST::ProcessModule(std::istream& is)
         if (line[0] != '#') {
           this->ProcessLine(line.substr(0, pos));
         }
-        rst = "";
+        rst.clear();
         this->Reset();
         this->OutputLinePending = true;
       }
@@ -101,7 +101,7 @@ void cmRST::ProcessModule(std::istream& is)
           this->ProcessLine(line.substr(2));
           continue;
         }
-        rst = "";
+        rst.clear();
         this->Reset();
         this->OutputLinePending = true;
       }
@@ -292,9 +292,7 @@ std::string cmRST::ReplaceSubstitutions(std::string const& line)
 
 void cmRST::OutputMarkupLines(bool inlineMarkup)
 {
-  for (std::vector<std::string>::iterator i = this->MarkupLines.begin();
-       i != this->MarkupLines.end(); ++i) {
-    std::string line = *i;
+  for (auto line : this->MarkupLines) {
     if (!line.empty()) {
       line = " " + line;
     }
@@ -347,15 +345,13 @@ void cmRST::ProcessDirectiveReplace()
   // Record markup lines as replacement text.
   std::string& replacement = this->Replace[this->ReplaceName];
   replacement += cmJoin(this->MarkupLines, " ");
-  this->ReplaceName = "";
+  this->ReplaceName.clear();
 }
 
 void cmRST::ProcessDirectiveTocTree()
 {
   // Process documents referenced by toctree directive.
-  for (std::vector<std::string>::iterator i = this->MarkupLines.begin();
-       i != this->MarkupLines.end(); ++i) {
-    std::string const& line = *i;
+  for (std::string const& line : this->MarkupLines) {
     if (!line.empty() && line[0] != ':') {
       if (this->TocTreeLink.find(line)) {
         std::string const& link = this->TocTreeLink.match(1);
