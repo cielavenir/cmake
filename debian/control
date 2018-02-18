@@ -27,7 +27,6 @@ Homepage: https://cmake.org/
 Package: cmake
 Architecture: any
 Multi-Arch: foreign
-Pre-Depends: dpkg (>= 1.17.5~)
 Depends: cmake-data (= ${source:Version}),
          procps [!hurd-any],
          ${misc:Depends},
@@ -59,7 +58,6 @@ Description: CMake data files (modules, templates and documentation)
 
 Package: cmake-curses-gui
 Architecture: any
-Pre-Depends: dpkg (>= 1.17.5~)
 Depends: cmake (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
 Description: curses based user interface for CMake (ccmake)
  CMake is used to control the software compilation process using simple
@@ -75,7 +73,6 @@ Description: curses based user interface for CMake (ccmake)
 Package: cmake-qt-gui
 Architecture: any
 Build-Profiles: <!stage1>
-Pre-Depends: dpkg (>= 1.17.5~)
 Depends: cmake (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
 Provides: cmake-gui
 Description: Qt based user interface for CMake (cmake-gui)
