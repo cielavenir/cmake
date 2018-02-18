@@ -1,4 +1,4 @@
-cmake (3.10.2-1) UNRELEASED; urgency=medium
+cmake (3.10.2-1) unstable; urgency=medium
 
   * New upstream release.
   * Disable CTestTestUpload in autopkgtest.
@@ -6,7 +6,7 @@ cmake (3.10.2-1) UNRELEASED; urgency=medium
   * Switch to debhelper compat level 10.
   * Make cmake suggest cmake-doc. (Closes: #805901)
 
- -- Felix Geyer <fgeyer@debian.org>  Fri, 26 Jan 2018 17:07:25 +0100
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 18 Feb 2018 12:49:47 +0100
 
 cmake (3.9.5-1) unstable; urgency=medium
 
