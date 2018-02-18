@@ -4,6 +4,7 @@ cmake (3.10.2-1) UNRELEASED; urgency=medium
   * Disable CTestTestUpload in autopkgtest.
   * Point Vcs-* control fields to the new repo on salsa.
   * Switch to debhelper compat level 10.
+  * Make cmake suggest cmake-doc. (Closes: #805901)
 
  -- Felix Geyer <fgeyer@debian.org>  Fri, 26 Jan 2018 17:07:25 +0100
 
