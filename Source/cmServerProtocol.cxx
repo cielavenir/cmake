@@ -8,9 +8,12 @@
 #include "cmGeneratorExpression.h"
 #include "cmGeneratorTarget.h"
 #include "cmGlobalGenerator.h"
+#include "cmInstallGenerator.h"
+#include "cmInstallTargetGenerator.h"
 #include "cmLinkLineComputer.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
+#include "cmProperty.h"
 #include "cmServer.h"
 #include "cmServerDictionary.h"
 #include "cmSourceFile.h"
@@ -19,6 +22,8 @@
 #include "cmStateSnapshot.h"
 #include "cmStateTypes.h"
 #include "cmSystemTools.h"
+#include "cmTarget.h"
+#include "cmTest.h"
 #include "cm_uv.h"
 #include "cmake.h"
 
@@ -28,6 +33,7 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -97,7 +103,7 @@ void getCMakeInputs(const cmGlobalGenerator* gg, const std::string& sourceDir,
       std::string toAdd = lf;
       if (!sourceDir.empty()) {
         const std::string& relative =
-          cmSystemTools::RelativePath(sourceDir.c_str(), lf.c_str());
+          cmSystemTools::RelativePath(sourceDir, lf);
         if (toAdd.size() > relative.size()) {
           toAdd = relative;
         }
@@ -105,16 +111,16 @@ void getCMakeInputs(const cmGlobalGenerator* gg, const std::string& sourceDir,
 
       if (isInternal) {
         if (internalFiles) {
-          internalFiles->push_back(toAdd);
+          internalFiles->push_back(std::move(toAdd));
         }
       } else {
         if (isTemporary) {
           if (tmpFiles) {
-            tmpFiles->push_back(toAdd);
+            tmpFiles->push_back(std::move(toAdd));
           }
         } else {
           if (explicitFiles) {
-            explicitFiles->push_back(toAdd);
+            explicitFiles->push_back(std::move(toAdd));
           }
         }
       }
@@ -250,7 +256,7 @@ bool cmServerProtocol::DoActivate(const cmServerRequest& /*request*/,
 
 std::pair<int, int> cmServerProtocol1::ProtocolVersion() const
 {
-  return std::make_pair(1, 1);
+  return std::make_pair(1, 2);
 }
 
 static void setErrorMessage(std::string* errorMessage, const std::string& text)
@@ -260,8 +266,8 @@ static void setErrorMessage(std::string* errorMessage, const std::string& text)
   }
 }
 
-static bool testHomeDirectory(cmState* state, std::string& value,
-                              std::string* errorMessage)
+static bool getOrTestHomeDirectory(cmState* state, std::string& value,
+                                   std::string* errorMessage)
 {
   const std::string cachedValue =
     std::string(state->GetCacheEntryValue("CMAKE_HOME_DIRECTORY"));
@@ -282,9 +288,10 @@ static bool testHomeDirectory(cmState* state, std::string& value,
   return true;
 }
 
-static bool testValue(cmState* state, const std::string& key,
-                      std::string& value, const std::string& keyDescription,
-                      std::string* errorMessage)
+static bool getOrTestValue(cmState* state, const std::string& key,
+                           std::string& value,
+                           const std::string& keyDescription,
+                           std::string* errorMessage)
 {
   const char* entry = state->GetCacheEntryValue(key);
   const std::string cachedValue =
@@ -331,31 +338,31 @@ bool cmServerProtocol1::DoActivate(const cmServerRequest& request,
       cmState* state = cm->GetState();
 
       // Check generator:
-      if (!testValue(state, "CMAKE_GENERATOR", generator, "generator",
-                     errorMessage)) {
+      if (!getOrTestValue(state, "CMAKE_GENERATOR", generator, "generator",
+                          errorMessage)) {
         return false;
       }
 
       // check extra generator:
-      if (!testValue(state, "CMAKE_EXTRA_GENERATOR", extraGenerator,
-                     "extra generator", errorMessage)) {
+      if (!getOrTestValue(state, "CMAKE_EXTRA_GENERATOR", extraGenerator,
+                          "extra generator", errorMessage)) {
         return false;
       }
 
       // check sourcedir:
-      if (!testHomeDirectory(state, sourceDirectory, errorMessage)) {
+      if (!getOrTestHomeDirectory(state, sourceDirectory, errorMessage)) {
         return false;
       }
 
       // check toolset:
-      if (!testValue(state, "CMAKE_GENERATOR_TOOLSET", toolset, "toolset",
-                     errorMessage)) {
+      if (!getOrTestValue(state, "CMAKE_GENERATOR_TOOLSET", toolset, "toolset",
+                          errorMessage)) {
         return false;
       }
 
       // check platform:
-      if (!testValue(state, "CMAKE_GENERATOR_PLATFORM", platform, "platform",
-                     errorMessage)) {
+      if (!getOrTestValue(state, "CMAKE_GENERATOR_PLATFORM", platform,
+                          "platform", errorMessage)) {
         return false;
       }
     }
@@ -474,6 +481,9 @@ const cmServerResponse cmServerProtocol1::Process(
   if (request.Type == kSET_GLOBAL_SETTINGS_TYPE) {
     return this->ProcessSetGlobalSettings(request);
   }
+  if (request.Type == kCTEST_INFO_TYPE) {
+    return this->ProcessCTests(request);
+  }
 
   return request.ReportError("Unknown command!");
 }
@@ -538,8 +548,8 @@ cmServerResponse cmServerProtocol1::ProcessCMakeInputs(
   const cmake* cm = this->CMakeInstance();
   const cmGlobalGenerator* gg = cm->GetGlobalGenerator();
   const std::string cmakeRootDir = cmSystemTools::GetCMakeRoot();
-  const std::string buildDir = cm->GetHomeOutputDirectory();
-  const std::string sourceDir = cm->GetHomeDirectory();
+  const std::string& buildDir = cm->GetHomeOutputDirectory();
+  const std::string& sourceDir = cm->GetHomeDirectory();
 
   Json::Value result = Json::objectValue;
   result[kSOURCE_DIRECTORY_KEY] = sourceDir;
@@ -665,8 +675,7 @@ static Json::Value DumpSourceFileGroup(const LanguageData& data,
 
   Json::Value sourcesValue = Json::arrayValue;
   for (auto const& i : files) {
-    const std::string relPath =
-      cmSystemTools::RelativePath(baseDir.c_str(), i.c_str());
+    const std::string relPath = cmSystemTools::RelativePath(baseDir, i);
     sourcesValue.append(relPath.size() < i.size() ? relPath : i);
   }
 
@@ -690,24 +699,56 @@ static Json::Value DumpSourceFilesList(
     if (!fileData.Language.empty()) {
       const LanguageData& ld = languageDataMap.at(fileData.Language);
       cmLocalGenerator* lg = target->GetLocalGenerator();
+      cmGeneratorExpressionInterpreter genexInterpreter(
+        lg, target, config, target->GetName(), fileData.Language);
 
       std::string compileFlags = ld.Flags;
-      if (const char* cflags = file->GetProperty("COMPILE_FLAGS")) {
-        cmGeneratorExpression ge;
-        auto cge = ge.Parse(cflags);
-        const char* processed =
-          cge->Evaluate(target->GetLocalGenerator(), config);
-        lg->AppendFlags(compileFlags, processed);
+      const std::string COMPILE_FLAGS("COMPILE_FLAGS");
+      if (const char* cflags = file->GetProperty(COMPILE_FLAGS)) {
+        lg->AppendFlags(compileFlags,
+                        genexInterpreter.Evaluate(cflags, COMPILE_FLAGS));
+      }
+      const std::string COMPILE_OPTIONS("COMPILE_OPTIONS");
+      if (const char* coptions = file->GetProperty(COMPILE_OPTIONS)) {
+        lg->AppendCompileOptions(
+          compileFlags, genexInterpreter.Evaluate(coptions, COMPILE_OPTIONS));
       }
       fileData.Flags = compileFlags;
 
-      fileData.IncludePathList = ld.IncludePathList;
+      // Add include directories from source file properties.
+      std::vector<std::string> includes;
 
+      const std::string INCLUDE_DIRECTORIES("INCLUDE_DIRECTORIES");
+      if (const char* cincludes = file->GetProperty(INCLUDE_DIRECTORIES)) {
+        const char* evaluatedIncludes =
+          genexInterpreter.Evaluate(cincludes, INCLUDE_DIRECTORIES);
+        lg->AppendIncludeDirectories(includes, evaluatedIncludes, *file);
+
+        for (const auto& include : includes) {
+          fileData.IncludePathList.push_back(
+            std::make_pair(include, target->IsSystemIncludeDirectory(
+                                      include, config, fileData.Language)));
+        }
+      }
+
+      fileData.IncludePathList.insert(fileData.IncludePathList.end(),
+                                      ld.IncludePathList.begin(),
+                                      ld.IncludePathList.end());
+
+      const std::string COMPILE_DEFINITIONS("COMPILE_DEFINITIONS");
       std::set<std::string> defines;
-      lg->AppendDefines(defines, file->GetProperty("COMPILE_DEFINITIONS"));
+      if (const char* defs = file->GetProperty(COMPILE_DEFINITIONS)) {
+        lg->AppendDefines(
+          defines, genexInterpreter.Evaluate(defs, COMPILE_DEFINITIONS));
+      }
+
       const std::string defPropName =
         "COMPILE_DEFINITIONS_" + cmSystemTools::UpperCase(config);
-      lg->AppendDefines(defines, file->GetProperty(defPropName));
+      if (const char* config_defs = file->GetProperty(defPropName)) {
+        lg->AppendDefines(defines, genexInterpreter.Evaluate(
+                                     config_defs, COMPILE_DEFINITIONS));
+      }
+
       defines.insert(ld.Defines.begin(), ld.Defines.end());
 
       fileData.SetDefines(defines);
@@ -725,6 +766,108 @@ static Json::Value DumpSourceFilesList(
     if (!group.isNull()) {
       result.append(group);
     }
+  }
+
+  return result;
+}
+
+static Json::Value DumpCTestInfo(cmLocalGenerator* lg, cmTest* testInfo,
+                                 const std::string& config)
+{
+  Json::Value result = Json::objectValue;
+  result[kCTEST_NAME] = testInfo->GetName();
+
+  // Concat command entries together. After the first should be the arguments
+  // for the command
+  std::string command;
+  for (auto const& cmd : testInfo->GetCommand()) {
+    command.append(cmd);
+    command.append(" ");
+  }
+
+  // Remove any config specific variables from the output.
+  cmGeneratorExpression ge;
+  auto cge = ge.Parse(command.c_str());
+  const char* processed = cge->Evaluate(lg, config);
+
+  result[kCTEST_COMMAND] = processed;
+
+  // Build up the list of properties that may have been specified
+  Json::Value properties = Json::arrayValue;
+  for (auto& prop : testInfo->GetProperties()) {
+    Json::Value entry = Json::objectValue;
+    entry[kKEY_KEY] = prop.first;
+
+    // Remove config variables from the value too.
+    auto cge_value = ge.Parse(prop.second.GetValue());
+    const char* processed_value = cge_value->Evaluate(lg, config);
+    entry[kVALUE_KEY] = processed_value;
+    properties.append(entry);
+  }
+  result[kPROPERTIES_KEY] = properties;
+
+  return result;
+}
+
+static void DumpMakefileTests(cmLocalGenerator* lg, const std::string& config,
+                              Json::Value* result)
+{
+  auto mf = lg->GetMakefile();
+  std::vector<cmTest*> tests;
+  mf->GetTests(config, tests);
+  for (auto test : tests) {
+    Json::Value tmp = DumpCTestInfo(lg, test, config);
+    if (!tmp.isNull()) {
+      result->append(tmp);
+    }
+  }
+}
+
+static Json::Value DumpCTestProjectList(const cmake* cm,
+                                        std::string const& config)
+{
+  Json::Value result = Json::arrayValue;
+
+  auto globalGen = cm->GetGlobalGenerator();
+
+  for (const auto& projectIt : globalGen->GetProjectMap()) {
+    Json::Value pObj = Json::objectValue;
+    pObj[kNAME_KEY] = projectIt.first;
+
+    Json::Value tests = Json::arrayValue;
+
+    // Gather tests for every generator
+    for (const auto& lg : projectIt.second) {
+      // Make sure they're generated.
+      lg->GenerateTestFiles();
+      DumpMakefileTests(lg, config, &tests);
+    }
+
+    pObj[kCTEST_INFO] = tests;
+
+    result.append(pObj);
+  }
+
+  return result;
+}
+
+static Json::Value DumpCTestConfiguration(const cmake* cm,
+                                          const std::string& config)
+{
+  Json::Value result = Json::objectValue;
+  result[kNAME_KEY] = config;
+
+  result[kPROJECTS_KEY] = DumpCTestProjectList(cm, config);
+
+  return result;
+}
+
+static Json::Value DumpCTestConfigurationsList(const cmake* cm)
+{
+  Json::Value result = Json::arrayValue;
+
+  for (const std::string& c : getConfigurations(cm)) {
+    result.append(DumpCTestConfiguration(cm, c));
   }
 
   return result;
@@ -754,6 +897,8 @@ static Json::Value DumpTarget(cmGeneratorTarget* target,
 
   Json::Value result = Json::objectValue;
   result[kNAME_KEY] = target->GetName();
+  result[kIS_GENERATOR_PROVIDED_KEY] =
+    target->Target->GetIsGeneratorProvided();
   result[kTYPE_KEY] = typeName;
   result[kSOURCE_DIRECTORY_KEY] = lg->GetCurrentSourceDirectory();
   result[kBUILD_DIRECTORY_KEY] = lg->GetCurrentBinaryDirectory();
@@ -763,6 +908,34 @@ static Json::Value DumpTarget(cmGeneratorTarget* target,
   }
 
   result[kFULL_NAME_KEY] = target->GetFullName(config);
+
+  if (target->Target->GetHaveInstallRule()) {
+    result[kHAS_INSTALL_RULE] = true;
+
+    Json::Value installPaths = Json::arrayValue;
+    auto targetGenerators = target->Makefile->GetInstallGenerators();
+    for (auto installGenerator : targetGenerators) {
+      auto installTargetGenerator =
+        dynamic_cast<cmInstallTargetGenerator*>(installGenerator);
+      if (installTargetGenerator != nullptr &&
+          installTargetGenerator->GetTarget()->Target == target->Target) {
+        auto dest = installTargetGenerator->GetDestination(config);
+
+        std::string installPath;
+        if (!dest.empty() && cmSystemTools::FileIsFullPath(dest)) {
+          installPath = dest;
+        } else {
+          std::string installPrefix =
+            target->Makefile->GetSafeDefinition("CMAKE_INSTALL_PREFIX");
+          installPath = installPrefix + '/' + dest;
+        }
+
+        installPaths.append(installPath);
+      }
+    }
+
+    result[kINSTALL_PATHS] = installPaths;
+  }
 
   if (target->HaveWellDefinedOutputFiles()) {
     Json::Value artifacts = Json::arrayValue;
@@ -833,7 +1006,7 @@ static Json::Value DumpTarget(cmGeneratorTarget* target,
     lg->GetIncludeDirectories(includePathList, target, lang, config, true);
     for (std::string const& i : includePathList) {
       ld.IncludePathList.push_back(
-        std::make_pair(i, target->IsSystemIncludeDirectory(i, config)));
+        std::make_pair(i, target->IsSystemIncludeDirectory(i, config, lang)));
     }
   }
 
@@ -884,9 +1057,25 @@ static Json::Value DumpProjectList(const cmake* cm, std::string const& config)
 
     // Project structure information:
     const cmMakefile* mf = lg->GetMakefile();
+    auto minVersion = mf->GetDefinition("CMAKE_MINIMUM_REQUIRED_VERSION");
+    pObj[kMINIMUM_CMAKE_VERSION] = minVersion ? minVersion : "";
     pObj[kSOURCE_DIRECTORY_KEY] = mf->GetCurrentSourceDirectory();
     pObj[kBUILD_DIRECTORY_KEY] = mf->GetCurrentBinaryDirectory();
     pObj[kTARGETS_KEY] = DumpTargetsList(projectIt.second, config);
+
+    // For a project-level install rule it might be defined in any of its
+    // associated generators.
+    bool hasInstallRule = false;
+    for (const auto generator : projectIt.second) {
+      hasInstallRule =
+        generator->GetMakefile()->GetInstallGenerators().empty() == false;
+
+      if (hasInstallRule) {
+        break;
+      }
+    }
+
+    pObj[kHAS_INSTALL_RULE] = hasInstallRule;
 
     result.append(pObj);
   }
@@ -1138,6 +1327,19 @@ cmServerResponse cmServerProtocol1::ProcessFileSystemWatchers(
   result[kWATCHED_FILES_KEY] = files;
   result[kWATCHED_DIRECTORIES_KEY] = directories;
 
+  return request.Reply(result);
+}
+
+cmServerResponse cmServerProtocol1::ProcessCTests(
+  const cmServerRequest& request)
+{
+  if (this->m_State < STATE_COMPUTED) {
+    return request.ReportError("This instance was not yet computed.");
+  }
+
+  Json::Value result = Json::objectValue;
+  result[kCONFIGURATIONS_KEY] =
+    DumpCTestConfigurationsList(this->CMakeInstance());
   return request.Reply(result);
 }
 

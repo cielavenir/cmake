@@ -14,8 +14,8 @@
 #include <vector>
 
 #include "cmCustomCommandLines.h"
+#include "cmDuration.h"
 #include "cmExportSetMap.h"
-#include "cmQtAutoGenDigest.h"
 #include "cmStateSnapshot.h"
 #include "cmSystemTools.h"
 #include "cmTarget.h"
@@ -33,6 +33,7 @@ class cmLinkLineComputer;
 class cmLocalGenerator;
 class cmMakefile;
 class cmOutputConverter;
+class cmQtAutoGenInitializer;
 class cmSourceFile;
 class cmStateDirectory;
 class cmake;
@@ -69,6 +70,9 @@ public:
 
   /** Tell the generator about the target system.  */
   virtual bool SetSystemName(std::string const&, cmMakefile*) { return true; }
+
+  /** Set the generator-specific instance.  Returns true if supported.  */
+  virtual bool SetGeneratorInstance(std::string const& i, cmMakefile* mf);
 
   /** Set the generator-specific platform name.  Returns true if platform
       is supported and false otherwise.  */
@@ -157,10 +161,16 @@ public:
             const std::string& projectName, const std::string& targetName,
             std::string& output, const std::string& makeProgram,
             const std::string& config, bool clean, bool fast, bool verbose,
-            double timeout, cmSystemTools::OutputOption outputflag =
-                              cmSystemTools::OUTPUT_NONE,
+            cmDuration timeout, cmSystemTools::OutputOption outputflag =
+                                  cmSystemTools::OUTPUT_NONE,
             std::vector<std::string> const& nativeOptions =
               std::vector<std::string>());
+
+  /**
+   * Open a generated IDE project given the following information.
+   */
+  virtual bool Open(const std::string& bindir, const std::string& projectName,
+                    bool dryRun);
 
   virtual void GenerateBuildCommand(
     std::vector<std::string>& makeCommand, const std::string& makeProgram,
@@ -224,7 +234,7 @@ public:
 
   void EnableInstallTarget();
 
-  int TryCompileTimeout;
+  cmDuration TryCompileTimeout;
 
   bool GetForceUnixPaths() const { return this->ForceUnixPaths; }
   bool GetToolSupportsColor() const { return this->ToolSupportsColor; }
@@ -349,6 +359,10 @@ public:
 
   virtual bool IsIPOSupported() const { return false; }
 
+  /** Return whether the generator can import external visual studio project
+      using INCLUDE_EXTERNAL_MSPROJECT */
+  virtual bool IsIncludeExternalMSProjectSupported() const { return false; }
+
   /** Return whether the generator should use EFFECTIVE_PLATFORM_NAME. This is
       relevant for mixed macOS and iOS builds. */
   virtual bool UseEffectivePlatformName(cmMakefile*) const { return false; }
@@ -424,7 +438,8 @@ protected:
   virtual bool CheckALLOW_DUPLICATE_CUSTOM_TARGETS() const;
 
   // Qt auto generators
-  cmQtAutoGenDigestUPV CreateQtAutoGeneratorsTargets();
+  std::vector<std::unique_ptr<cmQtAutoGenInitializer>>
+  CreateQtAutoGenInitializers();
 
   std::string SelectMakeProgram(const std::string& makeProgram,
                                 const std::string& makeDefault = "") const;
@@ -533,6 +548,8 @@ private:
 
   virtual void ForceLinkerLanguages();
 
+  bool CheckTargetsForMissingSources() const;
+
   void CreateLocalGenerators();
 
   void CheckCompilerIdCompatibility(cmMakefile* mf,
@@ -556,6 +573,9 @@ private:
   void CreateGeneratorTargets(TargetTypes targetTypes);
 
   void ClearGeneratorMembers();
+
+  bool CheckCMP0037(std::string const& targetName,
+                    std::string const& reason) const;
 
   void IndexMakefile(cmMakefile* mf);
 

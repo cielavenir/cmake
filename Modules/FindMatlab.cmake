@@ -356,7 +356,7 @@ function(matlab_extract_all_installed_versions_from_registry win64 matlab_versio
   endif()
 
 
-  if(${win64} AND ${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "64")
+  if(${win64} AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "64")
     set(APPEND_REG "/reg:64")
   else()
     set(APPEND_REG "/reg:32")
@@ -765,7 +765,7 @@ endfunction()
 #   ``WORKING_DIRECTORY``
 #     This will be the working directory for the test. If specified it will
 #     also be the output directory used for the log file of the test run.
-#     If not specifed the temporary directory ``${CMAKE_BINARY_DIR}/Matlab`` will
+#     If not specified the temporary directory ``${CMAKE_BINARY_DIR}/Matlab`` will
 #     be used as the working directory and the log location.
 #
 function(matlab_add_unit_test)
@@ -1198,7 +1198,7 @@ if(_numbers_of_matlab_roots EQUAL 0)
 
 
   # At this point, we have no other choice than trying to find it from PATH.
-  # If set by the user, this wont change
+  # If set by the user, this won't change
   find_program(
     _matlab_main_tmp
     NAMES matlab)

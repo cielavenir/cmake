@@ -14,13 +14,14 @@ Normal Libraries
 
   add_library(<name> [STATIC | SHARED | MODULE]
               [EXCLUDE_FROM_ALL]
-              source1 [source2 ...])
+              [source1] [source2 ...])
 
 Adds a library target called ``<name>`` to be built from the source files
-listed in the command invocation.  The ``<name>`` corresponds to the
-logical target name and must be globally unique within a project.  The
-actual file name of the library built is constructed based on
-conventions of the native platform (such as ``lib<name>.a`` or
+listed in the command invocation.  (The source files can be omitted here
+if they are added later using :command:`target_sources`.)  The ``<name>``
+corresponds to the logical target name and must be globally unique within
+a project.  The actual file name of the library built is constructed based
+on conventions of the native platform (such as ``lib<name>.a`` or
 ``<name>.lib``).
 
 ``STATIC``, ``SHARED``, or ``MODULE`` may be given to specify the type of
@@ -110,9 +111,9 @@ may contain only sources that compile, header files, and other files
 that would not affect linking of a normal library (e.g. ``.txt``).
 They may contain custom commands generating such sources, but not
 ``PRE_BUILD``, ``PRE_LINK``, or ``POST_BUILD`` commands.  Object libraries
-cannot be linked.  Some native build systems may not like targets that
-have only object files, so consider adding at least one real source file
-to any target that references ``$<TARGET_OBJECTS:objlib>``.
+cannot be linked.  Some native build systems (such as Xcode) may not like
+targets that have only object files, so consider adding at least one real
+source file to any target that references ``$<TARGET_OBJECTS:objlib>``.
 
 Alias Libraries
 ^^^^^^^^^^^^^^^
@@ -124,7 +125,8 @@ Alias Libraries
 Creates an :ref:`Alias Target <Alias Targets>`, such that ``<name>`` can be
 used to refer to ``<target>`` in subsequent commands.  The ``<name>`` does
 not appear in the generated buildsystem as a make target.  The ``<target>``
-may not be an :ref:`Imported Target <Imported Targets>` or an ``ALIAS``.
+may not be a non-``GLOBAL`` :ref:`Imported Target <Imported Targets>` or an
+``ALIAS``.
 ``ALIAS`` targets can be used as linkable targets and as targets to
 read properties from.  They can also be tested for existence with the
 regular :command:`if(TARGET)` subcommand.  The ``<name>`` may not be used

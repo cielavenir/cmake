@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "cmInstalledFile.h"
@@ -141,9 +142,9 @@ public:
    * path-to-source cmake was run with.
    */
   void SetHomeDirectory(const std::string& dir);
-  const char* GetHomeDirectory() const;
+  std::string const& GetHomeDirectory() const;
   void SetHomeOutputDirectory(const std::string& dir);
-  const char* GetHomeOutputDirectory() const;
+  std::string const& GetHomeOutputDirectory() const;
   //@}
 
   /**
@@ -203,6 +204,12 @@ public:
   ///! Get the names of the current registered generators
   void GetRegisteredGenerators(std::vector<GeneratorInfo>& generators) const;
 
+  ///! Set the name of the selected generator-specific instance.
+  void SetGeneratorInstance(std::string const& instance)
+  {
+    this->GeneratorInstance = instance;
+  }
+
   ///! Set the name of the selected generator-specific platform.
   void SetGeneratorPlatform(std::string const& ts)
   {
@@ -219,10 +226,26 @@ public:
   {
     return this->SourceFileExtensions;
   }
+
+  bool IsSourceExtension(const std::string& ext) const
+  {
+    return this->SourceFileExtensionsSet.find(ext) !=
+      this->SourceFileExtensionsSet.end();
+  }
+
   const std::vector<std::string>& GetHeaderExtensions() const
   {
     return this->HeaderFileExtensions;
   }
+
+  bool IsHeaderExtension(const std::string& ext) const
+  {
+    return this->HeaderFileExtensionsSet.find(ext) !=
+      this->HeaderFileExtensionsSet.end();
+  }
+
+  // Strips the extension (if present and known) from a filename
+  std::string StripExtension(const std::string& file) const;
 
   /**
    * Given a variable name, return its value (as a string).
@@ -401,6 +424,9 @@ public:
             const std::string& config,
             const std::vector<std::string>& nativeOptions, bool clean);
 
+  ///! run the --open option
+  bool Open(const std::string& dir, bool dryRun);
+
   void UnwatchUnusedCli(const std::string& var);
   void WatchUnusedCli(const std::string& var);
 
@@ -428,6 +454,7 @@ protected:
 
   cmGlobalGenerator* GlobalGenerator;
   std::map<std::string, DiagLevel> DiagLevels;
+  std::string GeneratorInstance;
   std::string GeneratorPlatform;
   std::string GeneratorToolset;
 
@@ -476,7 +503,9 @@ private:
   std::string CheckStampList;
   std::string VSSolutionFile;
   std::vector<std::string> SourceFileExtensions;
+  std::unordered_set<std::string> SourceFileExtensionsSet;
   std::vector<std::string> HeaderFileExtensions;
+  std::unordered_set<std::string> HeaderFileExtensionsSet;
   bool ClearBuildSystem;
   bool DebugTryCompile;
   cmFileTimeComparison* FileComparison;

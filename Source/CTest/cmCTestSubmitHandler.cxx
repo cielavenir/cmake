@@ -6,6 +6,7 @@
 #include "cm_jsoncpp_reader.h"
 #include "cm_jsoncpp_value.h"
 #include "cmsys/Process.h"
+#include <chrono>
 #include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +16,7 @@
 #include "cmCTestScriptHandler.h"
 #include "cmCryptoHash.h"
 #include "cmCurl.h"
+#include "cmDuration.h"
 #include "cmGeneratedFileStream.h"
 #include "cmProcessOutput.h"
 #include "cmState.h"
@@ -192,13 +194,13 @@ bool cmCTestSubmitHandler::SubmitUsingFTP(const std::string& localprefix,
       ::curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
 
       std::string local_file = file;
-      if (!cmSystemTools::FileExists(local_file.c_str())) {
+      if (!cmSystemTools::FileExists(local_file)) {
         local_file = localprefix + "/" + file;
       }
       std::string upload_as =
         url + "/" + remoteprefix + cmSystemTools::GetFilenameName(file);
 
-      if (!cmSystemTools::FileExists(local_file.c_str())) {
+      if (!cmSystemTools::FileExists(local_file)) {
         cmCTestLog(this->CTest, ERROR_MESSAGE,
                    "   Cannot find file: " << local_file << std::endl);
         ::curl_easy_cleanup(curl);
@@ -385,7 +387,7 @@ bool cmCTestSubmitHandler::SubmitUsingHTTP(const std::string& localprefix,
       ::curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
       std::string local_file = file;
-      if (!cmSystemTools::FileExists(local_file.c_str())) {
+      if (!cmSystemTools::FileExists(local_file)) {
         local_file = localprefix + "/" + file;
       }
       std::string remote_file =
@@ -427,7 +429,7 @@ bool cmCTestSubmitHandler::SubmitUsingHTTP(const std::string& localprefix,
           cmSystemTools::ComputeFileHash(local_file, cmCryptoHash::AlgoMD5);
       }
 
-      if (!cmSystemTools::FileExists(local_file.c_str())) {
+      if (!cmSystemTools::FileExists(local_file)) {
         cmCTestLog(this->CTest, ERROR_MESSAGE,
                    "   Cannot find file: " << local_file << std::endl);
         ::curl_easy_cleanup(curl);
@@ -496,10 +498,11 @@ bool cmCTestSubmitHandler::SubmitUsingHTTP(const std::string& localprefix,
           ? ""
           : this->GetOption("RetryCount");
 
-        int delay = retryDelay.empty()
-          ? atoi(this->CTest->GetCTestConfiguration("CTestSubmitRetryDelay")
-                   .c_str())
-          : atoi(retryDelay.c_str());
+        auto delay = cmDuration(
+          retryDelay.empty()
+            ? atoi(this->CTest->GetCTestConfiguration("CTestSubmitRetryDelay")
+                     .c_str())
+            : atoi(retryDelay.c_str()));
         int count = retryCount.empty()
           ? atoi(this->CTest->GetCTestConfiguration("CTestSubmitRetryCount")
                    .c_str())
@@ -507,12 +510,12 @@ bool cmCTestSubmitHandler::SubmitUsingHTTP(const std::string& localprefix,
 
         for (int i = 0; i < count; i++) {
           cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
-                             "   Submit failed, waiting " << delay
+                             "   Submit failed, waiting " << delay.count()
                                                           << " seconds...\n",
                              this->Quiet);
 
-          double stop = cmSystemTools::GetTime() + delay;
-          while (cmSystemTools::GetTime() < stop) {
+          auto stop = std::chrono::steady_clock::now() + delay;
+          while (std::chrono::steady_clock::now() < stop) {
             cmSystemTools::Delay(100);
           }
 
@@ -769,7 +772,7 @@ bool cmCTestSubmitHandler::SubmitUsingSCP(const std::string& scp_command,
     std::string lfname = localprefix;
     cmSystemTools::ConvertToUnixSlashes(lfname);
     lfname += "/" + file;
-    lfname = cmSystemTools::ConvertToOutputPath(lfname.c_str());
+    lfname = cmSystemTools::ConvertToOutputPath(lfname);
     argv[1] = lfname.c_str();
     std::string rfname = url + "/" + remoteprefix + file;
     argv[2] = rfname.c_str();
@@ -895,7 +898,7 @@ bool cmCTestSubmitHandler::SubmitUsingXMLRPC(
     xmlrpc_value* result;
 
     std::string local_file = file;
-    if (!cmSystemTools::FileExists(local_file.c_str())) {
+    if (!cmSystemTools::FileExists(local_file)) {
       local_file = localprefix + "/" + file;
     }
     cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
@@ -1031,11 +1034,15 @@ int cmCTestSubmitHandler::HandleCDashUploadFile(std::string const& file,
   std::string retryCountString = this->GetOption("RetryCount") == nullptr
     ? ""
     : this->GetOption("RetryCount");
-  unsigned long retryDelay = 0;
+  auto retryDelay = std::chrono::seconds(0);
   if (!retryDelayString.empty()) {
-    if (!cmSystemTools::StringToULong(retryDelayString.c_str(), &retryDelay)) {
+    unsigned long retryDelayValue = 0;
+    if (!cmSystemTools::StringToULong(retryDelayString.c_str(),
+                                      &retryDelayValue)) {
       cmCTestLog(this->CTest, WARNING, "Invalid value for 'RETRY_DELAY' : "
                    << retryDelayString << std::endl);
+    } else {
+      retryDelay = std::chrono::seconds(retryDelayValue);
     }
   }
   unsigned long retryCount = 0;
@@ -1063,6 +1070,8 @@ int cmCTestSubmitHandler::HandleCDashUploadFile(std::string const& file,
   if (subproject) {
     str << "subproject=" << curl.Escape(subproject) << "&";
   }
+  auto timeNow =
+    std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   str << "stamp=" << curl.Escape(this->CTest->GetCurrentTag()) << "-"
       << curl.Escape(this->CTest->GetTestModelString()) << "&"
       << "model=" << curl.Escape(this->CTest->GetTestModelString()) << "&"
@@ -1071,8 +1080,8 @@ int cmCTestSubmitHandler::HandleCDashUploadFile(std::string const& file,
       << "site=" << curl.Escape(this->CTest->GetCTestConfiguration("Site"))
       << "&"
       << "track=" << curl.Escape(this->CTest->GetTestModelString()) << "&"
-      << "starttime=" << static_cast<int>(cmSystemTools::GetTime()) << "&"
-      << "endtime=" << static_cast<int>(cmSystemTools::GetTime()) << "&"
+      << "starttime=" << timeNow << "&"
+      << "endtime=" << timeNow << "&"
       << "datafilesmd5[0]=" << md5sum << "&"
       << "type=" << curl.Escape(typeString);
   std::string fields = str.str();
@@ -1087,12 +1096,12 @@ int cmCTestSubmitHandler::HandleCDashUploadFile(std::string const& file,
     // If request failed, wait and retry.
     for (unsigned long i = 0; i < retryCount; i++) {
       cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
-                         "   Request failed, waiting " << retryDelay
+                         "   Request failed, waiting " << retryDelay.count()
                                                        << " seconds...\n",
                          this->Quiet);
 
-      double stop = cmSystemTools::GetTime() + static_cast<double>(retryDelay);
-      while (cmSystemTools::GetTime() < stop) {
+      auto stop = std::chrono::steady_clock::now() + retryDelay;
+      while (std::chrono::steady_clock::now() < stop) {
         cmSystemTools::Delay(100);
       }
 
@@ -1161,12 +1170,12 @@ int cmCTestSubmitHandler::HandleCDashUploadFile(std::string const& file,
     // If upload failed, wait and retry.
     for (unsigned long i = 0; i < retryCount; i++) {
       cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
-                         "   Upload failed, waiting " << retryDelay
+                         "   Upload failed, waiting " << retryDelay.count()
                                                       << " seconds...\n",
                          this->Quiet);
 
-      double stop = cmSystemTools::GetTime() + static_cast<double>(retryDelay);
-      while (cmSystemTools::GetTime() < stop) {
+      auto stop = std::chrono::steady_clock::now() + retryDelay;
+      while (std::chrono::steady_clock::now() < stop) {
         cmSystemTools::Delay(100);
       }
 
@@ -1521,7 +1530,7 @@ int cmCTestSubmitHandler::ProcessHandler()
       this->CTest->GetCTestConfiguration("DropLocation");
 
     // change to the build directory so that we can uses a relative path
-    // on windows since scp dosn't support "c:" a drive in the path
+    // on windows since scp doesn't support "c:" a drive in the path
     cmWorkingDirectory workdir(buildDirectory);
 
     if (!this->SubmitUsingSCP(this->CTest->GetCTestConfiguration("ScpCommand"),
@@ -1540,7 +1549,7 @@ int cmCTestSubmitHandler::ProcessHandler()
     std::string location = this->CTest->GetCTestConfiguration("DropLocation");
 
     // change to the build directory so that we can uses a relative path
-    // on windows since scp dosn't support "c:" a drive in the path
+    // on windows since scp doesn't support "c:" a drive in the path
     cmWorkingDirectory workdir(buildDirectory);
     cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
                        "   Change directory: " << buildDirectory << std::endl,

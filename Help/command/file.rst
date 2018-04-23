@@ -110,7 +110,7 @@ regular expressions, but much simpler.  If ``RELATIVE`` flag is
 specified, the results will be returned as relative paths to the given
 path.  The results will be ordered lexicographically.
 
-By default ``GLOB`` lists directories - directories are omited in result if
+By default ``GLOB`` lists directories - directories are omitted in result if
 ``LIST_DIRECTORIES`` is set to false.
 
 .. note::
@@ -231,6 +231,31 @@ Options to both ``DOWNLOAD`` and ``UPLOAD`` are:
 
 ``HTTPHEADER <HTTP-header>``
   HTTP header for operation. Suboption can be repeated several times.
+
+``NETRC <level>``
+  Specify whether the .netrc file is to be used for operation.  If this
+  option is not specified, the value of the ``CMAKE_NETRC`` variable
+  will be used instead.
+  Valid levels are:
+
+  ``IGNORED``
+    The .netrc file is ignored.
+    This is the default.
+  ``OPTIONAL``
+    The .netrc file is optional, and information in the URL is preferred.
+    The file will be scanned to find which ever information is not specified
+    in the URL.
+  ``REQUIRED``
+    The .netrc file is required, and information in the URL is ignored.
+
+``NETRC_FILE <file>``
+  Specify an alternative .netrc file to the one in your home directory,
+  if the ``NETRC`` level is ``OPTIONAL`` or ``REQUIRED``. If this option
+  is not specified, the value of the ``CMAKE_NETRC_FILE`` variable will
+  be used instead.
+
+If neither ``NETRC`` option is given CMake will check variables
+``CMAKE_NETRC`` and ``CMAKE_NETRC_FILE``, respectively.
 
 Additional options to ``DOWNLOAD`` are:
 

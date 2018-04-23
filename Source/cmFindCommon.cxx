@@ -314,7 +314,7 @@ void cmFindCommon::AddPathSuffix(std::string const& arg)
   }
 
   // Store the suffix.
-  this->SearchPathSuffixes.push_back(suffix);
+  this->SearchPathSuffixes.push_back(std::move(suffix));
 }
 
 void AddTrailingSlash(std::string& s)
@@ -329,7 +329,7 @@ void cmFindCommon::ComputeFinalPaths()
   std::set<std::string> ignored;
   this->GetIgnoredPaths(ignored);
 
-  // Combine the seperate path types, filtering out ignores
+  // Combine the separate path types, filtering out ignores
   this->SearchPaths.clear();
   std::vector<PathLabel>& allLabels = this->PathGroupLabelMap[PathGroup::All];
   for (PathLabel const& l : allLabels) {

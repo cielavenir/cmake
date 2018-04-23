@@ -108,12 +108,12 @@ const char* CCONV cmGetProjectName(void* arg)
 const char* CCONV cmGetHomeDirectory(void* arg)
 {
   cmMakefile* mf = static_cast<cmMakefile*>(arg);
-  return mf->GetHomeDirectory();
+  return mf->GetHomeDirectory().c_str();
 }
 const char* CCONV cmGetHomeOutputDirectory(void* arg)
 {
   cmMakefile* mf = static_cast<cmMakefile*>(arg);
-  return mf->GetHomeOutputDirectory();
+  return mf->GetHomeOutputDirectory().c_str();
 }
 const char* CCONV cmGetStartDirectory(void* arg)
 {
@@ -218,8 +218,8 @@ void CCONV cmAddUtilityCommand(void* arg, const char* utilityName,
   }
 
   // Pass the call to the makefile instance.
-  mf->AddUtilityCommand(utilityName, (all ? false : true), nullptr, depends2,
-                        commandLines);
+  mf->AddUtilityCommand(utilityName, cmMakefile::TargetOrigin::Project,
+                        (all ? false : true), nullptr, depends2, commandLines);
 }
 void CCONV cmAddCustomCommand(void* arg, const char* source,
                               const char* command, int numArgs,

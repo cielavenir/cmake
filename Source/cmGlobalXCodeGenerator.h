@@ -55,6 +55,13 @@ public:
    */
   void EnableLanguage(std::vector<std::string> const& languages, cmMakefile*,
                       bool optional) override;
+
+  /**
+   * Open a generated IDE project given the following information.
+   */
+  bool Open(const std::string& bindir, const std::string& projectName,
+            bool dryRun) override;
+
   /**
    * Try running cmake and building a file. This is used for dynalically
    * loaded commands, not as part of the usual build process.
@@ -97,7 +104,7 @@ public:
   bool ShouldStripResourcePath(cmMakefile*) const override;
 
   bool SetGeneratorToolset(std::string const& ts, cmMakefile* mf) override;
-  void AppendFlag(std::string& flags, std::string const& flag);
+  void AppendFlag(std::string& flags, std::string const& flag) const;
 
 protected:
   void AddExtraIDETargets() override;
@@ -112,7 +119,7 @@ private:
   std::string XCodeEscapePath(const std::string& p);
   std::string RelativeToSource(const char* p);
   std::string RelativeToBinary(const char* p);
-  std::string ConvertToRelativeForMake(const char* p);
+  std::string ConvertToRelativeForMake(std::string const& p);
   void CreateCustomCommands(cmXCodeObject* buildPhases,
                             cmXCodeObject* sourceBuildPhase,
                             cmXCodeObject* headerBuildPhase,
@@ -191,6 +198,8 @@ private:
                                           cmGeneratorTarget* target);
   cmXCodeObject* CreateXCodeSourceFile(cmLocalGenerator* gen, cmSourceFile* sf,
                                        cmGeneratorTarget* gtgt);
+  void AddXCodeProjBuildRule(cmGeneratorTarget* target,
+                             std::vector<cmSourceFile*>& sources) const;
   bool CreateXCodeTargets(cmLocalGenerator* gen, std::vector<cmXCodeObject*>&);
   bool IsHeaderFile(cmSourceFile*);
   void AddDependTarget(cmXCodeObject* target, cmXCodeObject* dependTarget);
@@ -246,6 +255,8 @@ private:
   std::string GetObjectsNormalDirectory(const std::string& projName,
                                         const std::string& configName,
                                         const cmGeneratorTarget* t) const;
+
+  static std::string GetDeploymentPlatform(const cmMakefile* mf);
 
   void ComputeArchitectures(cmMakefile* mf);
   void ComputeObjectDirArch(cmMakefile* mf);
