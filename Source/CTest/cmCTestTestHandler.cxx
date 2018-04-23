@@ -2,6 +2,7 @@
    file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmCTestTestHandler.h"
 #include <algorithm>
+#include <chrono>
 #include <cmsys/Base64.h>
 #include <cmsys/Directory.hxx>
 #include <cmsys/RegularExpression.hxx>
@@ -18,9 +19,9 @@
 
 #include "cmAlgorithms.h"
 #include "cmCTest.h"
-#include "cmCTestBatchTestHandler.h"
 #include "cmCTestMultiProcessHandler.h"
 #include "cmCommand.h"
+#include "cmDuration.h"
 #include "cmGeneratedFileStream.h"
 #include "cmGlobalGenerator.h"
 #include "cmMakefile.h"
@@ -69,7 +70,7 @@ bool cmCTestSubdirCommand::InitialPass(std::vector<std::string> const& args,
   for (std::string const& arg : args) {
     std::string fname;
 
-    if (cmSystemTools::FileIsFullPath(arg.c_str())) {
+    if (cmSystemTools::FileIsFullPath(arg)) {
       fname = arg;
     } else {
       fname = cwd;
@@ -144,7 +145,7 @@ bool cmCTestAddSubdirectoryCommand::InitialPass(
   fname += "/";
   fname += args[0];
 
-  if (!cmSystemTools::FileExists(fname.c_str())) {
+  if (!cmSystemTools::FileExists(fname)) {
     // No subdirectory? So what...
     return true;
   }
@@ -346,7 +347,7 @@ void cmCTestTestHandler::Initialize()
 {
   this->Superclass::Initialize();
 
-  this->ElapsedTestingTime = -1;
+  this->ElapsedTestingTime = cmDuration();
 
   this->TestResults.clear();
 
@@ -484,12 +485,11 @@ int cmCTestTestHandler::ProcessHandler()
   int total;
 
   // start the real time clock
-  double clock_start, clock_finish;
-  clock_start = cmSystemTools::GetTime();
+  auto clock_start = std::chrono::steady_clock::now();
 
   this->ProcessDirectory(passed, failed);
 
-  clock_finish = cmSystemTools::GetTime();
+  auto clock_finish = std::chrono::steady_clock::now();
 
   total = int(passed.size()) + int(failed.size());
 
@@ -540,7 +540,8 @@ int cmCTestTestHandler::ProcessHandler()
       this->PrintLabelOrSubprojectSummary(false);
     }
     char realBuf[1024];
-    sprintf(realBuf, "%6.2f sec", clock_finish - clock_start);
+    cmDuration durationInSecs = clock_finish - clock_start;
+    sprintf(realBuf, "%6.2f sec", durationInSecs.count());
     cmCTestOptionalLog(this->CTest, HANDLER_OUTPUT,
                        "\nTotal Test time (real) = " << realBuf << "\n",
                        this->Quiet);
@@ -650,7 +651,8 @@ void cmCTestTestHandler::PrintLabelOrSubprojectSummary(bool doSubProject)
     for (std::string const& l : p.Labels) {
       // only use labels found in labels
       if (labels.find(l) != labels.end()) {
-        labelTimes[l] += result.ExecutionTime * result.Properties->Processors;
+        labelTimes[l] +=
+          result.ExecutionTime.count() * result.Properties->Processors;
         ++labelCounts[l];
       }
     }
@@ -1200,12 +1202,10 @@ void cmCTestTestHandler::ProcessDirectory(std::vector<std::string>& passed,
 {
   this->ComputeTestList();
   this->StartTest = this->CTest->CurrentTime();
-  this->StartTestTime = static_cast<unsigned int>(cmSystemTools::GetTime());
-  double elapsed_time_start = cmSystemTools::GetTime();
+  this->StartTestTime = std::chrono::system_clock::now();
+  auto elapsed_time_start = std::chrono::steady_clock::now();
 
-  cmCTestMultiProcessHandler* parallel = this->CTest->GetBatchJobs()
-    ? new cmCTestBatchTestHandler
-    : new cmCTestMultiProcessHandler;
+  cmCTestMultiProcessHandler* parallel = new cmCTestMultiProcessHandler;
   parallel->SetCTest(this->CTest);
   parallel->SetParallelLevel(this->CTest->GetParallelLevel());
   parallel->SetTestHandler(this);
@@ -1236,7 +1236,8 @@ void cmCTestTestHandler::ProcessDirectory(std::vector<std::string>& passed,
       p.Cost = static_cast<float>(rand());
     }
 
-    if (p.Timeout == 0 && this->CTest->GetGlobalTimeout() != 0) {
+    if (p.Timeout == cmDuration::zero() &&
+        this->CTest->GetGlobalTimeout() != cmDuration::zero()) {
       p.Timeout = this->CTest->GetGlobalTimeout();
     }
 
@@ -1267,8 +1268,9 @@ void cmCTestTestHandler::ProcessDirectory(std::vector<std::string>& passed,
   }
   delete parallel;
   this->EndTest = this->CTest->CurrentTime();
-  this->EndTestTime = static_cast<unsigned int>(cmSystemTools::GetTime());
-  this->ElapsedTestingTime = cmSystemTools::GetTime() - elapsed_time_start;
+  this->EndTestTime = std::chrono::system_clock::now();
+  this->ElapsedTestingTime =
+    std::chrono::steady_clock::now() - elapsed_time_start;
   *this->LogFile << "End testing: " << this->CTest->CurrentTime() << std::endl;
 }
 
@@ -1317,7 +1319,7 @@ void cmCTestTestHandler::GenerateDartOutput(cmXMLWriter& xml)
       xml.StartElement("NamedMeasurement");
       xml.Attribute("type", "numeric/double");
       xml.Attribute("name", "Execution Time");
-      xml.Element("Value", result.ExecutionTime);
+      xml.Element("Value", result.ExecutionTime.count());
       xml.EndElement(); // NamedMeasurement
       if (!result.Reason.empty()) {
         const char* reasonType = "Pass Reason";
@@ -1373,8 +1375,10 @@ void cmCTestTestHandler::GenerateDartOutput(cmXMLWriter& xml)
 
   xml.Element("EndDateTime", this->EndTest);
   xml.Element("EndTestTime", this->EndTestTime);
-  xml.Element("ElapsedMinutes",
-              static_cast<int>(this->ElapsedTestingTime / 6) / 10.0);
+  xml.Element(
+    "ElapsedMinutes",
+    std::chrono::duration_cast<std::chrono::minutes>(this->ElapsedTestingTime)
+      .count());
   xml.EndElement(); // Testing
   this->CTest->EndXML(xml);
 }
@@ -1572,7 +1576,7 @@ std::string cmCTestTestHandler::FindExecutable(
   // now look in the paths we specified above
   for (unsigned int ai = 0; ai < attempted.size() && fullPath.empty(); ++ai) {
     // first check without exe extension
-    if (cmSystemTools::FileExists(attempted[ai].c_str()) &&
+    if (cmSystemTools::FileExists(attempted[ai]) &&
         !cmSystemTools::FileIsDirectory(attempted[ai])) {
       fullPath = cmSystemTools::CollapseFullPath(attempted[ai]);
       resultingConfig = attemptedConfigs[ai];
@@ -1582,7 +1586,7 @@ std::string cmCTestTestHandler::FindExecutable(
       failed.push_back(attempted[ai]);
       tempPath = attempted[ai];
       tempPath += cmSystemTools::GetExecutableExtension();
-      if (cmSystemTools::FileExists(tempPath.c_str()) &&
+      if (cmSystemTools::FileExists(tempPath) &&
           !cmSystemTools::FileIsDirectory(tempPath)) {
         fullPath = cmSystemTools::CollapseFullPath(tempPath);
         resultingConfig = attemptedConfigs[ai];
@@ -1818,7 +1822,7 @@ void cmCTestTestHandler::ExpandTestsToRunInformationForRerunFailed()
   std::string lastTestsFailedLog =
     this->CTest->GetBinaryDir() + "/Testing/Temporary/" + logName;
 
-  if (!cmSystemTools::FileExists(lastTestsFailedLog.c_str())) {
+  if (!cmSystemTools::FileExists(lastTestsFailedLog)) {
     if (!this->CTest->GetShowOnly() && !this->CTest->ShouldPrintLabels()) {
       cmCTestLog(this->CTest, ERROR_MESSAGE, lastTestsFailedLog
                    << " does not exist!" << std::endl);
@@ -1931,7 +1935,7 @@ void cmCTestTestHandler::GenerateRegressionImages(cmXMLWriter& xml,
     } else if (measurementfile.find(cxml)) {
       const std::string& filename =
         cmCTest::CleanString(measurementfile.match(5));
-      if (cmSystemTools::FileExists(filename.c_str())) {
+      if (cmSystemTools::FileExists(filename)) {
         long len = cmSystemTools::FileLength(filename);
         if (len == 0) {
           std::string k1 = measurementfile.match(1);
@@ -2136,7 +2140,7 @@ bool cmCTestTestHandler::SetTestsProperties(
             rt.FixturesRequired.insert(lval.begin(), lval.end());
           }
           if (key == "TIMEOUT") {
-            rt.Timeout = atof(val.c_str());
+            rt.Timeout = cmDuration(atof(val.c_str()));
             rt.ExplicitTimeout = true;
           }
           if (key == "COST") {
@@ -2152,9 +2156,7 @@ bool cmCTestTestHandler::SetTestsProperties(
             std::vector<std::string> lval;
             cmSystemTools::ExpandListArgument(val, lval);
             for (std::string const& cr : lval) {
-              rt.ErrorRegularExpressions.push_back(
-                std::pair<cmsys::RegularExpression, std::string>(
-                  cmsys::RegularExpression(cr.c_str()), std::string(cr)));
+              rt.ErrorRegularExpressions.emplace_back(cr, cr);
             }
           }
           if (key == "PROCESSORS") {
@@ -2200,9 +2202,7 @@ bool cmCTestTestHandler::SetTestsProperties(
             std::vector<std::string> lval;
             cmSystemTools::ExpandListArgument(val, lval);
             for (std::string const& cr : lval) {
-              rt.RequiredRegularExpressions.push_back(
-                std::pair<cmsys::RegularExpression, std::string>(
-                  cmsys::RegularExpression(cr.c_str()), std::string(cr)));
+              rt.RequiredRegularExpressions.emplace_back(cr, cr);
             }
           }
           if (key == "WORKING_DIRECTORY") {
@@ -2216,13 +2216,11 @@ bool cmCTestTestHandler::SetTestsProperties(
                          "TIMEOUT_AFTER_MATCH expects two arguments, found "
                            << propArgs.size() << std::endl);
             } else {
-              rt.AlternateTimeout = atof(propArgs[0].c_str());
+              rt.AlternateTimeout = cmDuration(atof(propArgs[0].c_str()));
               std::vector<std::string> lval;
               cmSystemTools::ExpandListArgument(propArgs[1], lval);
               for (std::string const& cr : lval) {
-                rt.TimeoutRegularExpressions.push_back(
-                  std::pair<cmsys::RegularExpression, std::string>(
-                    cmsys::RegularExpression(cr.c_str()), std::string(cr)));
+                rt.TimeoutRegularExpressions.emplace_back(cr, cr);
               }
             }
           }
@@ -2334,7 +2332,7 @@ bool cmCTestTestHandler::AddTest(const std::vector<std::string>& args)
   test.WillFail = false;
   test.Disabled = false;
   test.RunSerial = false;
-  test.Timeout = 0;
+  test.Timeout = cmDuration::zero();
   test.ExplicitTimeout = false;
   test.Cost = 0;
   test.Processors = 1;

@@ -16,10 +16,6 @@
 #include "cmDynamicLoader.h"
 #endif
 
-#ifdef _WIN32
-#include <fcntl.h>  /* _O_TEXT */
-#include <stdlib.h> /* _set_fmode, _fmode */
-#endif
 #include "cm_uv.h"
 
 #include "cmsys/Encoding.hxx"
@@ -66,6 +62,7 @@ static const char* cmDocumentationOptions[][2] = {
   { "-E", "CMake command mode." },
   { "-L[A][H]", "List non-advanced cached variables." },
   { "--build <dir>", "Build a CMake-generated project binary tree." },
+  { "--open <dir>", "Open generated project in the associated application." },
   { "-N", "View mode only." },
   { "-P <file>", "Process script mode." },
   { "--find-package", "Run in pkg-config like mode." },
@@ -100,6 +97,7 @@ static int do_command(int ac, char const* const* av)
 
 int do_cmake(int ac, char const* const* av);
 static int do_build(int ac, char const* const* av);
+static int do_open(int ac, char const* const* av);
 
 static cmMakefile* cmakemainGetMakefile(void* clientdata)
 {
@@ -168,23 +166,15 @@ int main(int ac, char const* const* av)
   ac = args.argc();
   av = args.argv();
 
-#if defined(_WIN32)
-  // Perform libuv one-time initialization now, and then un-do its
-  // global _fmode setting so that using libuv does not change the
-  // default file text/binary mode.  See libuv issue 840.
-  uv_loop_close(uv_default_loop());
-#ifdef _MSC_VER
-  _set_fmode(_O_TEXT);
-#else
-  _fmode = _O_TEXT;
-#endif
-#endif
-
   cmSystemTools::EnableMSVCDebugHook();
+  cmSystemTools::InitializeLibUV();
   cmSystemTools::FindCMakeResources(av[0]);
   if (ac > 1) {
     if (strcmp(av[1], "--build") == 0) {
       return do_build(ac, av);
+    }
+    if (strcmp(av[1], "--open") == 0) {
+      return do_open(ac, av);
     }
     if (strcmp(av[1], "-E") == 0) {
       return do_command(ac, av);
@@ -421,5 +411,43 @@ static int do_build(int ac, char const* const* av)
   cmSystemTools::SetMessageCallback(cmakemainMessageCallback, &cm);
   cm.SetProgressCallback(cmakemainProgressCallback, &cm);
   return cm.Build(dir, target, config, nativeOptions, clean);
+#endif
+}
+
+static int do_open(int ac, char const* const* av)
+{
+#ifndef CMAKE_BUILD_WITH_CMAKE
+  std::cerr << "This cmake does not support --open\n";
+  return -1;
+#else
+  std::string dir;
+
+  enum Doing
+  {
+    DoingNone,
+    DoingDir,
+  };
+  Doing doing = DoingDir;
+  for (int i = 2; i < ac; ++i) {
+    switch (doing) {
+      case DoingDir:
+        dir = cmSystemTools::CollapseFullPath(av[i]);
+        doing = DoingNone;
+        break;
+      default:
+        std::cerr << "Unknown argument " << av[i] << std::endl;
+        dir.clear();
+        break;
+    }
+  }
+  if (dir.empty()) {
+    std::cerr << "Usage: cmake --open <dir>\n";
+    return 1;
+  }
+
+  cmake cm(cmake::RoleInternal);
+  cmSystemTools::SetMessageCallback(cmakemainMessageCallback, &cm);
+  cm.SetProgressCallback(cmakemainProgressCallback, &cm);
+  return cm.Open(dir, false) ? 0 : 1;
 #endif
 }

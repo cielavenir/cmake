@@ -68,7 +68,7 @@
 #
 # .. variable:: CPACK_PACKAGE_VENDOR
 #
-#  The name of the package vendor. (e.g., "Kitware").
+#  The name of the package vendor. (e.g., "Kitware"). Default is "Humanity".
 #
 # .. variable:: CPACK_PACKAGE_DIRECTORY
 #
@@ -80,15 +80,15 @@
 #
 # .. variable:: CPACK_PACKAGE_VERSION_MAJOR
 #
-#  Package major Version
+#  Package major Version. Default value is 0.
 #
 # .. variable:: CPACK_PACKAGE_VERSION_MINOR
 #
-#  Package minor Version
+#  Package minor Version. Default value is 1.
 #
 # .. variable:: CPACK_PACKAGE_VERSION_PATCH
 #
-#  Package patch Version
+#  Package patch Version. Default value is 1.
 #
 # .. variable:: CPACK_PACKAGE_DESCRIPTION_FILE
 #
@@ -262,7 +262,8 @@
 #
 # .. variable:: CPACK_SYSTEM_NAME
 #
-#  System name, defaults to the value of ${CMAKE_SYSTEM_NAME}.
+#  System name, defaults to the value of ${CMAKE_SYSTEM_NAME}, except on
+#  Windows where it will be "win32" or "win64".
 #
 # .. variable:: CPACK_PACKAGE_VERSION
 #
@@ -338,7 +339,7 @@ function(cpack_encode_variables)
         set(value "${${var}}")
       endif()
 
-      string(APPEND commands "\nSET(${var} \"${value}\")")
+      string(APPEND commands "\nset(${var} \"${value}\")")
     endif()
   endforeach()
 
@@ -383,6 +384,12 @@ _cpack_set_default(CPACK_RESOURCE_FILE_WELCOME
   "${CMAKE_ROOT}/Templates/CPack.GenericWelcome.txt")
 
 _cpack_set_default(CPACK_MODULE_PATH "${CMAKE_MODULE_PATH}")
+
+# Set default directory creation permissions mode
+if(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS)
+  _cpack_set_default(CPACK_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS
+    "${CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS}")
+endif()
 
 if(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL)
   set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)

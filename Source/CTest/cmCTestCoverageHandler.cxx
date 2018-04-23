@@ -3,6 +3,7 @@
 #include "cmCTestCoverageHandler.h"
 
 #include "cmCTest.h"
+#include "cmDuration.h"
 #include "cmGeneratedFileStream.h"
 #include "cmParseBlanketJSCoverage.h"
 #include "cmParseCacheCoverage.h"
@@ -21,6 +22,7 @@
 #include "cmsys/Process.h"
 #include "cmsys/RegularExpression.hxx"
 #include <algorithm>
+#include <chrono>
 #include <iomanip>
 #include <iterator>
 #include <sstream>
@@ -39,7 +41,7 @@ public:
   {
     this->Process = cmsysProcess_New();
     this->PipeState = -1;
-    this->TimeOut = -1;
+    this->TimeOut = cmDuration(-1);
   }
   ~cmCTestRunProcess()
   {
@@ -63,7 +65,7 @@ public:
     }
   }
   void SetWorkingDirectory(const char* dir) { this->WorkingDirectory = dir; }
-  void SetTimeout(double t) { this->TimeOut = t; }
+  void SetTimeout(cmDuration t) { this->TimeOut = t; }
   bool StartProcess()
   {
     std::vector<const char*> args;
@@ -78,8 +80,8 @@ public:
     }
 
     cmsysProcess_SetOption(this->Process, cmsysProcess_Option_HideWindow, 1);
-    if (this->TimeOut != -1) {
-      cmsysProcess_SetTimeout(this->Process, this->TimeOut);
+    if (this->TimeOut >= cmDuration::zero()) {
+      cmsysProcess_SetTimeout(this->Process, this->TimeOut.count());
     }
     cmsysProcess_Execute(this->Process);
     this->PipeState = cmsysProcess_GetState(this->Process);
@@ -107,7 +109,7 @@ private:
   cmsysProcess* Process;
   std::vector<std::string> CommandLineStrings;
   std::string WorkingDirectory;
-  double TimeOut;
+  cmDuration TimeOut;
 };
 
 cmCTestCoverageHandler::cmCTestCoverageHandler()
@@ -173,14 +175,13 @@ void cmCTestCoverageHandler::StartCoverageLogXML(cmXMLWriter& xml)
   this->CTest->StartXML(xml, this->AppendXML);
   xml.StartElement("CoverageLog");
   xml.Element("StartDateTime", this->CTest->CurrentTime());
-  xml.Element("StartTime",
-              static_cast<unsigned int>(cmSystemTools::GetTime()));
+  xml.Element("StartTime", std::chrono::system_clock::now());
 }
 
 void cmCTestCoverageHandler::EndCoverageLogXML(cmXMLWriter& xml)
 {
   xml.Element("EndDateTime", this->CTest->CurrentTime());
-  xml.Element("EndTime", static_cast<unsigned int>(cmSystemTools::GetTime()));
+  xml.Element("EndTime", std::chrono::system_clock::now());
   xml.EndElement(); // CoverageLog
   this->CTest->EndXML(xml);
 }
@@ -239,7 +240,7 @@ bool cmCTestCoverageHandler::ShouldIDoCoverage(std::string const& file,
   // If it is the same as fileDir, then ignore, otherwise check.
   std::string relPath;
   if (!checkDir.empty()) {
-    relPath = cmSystemTools::RelativePath(checkDir.c_str(), fFile.c_str());
+    relPath = cmSystemTools::RelativePath(checkDir, fFile);
   } else {
     relPath = fFile;
   }
@@ -276,13 +277,12 @@ int cmCTestCoverageHandler::ProcessHandler()
   this->CTest->ClearSubmitFiles(cmCTest::PartCoverage);
   int error = 0;
   // do we have time for this
-  if (this->CTest->GetRemainingTimeAllowed() < 120) {
+  if (this->CTest->GetRemainingTimeAllowed() < std::chrono::minutes(2)) {
     return error;
   }
 
   std::string coverage_start_time = this->CTest->CurrentTime();
-  unsigned int coverage_start_time_time =
-    static_cast<unsigned int>(cmSystemTools::GetTime());
+  auto coverage_start_time_time = std::chrono::system_clock::now();
   std::string sourceDir =
     this->CTest->GetCTestConfiguration("SourceDirectory");
   std::string binaryDir = this->CTest->GetCTestConfiguration("BuildDirectory");
@@ -290,13 +290,14 @@ int cmCTestCoverageHandler::ProcessHandler()
   this->LoadLabels();
 
   cmGeneratedFileStream ofs;
-  double elapsed_time_start = cmSystemTools::GetTime();
+  auto elapsed_time_start = std::chrono::steady_clock::now();
   if (!this->StartLogFile("Coverage", ofs)) {
     cmCTestLog(this->CTest, ERROR_MESSAGE,
                "Cannot create LastCoverage.log file" << std::endl);
   }
 
-  ofs << "Performing coverage: " << elapsed_time_start << std::endl;
+  ofs << "Performing coverage: "
+      << elapsed_time_start.time_since_epoch().count() << std::endl;
   this->CleanCoverageLogFiles(ofs);
 
   cmSystemTools::ConvertToUnixSlashes(sourceDir);
@@ -449,7 +450,7 @@ int cmCTestCoverageHandler::ProcessHandler()
                        "Process file: " << fullFileName << std::endl,
                        this->Quiet);
 
-    if (!cmSystemTools::FileExists(fullFileName.c_str())) {
+    if (!cmSystemTools::FileExists(fullFileName)) {
       cmCTestLog(this->CTest, ERROR_MESSAGE,
                  "Cannot find file: " << fullFileName << std::endl);
       continue;
@@ -619,12 +620,11 @@ int cmCTestCoverageHandler::ProcessHandler()
   covSumXML.Element("LOC", total_lines);
   covSumXML.Element("PercentCoverage", percent_coverage);
   covSumXML.Element("EndDateTime", end_time);
-  covSumXML.Element("EndTime",
-                    static_cast<unsigned int>(cmSystemTools::GetTime()));
-  covSumXML.Element(
-    "ElapsedMinutes",
-    static_cast<int>((cmSystemTools::GetTime() - elapsed_time_start) / 6) /
-      10.0);
+  covSumXML.Element("EndTime", std::chrono::system_clock::now());
+  covSumXML.Element("ElapsedMinutes",
+                    std::chrono::duration_cast<std::chrono::minutes>(
+                      std::chrono::steady_clock::now() - elapsed_time_start)
+                      .count());
   covSumXML.EndElement(); // Coverage
   this->CTest->EndXML(covSumXML);
 
@@ -718,7 +718,7 @@ int cmCTestCoverageHandler::HandleCoberturaCoverage(
   // build the find file string with the directory from above
   coverageXMLFile += "/coverage.xml";
 
-  if (cmSystemTools::FileExists(coverageXMLFile.c_str())) {
+  if (cmSystemTools::FileExists(coverageXMLFile)) {
     // If file exists, parse it
     cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
                        "Parsing Cobertura XML file: " << coverageXMLFile
@@ -741,7 +741,7 @@ int cmCTestCoverageHandler::HandleMumpsCoverage(
   cmParseGTMCoverage cov(*cont, this->CTest);
   std::string coverageFile =
     this->CTest->GetBinaryDir() + "/gtm_coverage.mcov";
-  if (cmSystemTools::FileExists(coverageFile.c_str())) {
+  if (cmSystemTools::FileExists(coverageFile)) {
     cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
                        "Parsing Cache Coverage: " << coverageFile << std::endl,
                        this->Quiet);
@@ -754,7 +754,7 @@ int cmCTestCoverageHandler::HandleMumpsCoverage(
                      this->Quiet);
   cmParseCacheCoverage ccov(*cont, this->CTest);
   coverageFile = this->CTest->GetBinaryDir() + "/cache_coverage.cmcov";
-  if (cmSystemTools::FileExists(coverageFile.c_str())) {
+  if (cmSystemTools::FileExists(coverageFile)) {
     cmCTestOptionalLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
                        "Parsing Cache Coverage: " << coverageFile << std::endl,
                        this->Quiet);
@@ -975,7 +975,7 @@ int cmCTestCoverageHandler::HandleGCovCoverage(
 
   std::string testingDir = this->CTest->GetBinaryDir() + "/Testing";
   std::string tempDir = testingDir + "/CoverageInfo";
-  cmSystemTools::MakeDirectory(tempDir.c_str());
+  cmSystemTools::MakeDirectory(tempDir);
   cmWorkingDirectory workdir(tempDir);
 
   int gcovStyle = 0;
@@ -1024,7 +1024,8 @@ int cmCTestCoverageHandler::HandleGCovCoverage(
     *cont->OFS << "* Run coverage for: " << fileDir << std::endl;
     *cont->OFS << "  Command: " << command << std::endl;
     int res = this->CTest->RunCommand(covargs, &output, &errors, &retVal,
-                                      tempDir.c_str(), 0 /*this->TimeOut*/);
+                                      tempDir.c_str(),
+                                      cmDuration::zero() /*this->TimeOut*/);
 
     *cont->OFS << "  Output: " << output << std::endl;
     *cont->OFS << "  Errors: " << errors << std::endl;
@@ -1388,7 +1389,8 @@ int cmCTestCoverageHandler::HandleLCovCoverage(
     *cont->OFS << "* Run coverage for: " << fileDir << std::endl;
     *cont->OFS << "  Command: " << command << std::endl;
     int res = this->CTest->RunCommand(covargs, &output, &errors, &retVal,
-                                      fileDir.c_str(), 0 /*this->TimeOut*/);
+                                      fileDir.c_str(),
+                                      cmDuration::zero() /*this->TimeOut*/);
 
     *cont->OFS << "  Output: " << output << std::endl;
     *cont->OFS << "  Errors: " << errors << std::endl;
@@ -1644,7 +1646,7 @@ int cmCTestCoverageHandler::HandleTracePyCoverage(
 
   std::string testingDir = this->CTest->GetBinaryDir() + "/Testing";
   std::string tempDir = testingDir + "/CoverageInfo";
-  cmSystemTools::MakeDirectory(tempDir.c_str());
+  cmSystemTools::MakeDirectory(tempDir);
 
   int file_count = 0;
   for (std::string const& file : files) {
@@ -1740,11 +1742,11 @@ std::string cmCTestCoverageHandler::FindFile(
     cmSystemTools::GetFilenameWithoutLastExtension(fileName);
   // First check in source and binary directory
   std::string fullName = cont->SourceDir + "/" + fileNameNoE + ".py";
-  if (cmSystemTools::FileExists(fullName.c_str())) {
+  if (cmSystemTools::FileExists(fullName)) {
     return fullName;
   }
   fullName = cont->BinaryDir + "/" + fileNameNoE + ".py";
-  if (cmSystemTools::FileExists(fullName.c_str())) {
+  if (cmSystemTools::FileExists(fullName)) {
     return fullName;
   }
   return "";
@@ -1963,12 +1965,11 @@ int cmCTestCoverageHandler::RunBullseyeSourceSummary(
     return 0;
   }
   this->CTest->StartXML(xml, this->AppendXML);
-  double elapsed_time_start = cmSystemTools::GetTime();
+  auto elapsed_time_start = std::chrono::steady_clock::now();
   std::string coverage_start_time = this->CTest->CurrentTime();
   xml.StartElement("Coverage");
   xml.Element("StartDateTime", coverage_start_time);
-  xml.Element("StartTime",
-              static_cast<unsigned int>(cmSystemTools::GetTime()));
+  xml.Element("StartTime", std::chrono::system_clock::now());
   std::string stdline;
   std::string errline;
   // expected output:
@@ -2011,7 +2012,7 @@ int cmCTestCoverageHandler::RunBullseyeSourceSummary(
       }
       std::string file = sourceFile;
       coveredFileNames.insert(file);
-      if (!cmSystemTools::FileIsFullPath(sourceFile.c_str())) {
+      if (!cmSystemTools::FileIsFullPath(sourceFile)) {
         // file will be relative to the binary dir
         file = cont->BinaryDir;
         file += "/";
@@ -2089,11 +2090,11 @@ int cmCTestCoverageHandler::RunBullseyeSourceSummary(
   xml.Element("LOC", total_functions);
   xml.Element("PercentCoverage", SAFEDIV(percent_coverage, number_files));
   xml.Element("EndDateTime", end_time);
-  xml.Element("EndTime", static_cast<unsigned int>(cmSystemTools::GetTime()));
-  xml.Element(
-    "ElapsedMinutes",
-    static_cast<int>((cmSystemTools::GetTime() - elapsed_time_start) / 6) /
-      10.0);
+  xml.Element("EndTime", std::chrono::system_clock::now());
+  xml.Element("ElapsedMinutes",
+              std::chrono::duration_cast<std::chrono::minutes>(
+                std::chrono::steady_clock::now() - elapsed_time_start)
+                .count());
   xml.EndElement(); // Coverage
   this->CTest->EndXML(xml);
 

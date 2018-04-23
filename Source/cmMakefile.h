@@ -20,6 +20,7 @@
 #include "cmListFileCache.h"
 #include "cmNewLineStyle.h"
 #include "cmPolicies.h"
+#include "cmSourceFileLocationKind.h"
 #include "cmStateSnapshot.h"
 #include "cmStateTypes.h"
 #include "cmTarget.h"
@@ -165,9 +166,9 @@ public:
   /**
    * Add a define flag to the build.
    */
-  void AddDefineFlag(const char* definition);
-  void RemoveDefineFlag(const char* definition);
-  void AddCompileOption(const char* option);
+  void AddDefineFlag(std::string const& definition);
+  void RemoveDefineFlag(std::string const& definition);
+  void AddCompileOption(std::string const& option);
 
   /** Create a new imported target with the name and type given.  */
   cmTarget* AddImportedTarget(const std::string& name,
@@ -179,16 +180,23 @@ public:
   /**
    * Add an executable to the build.
    */
-  cmTarget* AddExecutable(const char* exename,
+  cmTarget* AddExecutable(const std::string& exename,
                           const std::vector<std::string>& srcs,
                           bool excludeFromAll = false);
 
+  /** Where the target originated from. */
+  enum class TargetOrigin
+  {
+    Project,
+    Generator
+  };
+
   /**
-   * Add a utility to the build.  A utiltity target is a command that
+   * Add a utility to the build.  A utility target is a command that
    * is run every time the target is built.
    */
   cmTarget* AddUtilityCommand(const std::string& utilityName,
-                              bool excludeFromAll,
+                              TargetOrigin origin, bool excludeFromAll,
                               const std::vector<std::string>& depends,
                               const char* workingDirectory,
                               const char* command, const char* arg1 = nullptr,
@@ -196,13 +204,13 @@ public:
                               const char* arg3 = nullptr,
                               const char* arg4 = nullptr);
   cmTarget* AddUtilityCommand(
-    const std::string& utilityName, bool excludeFromAll,
+    const std::string& utilityName, TargetOrigin origin, bool excludeFromAll,
     const char* workingDirectory, const std::vector<std::string>& depends,
     const cmCustomCommandLines& commandLines, bool escapeOldStyle = true,
     const char* comment = nullptr, bool uses_terminal = false,
     bool command_expand_lists = false);
   cmTarget* AddUtilityCommand(
-    const std::string& utilityName, bool excludeFromAll,
+    const std::string& utilityName, TargetOrigin origin, bool excludeFromAll,
     const char* workingDirectory, const std::vector<std::string>& byproducts,
     const std::vector<std::string>& depends,
     const cmCustomCommandLines& commandLines, bool escapeOldStyle = true,
@@ -301,13 +309,13 @@ public:
 
   bool IgnoreErrorsCMP0061() const;
 
-  const char* GetHomeDirectory() const;
-  const char* GetHomeOutputDirectory() const;
+  std::string const& GetHomeDirectory() const;
+  std::string const& GetHomeOutputDirectory() const;
 
   /**
    * Set CMAKE_SCRIPT_MODE_FILE variable when running a -P script.
    */
-  void SetScriptModeFile(const char* scriptfile);
+  void SetScriptModeFile(std::string const& scriptfile);
 
   /**
    * Set CMAKE_ARGC, CMAKE_ARGV0 ... variables.
@@ -380,22 +388,26 @@ public:
   /** Get a cmSourceFile pointer for a given source name, if the name is
    *  not found, then a null pointer is returned.
    */
-  cmSourceFile* GetSource(const std::string& sourceName) const;
+  cmSourceFile* GetSource(
+    const std::string& sourceName,
+    cmSourceFileLocationKind kind = cmSourceFileLocationKind::Ambiguous) const;
 
   /** Create the source file and return it. generated
    * indicates if it is a generated file, this is used in determining
    * how to create the source file instance e.g. name
    */
-  cmSourceFile* CreateSource(const std::string& sourceName,
-                             bool generated = false);
+  cmSourceFile* CreateSource(
+    const std::string& sourceName, bool generated = false,
+    cmSourceFileLocationKind kind = cmSourceFileLocationKind::Ambiguous);
 
   /** Get a cmSourceFile pointer for a given source name, if the name is
    *  not found, then create the source file and return it. generated
    * indicates if it is a generated file, this is used in determining
    * how to create the source file instance e.g. name
    */
-  cmSourceFile* GetOrCreateSource(const std::string& sourceName,
-                                  bool generated = false);
+  cmSourceFile* GetOrCreateSource(
+    const std::string& sourceName, bool generated = false,
+    cmSourceFileLocationKind kind = cmSourceFileLocationKind::Ambiguous);
 
   void AddTargetObject(std::string const& tgtName, std::string const& objFile);
 
@@ -432,8 +444,23 @@ public:
   /** Return whether the target platform is x32.  */
   bool PlatformIsx32() const;
 
+  /** Apple SDK Type */
+  enum class AppleSDK
+  {
+    MacOS,
+    IPhoneOS,
+    IPhoneSimulator,
+    AppleTVOS,
+    AppleTVSimulator,
+    WatchOS,
+    WatchSimulator,
+  };
+
+  /** What SDK type points CMAKE_OSX_SYSROOT to? */
+  AppleSDK GetAppleSDKType() const;
+
   /** Return whether the target platform is Apple iOS.  */
-  bool PlatformIsAppleIos() const;
+  bool PlatformIsAppleEmbedded() const;
 
   /** Retrieve soname flag for the specified language if supported */
   const char* GetSONameFlag(const std::string& language) const;
@@ -446,7 +473,7 @@ public:
   /**
    * Make sure CMake can write this file
    */
-  bool CanIWriteThisFile(const char* fileName) const;
+  bool CanIWriteThisFile(std::string const& fileName) const;
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
   /**
@@ -489,7 +516,7 @@ public:
   /**
    * find what source group this source is in
    */
-  cmSourceGroup* FindSourceGroup(const char* source,
+  cmSourceGroup* FindSourceGroup(const std::string& source,
                                  std::vector<cmSourceGroup>& groups) const;
 #endif
 
@@ -561,7 +588,7 @@ public:
                        bool atOnly, bool escapeQuotes) const;
 
   /**
-   * Copy file but change lines acording to ConfigureString
+   * Copy file but change lines according to ConfigureString
    */
   int ConfigureFile(const char* infile, const char* outfile, bool copyonly,
                     bool atOnly, bool escapeQuotes,
@@ -639,6 +666,11 @@ public:
   cmTest* GetTest(const std::string& testName) const;
 
   /**
+   * Get all tests that run under the given configuration.
+   */
+  void GetTests(const std::string& config, std::vector<cmTest*>& tests);
+
+  /**
    * Return a location of a file in cmake or custom modules directory
    */
   std::string GetModulesFile(const char* name) const;
@@ -662,6 +694,10 @@ public:
     }
   }
   std::vector<cmInstallGenerator*>& GetInstallGenerators()
+  {
+    return this->InstallGenerators;
+  }
+  const std::vector<cmInstallGenerator*>& GetInstallGenerators() const
   {
     return this->InstallGenerators;
   }
@@ -737,6 +773,9 @@ public:
   /** Set whether or not to report a CMP0000 violation.  */
   void SetCheckCMP0000(bool b) { this->CheckCMP0000 = b; }
 
+  bool CheckCMP0037(std::string const& targetName,
+                    cmStateEnums::TargetType targetType) const;
+
   cmStringRange GetIncludeDirectoriesEntries() const;
   cmBacktraceRange GetIncludeDirectoriesBacktraces() const;
   cmStringRange GetCompileOptionsEntries() const;
@@ -793,7 +832,7 @@ public:
   void RemoveExportBuildFileGeneratorCMP0024(cmExportBuildFileGenerator* gen);
   void AddExportBuildFileGenerator(cmExportBuildFileGenerator* gen);
 
-  // Maintain a stack of pacakge names to determine the depth of find modules
+  // Maintain a stack of package names to determine the depth of find modules
   // we are currently being called with
   std::deque<std::string> FindPackageModuleStack;
 
@@ -809,7 +848,18 @@ protected:
   // libraries, classes, and executables
   mutable cmTargets Targets;
   std::map<std::string, std::string> AliasTargets;
-  std::vector<cmSourceFile*> SourceFiles;
+
+  typedef std::vector<cmSourceFile*> SourceFileVec;
+  SourceFileVec SourceFiles;
+
+  // Because cmSourceFile names are compared in a fuzzy way (see
+  // cmSourceFileLocation::Match()) we can't have a straight mapping from
+  // filename to cmSourceFile.  To make lookups more efficient we store the
+  // Name portion of the cmSourceFileLocation and then compare on the list of
+  // cmSourceFiles that might match that name.  Note that on platforms which
+  // have a case-insensitive filesystem we store the key in all lowercase.
+  typedef std::unordered_map<std::string, SourceFileVec> SourceFileMap;
+  SourceFileMap SourceFileSearchIndex;
 
   // Tests
   std::map<std::string, cmTest*> Tests;
@@ -828,8 +878,9 @@ protected:
   std::string DefineFlags;
 
   // Track the value of the computed DEFINITIONS property.
-  void AddDefineFlag(const char*, std::string&);
-  void RemoveDefineFlag(const char*, std::string::size_type, std::string&);
+  void AddDefineFlag(std::string const& flag, std::string&);
+  void RemoveDefineFlag(std::string const& flag, std::string::size_type,
+                        std::string&);
   std::string DefineFlagsOrig;
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)

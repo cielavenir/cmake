@@ -216,6 +216,8 @@ set(SRCS
   cmFileTimeComparison.cxx
   cmFileTimeComparison.h
   cmFortranParserImpl.cxx
+  cmFSPermissions.cxx
+  cmFSPermissions.h
   cmGeneratedFileStream.cxx
   cmGeneratorExpressionContext.cxx
   cmGeneratorExpressionContext.h
@@ -309,11 +311,14 @@ set(SRCS
   cmPropertyMap.h
   cmQtAutoGen.cxx
   cmQtAutoGen.h
-  cmQtAutoGenDigest.h
-  cmQtAutoGeneratorInitializer.cxx
-  cmQtAutoGeneratorInitializer.h
-  cmQtAutoGenerators.cxx
-  cmQtAutoGenerators.h
+  cmQtAutoGenerator.cxx
+  cmQtAutoGenerator.h
+  cmQtAutoGenInitializer.cxx
+  cmQtAutoGenInitializer.h
+  cmQtAutoGeneratorMocUic.cxx
+  cmQtAutoGeneratorMocUic.h
+  cmQtAutoGeneratorRcc.cxx
+  cmQtAutoGeneratorRcc.h
   cmRST.cxx
   cmRST.h
   cmScriptGenerator.h
@@ -322,6 +327,7 @@ set(SRCS
   cmSourceFile.h
   cmSourceFileLocation.cxx
   cmSourceFileLocation.h
+  cmSourceFileLocationKind.h
   cmSourceGroup.cxx
   cmSourceGroup.h
   cmState.cxx
@@ -343,6 +349,9 @@ set(SRCS
   cmTestGenerator.cxx
   cmTestGenerator.h
   cmUuid.cxx
+  cmUVHandlePtr.cxx
+  cmUVHandlePtr.h
+  cmUVSignalHackRAII.h
   cmVariableWatch.cxx
   cmVariableWatch.h
   cmVersion.cxx
@@ -593,15 +602,14 @@ set(SRCS
   cm_utf8.c
   cm_codecvt.hxx
   cm_codecvt.cxx
+  cm_thread.hxx
+
+  cmDuration.h
+  cmDuration.cxx
   )
 
 SET_PROPERTY(SOURCE cmProcessOutput.cxx APPEND PROPERTY COMPILE_DEFINITIONS
   KWSYS_ENCODING_DEFAULT_CODEPAGE=${KWSYS_ENCODING_DEFAULT_CODEPAGE})
-
-# Kdevelop only works on UNIX and not windows
-if(UNIX)
-  set(SRCS ${SRCS} cmGlobalKdevelopGenerator.cxx)
-endif()
 
 # Xcode only works on Apple
 if(APPLE)
@@ -757,6 +765,7 @@ target_link_libraries(CMakeLib cmsys
   ${CMAKE_LIBUV_LIBRARIES}
   ${CMAKE_LIBRHASH_LIBRARIES}
   ${CMake_KWIML_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT}
   )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
@@ -794,7 +803,6 @@ include_directories(
 #
 set(CTEST_SRCS cmCTest.cxx
   CTest/cmProcess.cxx
-  CTest/cmCTestBatchTestHandler.cxx
   CTest/cmCTestBuildAndTestHandler.cxx
   CTest/cmCTestBuildCommand.cxx
   CTest/cmCTestBuildHandler.cxx
@@ -915,7 +923,7 @@ if(UNIX)
     # OpenBSD and also Linux and OSX. Look for the header and
     # the library; it's a warning on FreeBSD if they're not
     # found, and informational on other platforms.
-    find_path(FREEBSD_PKG_INCLUDE_DIRS "pkg.h" PATHS /usr/local)
+    find_path(FREEBSD_PKG_INCLUDE_DIRS "pkg.h")
     if(FREEBSD_PKG_INCLUDE_DIRS)
       find_library(FREEBSD_PKG_LIBRARIES
         pkg
@@ -936,8 +944,13 @@ if(UNIX)
   endif()
 endif()
 
-if(WIN32)
+if(CYGWIN)
+  find_package(LibUUID)
+endif()
+if(WIN32 OR (CYGWIN AND LibUUID_FOUND))
   set(CPACK_SRCS ${CPACK_SRCS}
+    CPack/Wix/cmCMakeToWixPath.cxx
+    CPack/Wix/cmCMakeToWixPath.h
     CPack/WiX/cmCPackWIXGenerator.cxx
     CPack/WiX/cmCPackWIXGenerator.h
     CPack/WiX/cmWIXAccessControlList.cxx
@@ -958,7 +971,7 @@ if(WIN32)
     CPack/WiX/cmWIXShortcut.h
     CPack/WiX/cmWIXSourceWriter.cxx
     CPack/WiX/cmWIXSourceWriter.h
-  )
+    )
 endif()
 
 if(APPLE)
@@ -990,6 +1003,11 @@ if(APPLE)
       "Some CPack functionality may be limited.\n"
       "See CMakeFiles/CMakeError.log for details of the failure.")
   endif()
+endif()
+if(CYGWIN AND LibUUID_FOUND)
+  target_link_libraries(CPackLib ${LibUUID_LIBRARIES})
+  include_directories(CPackLib ${LibUUID_INCLUDE_DIRS})
+  set_property(SOURCE CPack/cmCPackGeneratorFactory.cxx PROPERTY COMPILE_DEFINITIONS HAVE_LIBUUID)
 endif()
 if(CPACK_ENABLE_FREEBSD_PKG AND FREEBSD_PKG_INCLUDE_DIRS AND FREEBSD_PKG_LIBRARIES)
   target_link_libraries(CPackLib ${FREEBSD_PKG_LIBRARIES})
@@ -1046,6 +1064,19 @@ endif()
 
 include (${CMake_BINARY_DIR}/Source/LocalUserOptions.cmake OPTIONAL)
 include (${CMake_SOURCE_DIR}/Source/LocalUserOptions.cmake OPTIONAL)
+
+if(WIN32)
+  # Add Windows executable version information.
+  configure_file("CMakeVersion.rc.in" "CMakeVersion.rc" @ONLY)
+
+  # We use a separate object library for this to work around a limitation of
+  # MinGW's windres tool with spaces in the path to the include directories.
+  add_library(CMakeVersion OBJECT "${CMAKE_CURRENT_BINARY_DIR}/CMakeVersion.rc")
+  set_property(TARGET CMakeVersion PROPERTY INCLUDE_DIRECTORIES "")
+  foreach(_tool ${_tools})
+    target_sources(${_tool} PRIVATE $<TARGET_OBJECTS:CMakeVersion>)
+  endforeach()
+endif()
 
 # Install tools
 

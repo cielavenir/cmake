@@ -75,6 +75,7 @@
 # the OpenMP specification implemented by the ``<lang>`` compiler.
 
 cmake_policy(PUSH)
+cmake_policy(SET CMP0012 NEW) # if() recognizes numbers and booleans
 cmake_policy(SET CMP0054 NEW) # if() quoted variables not dereferenced
 cmake_policy(SET CMP0057 NEW) # if IN_LIST
 
@@ -230,6 +231,7 @@ function(_OPENMP_GET_FLAGS LANG FLAG_MODE OPENMP_FLAG_VAR OPENMP_LIB_NAMES_VAR)
                 DOC "Path to the ${_OPENMP_IMPLICIT_LIB_PLAIN} library for OpenMP"
                 HINTS ${OpenMP_${LANG}_IMPLICIT_LINK_DIRS}
                 CMAKE_FIND_ROOT_PATH_BOTH
+                NO_DEFAULT_PATH
               )
             endif()
             mark_as_advanced(OpenMP_${_OPENMP_IMPLICIT_LIB_PLAIN}_LIBRARY)
@@ -238,17 +240,10 @@ function(_OPENMP_GET_FLAGS LANG FLAG_MODE OPENMP_FLAG_VAR OPENMP_LIB_NAMES_VAR)
         endforeach()
         set("${OPENMP_LIB_NAMES_VAR}" "${_OPENMP_LIB_NAMES}" PARENT_SCOPE)
       else()
-        # The Intel compiler on windows has no verbose mode, so we need to treat it explicitly
-        if("${CMAKE_${LANG}_COMPILER_ID}" STREQUAL "Intel" AND "${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
-          set("${OPENMP_LIB_NAMES_VAR}" "libiomp5md" PARENT_SCOPE)
-          find_library(OpenMP_libiomp5md_LIBRARY
-            NAMES "libiomp5md"
-            HINTS ${CMAKE_${LANG}_IMPLICIT_LINK_DIRECTORIES}
-          )
-          mark_as_advanced(OpenMP_libiomp5md_LIBRARY)
-        else()
-          set("${OPENMP_LIB_NAMES_VAR}" "" PARENT_SCOPE)
-        endif()
+        # We do not know how to extract implicit OpenMP libraries for this compiler.
+        # Assume that it handles them automatically, e.g. the Intel Compiler on
+        # Windows should put the dependency in its object files.
+        set("${OPENMP_LIB_NAMES_VAR}" "" PARENT_SCOPE)
       endif()
       break()
     endif()
@@ -466,7 +461,7 @@ foreach(LANG IN LISTS OpenMP_FINDLIST)
       if(OpenMP_${LANG}_FLAGS)
         separate_arguments(_OpenMP_${LANG}_OPTIONS NATIVE_COMMAND "${OpenMP_${LANG}_FLAGS}")
         set_property(TARGET OpenMP::OpenMP_${LANG} PROPERTY
-          INTERFACE_COMPILE_OPTIONS "${_OpenMP_${LANG}_OPTIONS}")
+          INTERFACE_COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:${LANG}>:${_OpenMP_${LANG}_OPTIONS}>")
         unset(_OpenMP_${LANG}_OPTIONS)
       endif()
       if(OpenMP_${LANG}_LIBRARIES)
