@@ -1,9 +1,9 @@
-cmake (3.11.2-1) UNRELEASED; urgency=medium
+cmake (3.11.2-1) unstable; urgency=medium
 
   * New upstream release.
     - Properly handles OpenJDK 10 versioning. (Closes: #897611)
 
- -- Felix Geyer <fgeyer@debian.org>  Sat, 19 May 2018 10:47:11 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Sat, 19 May 2018 13:44:22 +0200
 
 cmake (3.11.1-1) unstable; urgency=medium
 
