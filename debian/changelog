@@ -1,3 +1,10 @@
+cmake (3.12.1-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+    - Fixes FTBFS with recent version of libuv1. (Closes: #905140)
+
+ -- Felix Geyer <fgeyer@debian.org>  Thu, 09 Aug 2018 18:07:18 +0200
+
 cmake (3.11.2-1) unstable; urgency=medium
 
   * New upstream release.
