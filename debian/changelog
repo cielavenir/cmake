@@ -1,10 +1,10 @@
-cmake (3.12.1-1) UNRELEASED; urgency=medium
+cmake (3.12.1-1) unstable; urgency=medium
 
   * New upstream release.
     - Fixes FTBFS with recent version of libuv1. (Closes: #905140)
   * Drop qt_import_dir_variable.diff, not needed anymore.
 
- -- Felix Geyer <fgeyer@debian.org>  Thu, 09 Aug 2018 18:07:18 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Thu, 09 Aug 2018 21:35:37 +0200
 
 cmake (3.11.2-1) unstable; urgency=medium
 
