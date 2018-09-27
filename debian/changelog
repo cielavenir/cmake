@@ -1,3 +1,11 @@
+cmake (3.12.1-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Add patch from upstream to fix FTBFS in kfreebsd.  Closes: #905138
+  * Add Build-Dependency on freebsd-glue on kfreebsd-any.
+
+ -- Mattia Rizzolo <mattia@debian.org>  Thu, 27 Sep 2018 17:50:12 +0200
+
 cmake (3.12.1-1) unstable; urgency=medium
 
   * New upstream release.

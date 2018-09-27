@@ -1,0 +1,23 @@
+Description: Add missing libraries for kFreeBSD.
+Author: Gregor Jasny <gjasny@googlemail.com>
+Origin: upstream, https://gitlab.kitware.com/cmake/cmake/commit/6b7b54d476a297b32f8f1521f3255052b9dda1b6
+Bug-Debian: https://bugs.debian.org/905138
+Bug: https://gitlab.kitware.com/cmake/cmake/issues/18375
+
+diff --git a/bootstrap b/bootstrap
+index 188193d9a9..416a3d6780 100755
+--- a/bootstrap
++++ b/bootstrap
+@@ -1370,6 +1370,9 @@ else
+       uv_c_flags="${uv_c_flags} -D_GNU_SOURCE"
+       libs="${libs} -ldl -lrt"
+       ;;
++    *kFreeBSD*)
++      libs="${libs} -lkvm -lfreebsd-glue"
++      ;;
+     *BSD*)
+       libs="${libs} -lkvm"
+       ;;
+-- 
+2.18.0
+
