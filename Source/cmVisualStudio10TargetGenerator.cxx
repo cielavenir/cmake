@@ -1207,7 +1207,11 @@ void cmVisualStudio10TargetGenerator::WriteCustomCommands(Elem& e0)
       this->GeneratorTarget->GetName() != CMAKE_CHECK_BUILD_SYSTEM_TARGET) {
     if (cmSourceFile const* sf =
           this->LocalGenerator->CreateVCProjBuildRule()) {
-      this->WriteCustomCommand(e0, sf);
+      // Write directly rather than through WriteCustomCommand because
+      // we do not want the de-duplication and it has no dependencies.
+      if (cmCustomCommand const* command = sf->GetCustomCommand()) {
+        this->WriteCustomRule(e0, sf, *command);
+      }
     }
   }
 }
@@ -2409,10 +2413,12 @@ bool cmVisualStudio10TargetGenerator::ComputeClOptions(
   }
 
   // Choose a language whose flags to use for ClCompile.
-  static const char* clLangs[] = { "CXX", "C", "Fortran", "CSharp" };
+  static const char* clLangs[] = { "CXX", "C", "Fortran" };
   std::string langForClCompile;
-  if (std::find(cm::cbegin(clLangs), cm::cend(clLangs), linkLanguage) !=
-      cm::cend(clLangs)) {
+  if (this->ProjectType == csproj) {
+    langForClCompile = "CSharp";
+  } else if (std::find(cm::cbegin(clLangs), cm::cend(clLangs), linkLanguage) !=
+             cm::cend(clLangs)) {
     langForClCompile = linkLanguage;
   } else {
     std::set<std::string> languages;
