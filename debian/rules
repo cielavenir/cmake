@@ -52,7 +52,7 @@ override_dh_auto_configure: $(BUILD_FLAGS_FILE)
 override_dh_auto_test:
 	# Pass -j1 to "make test" as a workaround, see https://gitlab.kitware.com/cmake/cmake/issues/17165
 	# The tests are still run in parallel as debhelper pass -jX as ARGS to ctest.
-	dh_auto_test --buildsystem=cmake -- -j1 ARGS="-E CTestTestUpload --timeout 2000"
+	dh_auto_test --buildsystem=cmake -- -j1 ARGS="-E CTestTestUpload --timeout 5000"
 
 override_dh_auto_clean:
 	dh_auto_clean

@@ -1,3 +1,10 @@
+cmake (3.12.3-2) UNRELEASED; urgency=medium
+
+  * Increase timeout of tests from 2000s to 5000s. (Closes: #910513)
+    - Needed for riscv64 qemu-system buildds.
+
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 07 Oct 2018 17:43:59 +0200
+
 cmake (3.12.3-1) unstable; urgency=medium
 
   * New upstream release.
