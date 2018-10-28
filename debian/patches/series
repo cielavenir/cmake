@@ -1,5 +1,1 @@
 FindBoost_add_-lpthread_#563479.diff
-fix-ftbfs-on-kfreebsd.patch
-fix_ftbfs_on_kfreebsd2.patch
-hurd_so_noexec.patch
-GNUInstallDirs-kfreebsd-man.patch
