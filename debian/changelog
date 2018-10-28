@@ -1,4 +1,4 @@
-cmake (3.13.0~rc2-1) UNRELEASED; urgency=medium
+cmake (3.13.0~rc2-1) experimental; urgency=medium
 
   * New upstream release candidate.
   * Drop patches that have been applied upstream:
@@ -7,7 +7,7 @@ cmake (3.13.0~rc2-1) UNRELEASED; urgency=medium
     - hurd_so_noexec.patch
     - GNUInstallDirs-kfreebsd-man.patch
 
- -- Felix Geyer <fgeyer@debian.org>  Sun, 28 Oct 2018 12:10:24 +0100
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 28 Oct 2018 14:29:04 +0100
 
 cmake (3.12.3-3) unstable; urgency=medium
 
