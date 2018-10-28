@@ -2126,10 +2126,10 @@ bool cmCTestTestHandler::SetTestsProperties(
       for (cmCTestTestProperties& rt : this->TestList) {
         if (t == rt.Name) {
           if (key == "WILL_FAIL") {
-            rt.WillFail = cmSystemTools::IsOn(val.c_str());
+            rt.WillFail = cmSystemTools::IsOn(val);
           }
           if (key == "DISABLED") {
-            rt.Disabled = cmSystemTools::IsOn(val.c_str());
+            rt.Disabled = cmSystemTools::IsOn(val);
           }
           if (key == "ATTACHED_FILES") {
             cmSystemTools::ExpandListArgument(val, rt.AttachedFiles);
@@ -2172,7 +2172,7 @@ bool cmCTestTestHandler::SetTestsProperties(
             cmSystemTools::ExpandListArgument(val, rt.RequiredFiles);
           }
           if (key == "RUN_SERIAL") {
-            rt.RunSerial = cmSystemTools::IsOn(val.c_str());
+            rt.RunSerial = cmSystemTools::IsOn(val);
           }
           if (key == "FAIL_REGULAR_EXPRESSION") {
             std::vector<std::string> lval;
@@ -2188,7 +2188,7 @@ bool cmCTestTestHandler::SetTestsProperties(
             }
           }
           if (key == "PROCESSOR_AFFINITY") {
-            rt.WantAffinity = cmSystemTools::IsOn(val.c_str());
+            rt.WantAffinity = cmSystemTools::IsOn(val);
           }
           if (key == "SKIP_RETURN_CODE") {
             rt.SkipReturnCode = atoi(val.c_str());
@@ -2310,7 +2310,7 @@ bool cmCTestTestHandler::AddTest(const std::vector<std::string>& args)
                      this->Quiet);
 
   if (this->UseExcludeRegExpFlag && this->UseExcludeRegExpFirst &&
-      this->ExcludeTestsRegularExpression.find(testname.c_str())) {
+      this->ExcludeTestsRegularExpression.find(testname)) {
     return true;
   }
   if (this->MemCheck) {
@@ -2365,10 +2365,10 @@ bool cmCTestTestHandler::AddTest(const std::vector<std::string>& args)
   test.SkipReturnCode = -1;
   test.PreviousRuns = 0;
   if (this->UseIncludeRegExpFlag &&
-      !this->IncludeTestsRegularExpression.find(testname.c_str())) {
+      !this->IncludeTestsRegularExpression.find(testname)) {
     test.IsInBasedOnREOptions = false;
   } else if (this->UseExcludeRegExpFlag && !this->UseExcludeRegExpFirst &&
-             this->ExcludeTestsRegularExpression.find(testname.c_str())) {
+             this->ExcludeTestsRegularExpression.find(testname)) {
     test.IsInBasedOnREOptions = false;
   }
   this->TestList.push_back(test);

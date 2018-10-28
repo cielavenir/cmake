@@ -128,6 +128,7 @@ public:
   ~cmake();
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
+  Json::Value ReportVersionJson() const;
   Json::Value ReportCapabilitiesJson(bool haveServerMode) const;
 #endif
   std::string ReportCapabilities(bool haveServerMode) const;
@@ -297,8 +298,10 @@ public:
   ///! this is called by generators to update the progress
   void UpdateProgress(const char* msg, float prog);
 
+#if defined(CMAKE_BUILD_WITH_CMAKE)
   ///! Get the variable watch object
   cmVariableWatch* GetVariableWatch() { return this->VariableWatch; }
+#endif
 
   void GetGeneratorDocumentation(std::vector<cmDocumentationEntry>&);
 
@@ -493,8 +496,6 @@ protected:
 
   void GenerateGraphViz(const char* fileName) const;
 
-  cmVariableWatch* VariableWatch;
-
 private:
   ProgressCallbackType ProgressCallback;
   void* ProgressCallbackClientData;
@@ -525,6 +526,10 @@ private:
   std::string GraphVizFile;
   InstalledFilesMap InstalledFiles;
 
+#if defined(CMAKE_BUILD_WITH_CMAKE)
+  cmVariableWatch* VariableWatch;
+#endif
+
   cmState* State;
   cmStateSnapshot CurrentSnapshot;
   cmMessenger* Messenger;
@@ -552,7 +557,9 @@ private:
 };
 
 #define CMAKE_STANDARD_OPTIONS_TABLE                                          \
-  { "-C <initial-cache>", "Pre-load a script to populate the cache." },       \
+  { "-S <path-to-source>", "Explicitly specify a source directory." },        \
+    { "-B <path-to-build>", "Explicitly specify a build directory." },        \
+    { "-C <initial-cache>", "Pre-load a script to populate the cache." },     \
     { "-D <var>[:<type>]=<value>", "Create or update a cmake cache entry." }, \
     { "-U <globbing_expr>", "Remove matching entries from CMake cache." },    \
     { "-G <generator-name>", "Specify a build system generator." },           \
