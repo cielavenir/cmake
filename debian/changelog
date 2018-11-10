@@ -1,3 +1,10 @@
+cmake (3.12.3-4) UNRELEASED; urgency=medium
+
+  * Use secure copyright file specification URI.
+  * Trim trailing whitespace.
+
+ -- Jelmer Vernooĳ <jelmer@debian.org>  Sun, 28 Oct 2018 11:29:48 +0000
+
 cmake (3.12.3-3) unstable; urgency=medium
 
   * Fix info and man page install directories on kFreeBSD. (Closes: #911700)
@@ -226,7 +233,7 @@ cmake (3.4.1-2) unstable; urgency=medium
 
 cmake (3.4.1-1) experimental; urgency=medium
 
-  * New upstream release. 
+  * New upstream release.
 
  -- Felix Geyer <fgeyer@debian.org>  Thu, 03 Dec 2015 18:45:35 +0100
 
@@ -453,7 +460,7 @@ cmake (2.8.12.1-1.5) unstable; urgency=medium
 cmake (2.8.12.1-1.4) unstable; urgency=medium
 
   * Non-maintainer upload.
-  * Add support for mips64 mips64el mipsn32 mipsn32el in 
+  * Add support for mips64 mips64el mipsn32 mipsn32el in
     Modules/FindJNI.cmake.
     Add FindJNI.cmake.mips.patch.
     Patch by Yunqiang Su.
@@ -1117,7 +1124,7 @@ cmake (2.8.0~rc3-1) experimental; urgency=low
     - FindJNI.cmake-more-arches.diff - remove, was taken from upstream;
     - FindVTK.cmake-vtk-5.4.diff - remove, was taken from upstream.
   * Update install files.
-  * Call dpkg with --print-architecture rather than obsolete 
+  * Call dpkg with --print-architecture rather than obsolete
     --print-installation-architecture.
   * Fix lintian override cmake-data: extra-license-file.
   * Remove obsolete README.Debian.
@@ -1338,7 +1345,7 @@ cmake (2.6.0-1) experimental; urgency=low
 
 cmake (2.6.0~rc8-1.1) experimental; urgency=low
 
-  * Non-maintainer upload with permission from DadCoder. 
+  * Non-maintainer upload with permission from DadCoder.
     Happy Prague visit.
   * Fix FindQt4.cmake (Closes: #477110)
 
@@ -1430,7 +1437,7 @@ cmake (2.4.5-1) unstable; urgency=low
     Do not depend on optimized libraries for a debug build and visa versa.
     Fix target name matching custom command output conflict.
     Fix FindQt3 so that it does not find qt4
-    Fix FindKDE4 so that it only looks for kde4-config 
+    Fix FindKDE4 so that it only looks for kde4-config
 
  -- A. Maitland Bottoms <bottoms@debian.org>  Mon,  4 Dec 2006 16:29:44 -0500
 
