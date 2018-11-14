@@ -1,7 +1,12 @@
 cmake (3.12.3-4) UNRELEASED; urgency=medium
 
+  [ Jelmer Vernooĳ ]
   * Use secure copyright file specification URI.
   * Trim trailing whitespace.
+
+  [ Lisandro Damián Nicanor Pérez Meyer ]
+  * Add Helmut Grohne's script to generate toolchain files based on
+    Ubuntu/Debian's Multi-Arch as debtoolchainfilegen.
 
  -- Jelmer Vernooĳ <jelmer@debian.org>  Sun, 28 Oct 2018 11:29:48 +0000
 
