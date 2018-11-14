@@ -29,6 +29,12 @@
 #
 #  ./debtoolchainfilegen armhf > cmake_toolchain_armhf.cmake
 
+if [ -z "$1" ]
+then
+  echo "Usage: debtoolchainfilegen (arch) > cmake_toolchain_<arch>.cmake"
+  exit 1
+fi
+
 ARCH=$1
 
 DEB_HOST_GNU_TYPE=$(dpkg-architecture -f "-a$1" -qDEB_HOST_GNU_TYPE)
