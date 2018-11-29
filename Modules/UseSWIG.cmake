@@ -122,7 +122,7 @@ ensure generated files will receive the required settings.
   If set to ``TRUE``, contents of target property
   :prop_tgt:`INCLUDE_DIRECTORIES` will be forwarded to ``SWIG`` compiler.
   If set to ``FALSE`` target property :prop_tgt:`INCLUDE_DIRECTORIES` will be
-  ignored. If not set, target property ``SWIG_USE_TARGT_INCLUDE_DIRECTORIES``
+  ignored. If not set, target property ``SWIG_USE_TARGET_INCLUDE_DIRECTORIES``
   will be considered.
 
 ``GENERATED_INCLUDE_DIRECTORIES``, ``GENERATED_COMPILE_DEFINITIONS`` and ``GENERATED_COMPILE_OPTIONS``
@@ -233,6 +233,8 @@ set(SWIG_EXTRA_LIBRARIES "")
 set(SWIG_PYTHON_EXTRA_FILE_EXTENSIONS ".py")
 set(SWIG_JAVA_EXTRA_FILE_EXTENSIONS ".java" "JNI.java")
 set(SWIG_CSHARP_EXTRA_FILE_EXTENSIONS ".cs" "PINVOKE.cs")
+
+set(SWIG_MANAGE_SUPPORT_FILES_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/UseSWIG/ManageSupportFiles.cmake")
 
 ##
 ## PRIVATE functions
@@ -444,9 +446,13 @@ function(SWIG_ADD_SOURCE_TO_MODULE name outfiles infile)
   if (UseSWIG_MODULE_VERSION VERSION_GREATER 1)
     # as part of custom command, start by removing old generated files
     # to ensure obsolete files do not stay
-    set (swig_cleanup_command COMMAND "${CMAKE_COMMAND}" -E remove_directory "${outdir}")
+    set (swig_file_outdir "${workingdir}/${swig_source_file_name_we}.files")
+    set (swig_cleanup_command COMMAND "${CMAKE_COMMAND}" "-DSUPPORT_FILES_WORKING_DIRECTORY=${swig_file_outdir}" "-DSUPPORT_FILES_OUTPUT_DIRECTORY=${outdir}" -DACTION=CLEAN -P "${SWIG_MANAGE_SUPPORT_FILES_SCRIPT}")
+    set (swig_copy_command COMMAND "${CMAKE_COMMAND}" "-DSUPPORT_FILES_WORKING_DIRECTORY=${swig_file_outdir}" "-DSUPPORT_FILES_OUTPUT_DIRECTORY=${outdir}" -DACTION=COPY -P "${SWIG_MANAGE_SUPPORT_FILES_SCRIPT}")
   else()
+    set (swig_file_outdir "${outdir}")
     unset (swig_cleanup_command)
+    unset (swig_copy_command)
   endif()
 
   # IMPLICIT_DEPENDS below can not handle situations where a dependent file is
@@ -476,16 +482,17 @@ function(SWIG_ADD_SOURCE_TO_MODULE name outfiles infile)
     COMMAND "${CMAKE_COMMAND}" -E env "SWIG_LIB=${SWIG_DIR}" "${SWIG_EXECUTABLE}"
     "-${SWIG_MODULE_${name}_SWIG_LANGUAGE_FLAG}"
     "${swig_source_file_flags}"
-    -outdir "${outdir}"
+    -outdir "${swig_file_outdir}"
     ${swig_special_flags}
     ${swig_extra_flags}
     "${swig_include_dirs}"
     -o "${swig_generated_file_fullname}"
     "${swig_source_file_fullname}"
+    ${swig_copy_command}
     MAIN_DEPENDENCY "${swig_source_file_fullname}"
     DEPENDS ${swig_dependencies}
     IMPLICIT_DEPENDS CXX "${swig_source_file_fullname}"
-    COMMENT "Swig source"
+    COMMENT "Swig compile ${infile} for ${SWIG_MODULE_${name}_SWIG_LANGUAGE_FLAG}"
     COMMAND_EXPAND_LISTS)
   set_source_files_properties("${swig_generated_file_fullname}" ${swig_extra_generated_files}
     PROPERTIES GENERATED 1)
