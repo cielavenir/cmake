@@ -75,7 +75,7 @@ bool cmExportFileGenerator::GenerateImportFile()
   } else {
     // Generate atomically and with copy-if-different.
     std::unique_ptr<cmGeneratedFileStream> ap(
-      new cmGeneratedFileStream(this->MainImportFile.c_str(), true));
+      new cmGeneratedFileStream(this->MainImportFile, true));
     ap->SetCopyIfDifferent(true);
     foutPtr = std::move(ap);
   }
@@ -195,7 +195,7 @@ static bool checkInterfaceDirs(const std::string& prepro,
                                cmGeneratorTarget* target,
                                const std::string& prop)
 {
-  const char* installDir =
+  std::string const& installDir =
     target->Makefile->GetSafeDefinition("CMAKE_INSTALL_PREFIX");
   std::string const& topSourceDir =
     target->GetLocalGenerator()->GetSourceDirectory();
@@ -420,6 +420,68 @@ void cmExportFileGenerator::PopulateIncludeDirectoriesInterface(
   }
 }
 
+void cmExportFileGenerator::PopulateLinkDependsInterface(
+  cmTargetExport* tei, cmGeneratorExpression::PreprocessContext preprocessRule,
+  ImportPropertyMap& properties, std::vector<std::string>& missingTargets)
+{
+  cmGeneratorTarget* gt = tei->Target;
+  assert(preprocessRule == cmGeneratorExpression::InstallInterface);
+
+  const char* propName = "INTERFACE_LINK_DEPENDS";
+  const char* input = gt->GetProperty(propName);
+
+  if (!input) {
+    return;
+  }
+
+  if (!*input) {
+    properties[propName].clear();
+    return;
+  }
+
+  std::string prepro =
+    cmGeneratorExpression::Preprocess(input, preprocessRule, true);
+  if (!prepro.empty()) {
+    this->ResolveTargetsInGeneratorExpressions(prepro, gt, missingTargets);
+
+    if (!checkInterfaceDirs(prepro, gt, propName)) {
+      return;
+    }
+    properties[propName] = prepro;
+  }
+}
+
+void cmExportFileGenerator::PopulateLinkDirectoriesInterface(
+  cmTargetExport* tei, cmGeneratorExpression::PreprocessContext preprocessRule,
+  ImportPropertyMap& properties, std::vector<std::string>& missingTargets)
+{
+  cmGeneratorTarget* gt = tei->Target;
+  assert(preprocessRule == cmGeneratorExpression::InstallInterface);
+
+  const char* propName = "INTERFACE_LINK_DIRECTORIES";
+  const char* input = gt->GetProperty(propName);
+
+  if (!input) {
+    return;
+  }
+
+  if (!*input) {
+    properties[propName].clear();
+    return;
+  }
+
+  std::string prepro =
+    cmGeneratorExpression::Preprocess(input, preprocessRule, true);
+  if (!prepro.empty()) {
+    this->ResolveTargetsInGeneratorExpressions(prepro, gt, missingTargets);
+
+    if (!checkInterfaceDirs(prepro, gt, propName)) {
+      return;
+    }
+    properties[propName] = prepro;
+  }
+}
+
 void cmExportFileGenerator::PopulateInterfaceProperty(
   const std::string& propName, cmGeneratorTarget* target,
   cmGeneratorExpression::PreprocessContext preprocessRule,
@@ -536,14 +598,17 @@ bool cmExportFileGenerator::AddTargetNamespace(
   std::string& input, cmGeneratorTarget* target,
   std::vector<std::string>& missingTargets)
 {
-  cmLocalGenerator* lg = target->GetLocalGenerator();
+  cmGeneratorTarget::TargetOrString resolved =
+    target->ResolveTargetReference(input);
 
-  cmGeneratorTarget* tgt = lg->FindGeneratorTargetToUse(input);
+  cmGeneratorTarget* tgt = resolved.Target;
   if (!tgt) {
+    input = resolved.String;
     return false;
   }
 
   if (tgt->IsImported()) {
+    input = tgt->GetName();
     return true;
   }
   if (this->ExportedTargets.find(tgt) != this->ExportedTargets.end()) {
@@ -553,6 +618,8 @@ bool cmExportFileGenerator::AddTargetNamespace(
     this->HandleMissingTarget(namespacedTarget, missingTargets, target, tgt);
     if (!namespacedTarget.empty()) {
       input = namespacedTarget;
+    } else {
+      input = tgt->GetName();
     }
   }
   return true;
@@ -800,6 +867,16 @@ void cmExportFileGenerator::SetImportDetailProperties(
   }
 }
 
+static std::string const& asString(std::string const& l)
+{
+  return l;
+}
+
+static std::string const& asString(cmLinkItem const& l)
+{
+  return l.AsStr();
+}
+
 template <typename T>
 void cmExportFileGenerator::SetImportLinkProperty(
   std::string const& suffix, cmGeneratorTarget* target,
@@ -819,7 +896,7 @@ void cmExportFileGenerator::SetImportLinkProperty(
     link_entries += sep;
     sep = ";";
 
-    std::string temp = l;
+    std::string temp = asString(l);
     this->AddTargetNamespace(temp, target, missingTargets);
     link_entries += temp;
   }

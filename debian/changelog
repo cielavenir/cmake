@@ -1,3 +1,14 @@
+cmake (3.13.0~rc2-1) experimental; urgency=medium
+
+  * New upstream release candidate.
+  * Drop patches that have been applied upstream:
+    - fix-ftbfs-on-kfreebsd.patch
+    - fix_ftbfs_on_kfreebsd2.patch
+    - hurd_so_noexec.patch
+    - GNUInstallDirs-kfreebsd-man.patch
+
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 28 Oct 2018 14:29:04 +0100
+
 cmake (3.12.3-4) UNRELEASED; urgency=medium
 
   [ Jelmer Vernooĳ ]

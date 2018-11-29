@@ -14,7 +14,6 @@
 #include "cmUVSignalHackRAII.h" // IWYU pragma: keep
 
 #include "cmsys/FStream.hxx"
-#include "cmsys/String.hxx"
 #include "cmsys/SystemInformation.hxx"
 
 #include <algorithm>
@@ -57,7 +56,6 @@ cmCTestMultiProcessHandler::cmCTestMultiProcessHandler()
   this->RunningCount = 0;
   this->ProcessorsAvailable = cmAffinity::GetProcessorsAvailable();
   this->HaveAffinity = this->ProcessorsAvailable.size();
-  this->StopTimePassed = false;
   this->HasCycles = false;
   this->SerialTestRunning = false;
 }
@@ -131,17 +129,6 @@ void cmCTestMultiProcessHandler::RunTests()
 
 bool cmCTestMultiProcessHandler::StartTestProcess(int test)
 {
-  std::chrono::system_clock::time_point stop_time = this->CTest->GetStopTime();
-  if (stop_time != std::chrono::system_clock::time_point() &&
-      stop_time <= std::chrono::system_clock::now()) {
-    cmCTestLog(this->CTest, ERROR_MESSAGE,
-               "The stop time has been passed. "
-               "Stopping all tests."
-                 << std::endl);
-    this->StopTimePassed = true;
-    return false;
-  }
-
   if (this->HaveAffinity && this->Properties[test]->WantAffinity) {
     size_t needProcessors = this->GetProcessorsUsed(test);
     if (needProcessors > this->ProcessorsAvailable.size()) {
@@ -191,13 +178,37 @@ bool cmCTestMultiProcessHandler::StartTestProcess(int test)
                           this->Properties[test]->Directory + " : " +
                           std::strerror(workdir.GetLastResult()));
   } else {
-    if (testRun->StartTest(this->Total)) {
+    if (testRun->StartTest(this->Completed, this->Total)) {
       return true;
     }
   }
 
   this->FinishTestProcess(testRun, false);
   return false;
+}
+
+bool cmCTestMultiProcessHandler::CheckStopTimePassed()
+{
+  if (!this->StopTimePassed) {
+    std::chrono::system_clock::time_point stop_time =
+      this->CTest->GetStopTime();
+    if (stop_time != std::chrono::system_clock::time_point() &&
+        stop_time <= std::chrono::system_clock::now()) {
+      this->SetStopTimePassed();
+    }
+  }
+  return this->StopTimePassed;
+}
+
+void cmCTestMultiProcessHandler::SetStopTimePassed()
+{
+  if (!this->StopTimePassed) {
+    cmCTestLog(this->CTest, ERROR_MESSAGE,
+               "The stop time has been passed. "
+               "Stopping all tests."
+                 << std::endl);
+    this->StopTimePassed = true;
+  }
 }
 
 void cmCTestMultiProcessHandler::LockResources(int index)
@@ -280,6 +291,10 @@ void cmCTestMultiProcessHandler::StartNextTests()
     return;
   }
 
+  if (this->CheckStopTimePassed()) {
+    return;
+  }
+
   size_t numToStart = 0;
 
   if (this->RunningCount < this->ParallelLevel) {
@@ -359,10 +374,6 @@ void cmCTestMultiProcessHandler::StartNextTests()
     }
 
     if (testLoadOk && processors <= numToStart && this->StartTest(test)) {
-      if (this->StopTimePassed) {
-        return;
-      }
-
       numToStart -= processors;
     } else if (numToStart == 0) {
       break;
@@ -425,8 +436,11 @@ void cmCTestMultiProcessHandler::FinishTestProcess(cmCTestRunTest* runner,
   auto properties = runner->GetTestProperties();
 
   bool testResult = runner->EndTest(this->Completed, this->Total, started);
+  if (runner->TimedOutForStopTime()) {
+    this->SetStopTimePassed();
+  }
   if (started) {
-    if (runner->StartAgain()) {
+    if (!this->StopTimePassed && runner->StartAgain(this->Completed)) {
       this->Completed--; // remove the completed test because run again
       return;
     }
@@ -477,7 +491,7 @@ void cmCTestMultiProcessHandler::UpdateCostData()
       if (line == "---") {
         break;
       }
-      std::vector<cmsys::String> parts = cmSystemTools::SplitString(line, ' ');
+      std::vector<std::string> parts = cmSystemTools::SplitString(line, ' ');
       // Format: <name> <previous_runs> <avg_cost>
       if (parts.size() < 3) {
         break;
@@ -530,7 +544,7 @@ void cmCTestMultiProcessHandler::ReadCostData()
         break;
       }
 
-      std::vector<cmsys::String> parts = cmSystemTools::SplitString(line, ' ');
+      std::vector<std::string> parts = cmSystemTools::SplitString(line, ' ');
 
       // Probably an older version of the file, will be fixed next run
       if (parts.size() < 3) {

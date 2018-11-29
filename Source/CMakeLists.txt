@@ -265,6 +265,7 @@ set(SRCS
   cmInstallDirectoryGenerator.h
   cmInstallDirectoryGenerator.cxx
   cmLinkedTree.h
+  cmLinkItem.cxx
   cmLinkItem.h
   cmLinkLineComputer.cxx
   cmLinkLineComputer.h
@@ -379,6 +380,8 @@ set(SRCS
   cmAddCompileDefinitionsCommand.h
   cmAddCompileOptionsCommand.cxx
   cmAddCompileOptionsCommand.h
+  cmAddLinkOptionsCommand.cxx
+  cmAddLinkOptionsCommand.h
   cmAddCustomCommandCommand.cxx
   cmAddCustomCommandCommand.h
   cmAddCustomTargetCommand.cxx
@@ -574,6 +577,10 @@ set(SRCS
   cmTargetCompileOptionsCommand.h
   cmTargetIncludeDirectoriesCommand.cxx
   cmTargetIncludeDirectoriesCommand.h
+  cmTargetLinkOptionsCommand.cxx
+  cmTargetLinkOptionsCommand.h
+  cmTargetLinkDirectoriesCommand.cxx
+  cmTargetLinkDirectoriesCommand.h
   cmTargetLinkLibrariesCommand.cxx
   cmTargetLinkLibrariesCommand.h
   cmTargetPropCommandBase.cxx
@@ -882,6 +889,8 @@ include_directories(
 set(CPACK_SRCS
   CPack/cmCPackArchiveGenerator.cxx
   CPack/cmCPackComponentGroup.cxx
+  CPack/cmCPackDebGenerator.cxx
+  CPack/cmCPackExtGenerator.cxx
   CPack/cmCPackGeneratorFactory.cxx
   CPack/cmCPackGenerator.cxx
   CPack/cmCPackLog.cxx
@@ -894,7 +903,6 @@ set(CPACK_SRCS
   CPack/cmCPackTarCompressGenerator.cxx
   CPack/cmCPackZIPGenerator.cxx
   CPack/cmCPack7zGenerator.cxx
-  CPack/cmCPackDebGenerator.cxx
   )
 # CPack IFW generator
 set(CPACK_SRCS ${CPACK_SRCS}
@@ -1041,6 +1049,9 @@ target_link_libraries(cmake CMakeLib)
 add_library(CMakeServerLib
   cmConnection.h cmConnection.cxx
   cmFileMonitor.cxx cmFileMonitor.h
+  cmJsonObjectDictionary.h
+  cmJsonObjects.h
+  cmJsonObjects.cxx
   cmPipeConnection.cxx cmPipeConnection.h
   cmServer.cxx cmServer.h
   cmServerConnection.cxx cmServerConnection.h
