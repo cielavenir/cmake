@@ -178,6 +178,7 @@ add_RunCMake_test(ObjectLibrary)
 if(UNIX AND CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG AND CMAKE_EXECUTABLE_FORMAT STREQUAL "ELF")
   add_RunCMake_test(RuntimePath)
 endif()
+add_RunCMake_test(ScriptMode)
 add_RunCMake_test(Swift)
 add_RunCMake_test(TargetObjects)
 add_RunCMake_test(TargetSources)
@@ -367,7 +368,8 @@ add_RunCMake_test(FetchContent)
 if(NOT CMake_TEST_EXTERNAL_CMAKE)
   set(CTestCommandLine_ARGS -DTEST_AFFINITY=$<TARGET_FILE:testAffinity>)
 endif()
-add_RunCMake_test(CTestCommandLine)
+add_executable(print_stdin print_stdin.c)
+add_RunCMake_test(CTestCommandLine -DTEST_PRINT_STDIN=$<TARGET_FILE:print_stdin>)
 add_RunCMake_test(CacheNewline)
 # Only run this test on unix platforms that support
 # symbolic links
@@ -433,7 +435,7 @@ if("${CMAKE_GENERATOR}" MATCHES "Make|Ninja")
   add_RunCMake_test(ctest_labels_for_subprojects)
 endif()
 
-add_RunCMake_test_group(CPack "DEB;RPM;7Z;TBZ2;TGZ;TXZ;TZ;ZIP;STGZ;Ext")
+add_RunCMake_test_group(CPack "DEB;RPM;7Z;TBZ2;TGZ;TXZ;TZ;ZIP;STGZ;External")
 # add a test to make sure symbols are exported from a shared library
 # for MSVC compilers CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS property is used
 add_RunCMake_test(AutoExportDll)
