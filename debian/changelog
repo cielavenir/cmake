@@ -10,6 +10,7 @@ cmake (3.13.1-1) UNRELEASED; urgency=medium
 
   [ Felix Geyer ]
   * New upstream release.
+    - Adds support for the Boost Stacktrace component. (Closes: #912074)
   * Drop FindBoost_add_-lpthread_#563479.diff, fixed upstream.
 
  -- Felix Geyer <fgeyer@debian.org>  Thu, 29 Nov 2018 20:25:46 +0100
