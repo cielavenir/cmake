@@ -1,10 +1,10 @@
-cmake (3.13.2-1) UNRELEASED; urgency=medium
+cmake (3.13.2-1) unstable; urgency=medium
 
   * New upstream release.
     - No longer passes implicit include directories to the moc tool,
       fixing kio FTBFS. (Closes: #915391)
 
- -- Felix Geyer <fgeyer@debian.org>  Thu, 13 Dec 2018 22:37:53 +0100
+ -- Felix Geyer <fgeyer@debian.org>  Fri, 14 Dec 2018 19:07:46 +0100
 
 cmake (3.13.1-1) unstable; urgency=medium
 
