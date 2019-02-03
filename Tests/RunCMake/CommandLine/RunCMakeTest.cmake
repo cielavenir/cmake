@@ -4,12 +4,17 @@ include(RunCMake)
 
 run_cmake_command(NoArgs ${CMAKE_COMMAND})
 run_cmake_command(Wizard ${CMAKE_COMMAND} -i)
-run_cmake_command(C-no-arg ${CMAKE_COMMAND} -C)
-run_cmake_command(C-no-file ${CMAKE_COMMAND} -C nosuchcachefile.txt)
+run_cmake_command(C-no-arg ${CMAKE_COMMAND} -B DummyBuildDir -C)
+run_cmake_command(C-no-file ${CMAKE_COMMAND} -B DummyBuildDir -C nosuchcachefile.txt)
+run_cmake_command(Cno-file ${CMAKE_COMMAND} -B DummyBuildDir -Cnosuchcachefile.txt)
 run_cmake_command(cache-no-file ${CMAKE_COMMAND} nosuchsubdir/CMakeCache.txt)
 run_cmake_command(lists-no-file ${CMAKE_COMMAND} nosuchsubdir/CMakeLists.txt)
-run_cmake_command(D-no-arg ${CMAKE_COMMAND} -D)
-run_cmake_command(U-no-arg ${CMAKE_COMMAND} -U)
+run_cmake_command(D-no-arg ${CMAKE_COMMAND} -B DummyBuildDir -D)
+run_cmake_command(D-no-src ${CMAKE_COMMAND} -B DummyBuildDir -D VAR=VALUE)
+run_cmake_command(Dno-src ${CMAKE_COMMAND} -B DummyBuildDir -DVAR=VALUE)
+run_cmake_command(U-no-arg ${CMAKE_COMMAND} -B DummyBuildDir -U)
+run_cmake_command(U-no-src ${CMAKE_COMMAND} -B DummyBuildDir -U VAR)
+run_cmake_command(Uno-src ${CMAKE_COMMAND} -B DummyBuildDir -UVAR)
 run_cmake_command(E-no-arg ${CMAKE_COMMAND} -E)
 run_cmake_command(E_capabilities ${CMAKE_COMMAND} -E capabilities)
 run_cmake_command(E_capabilities-arg ${CMAKE_COMMAND} -E capabilities --extra-arg)
@@ -27,8 +32,8 @@ run_cmake_command(E___run_co_compile-bad-iwyu ${CMAKE_COMMAND} -E __run_co_compi
 run_cmake_command(E___run_co_compile-no--- ${CMAKE_COMMAND} -E __run_co_compile --iwyu=iwyu-does-not-exist command-does-not-exist)
 run_cmake_command(E___run_co_compile-no-cc ${CMAKE_COMMAND} -E __run_co_compile --iwyu=iwyu-does-not-exist --)
 
-run_cmake_command(G_no-arg ${CMAKE_COMMAND} -G)
-run_cmake_command(G_bad-arg ${CMAKE_COMMAND} -G NoSuchGenerator)
+run_cmake_command(G_no-arg ${CMAKE_COMMAND} -B DummyBuildDir -G)
+run_cmake_command(G_bad-arg ${CMAKE_COMMAND} -B DummyBuildDir -G NoSuchGenerator)
 run_cmake_command(P_no-arg ${CMAKE_COMMAND} -P)
 run_cmake_command(P_no-file ${CMAKE_COMMAND} -P nosuchscriptfile.cmake)
 
@@ -49,6 +54,17 @@ run_cmake_command(cache-empty-entry
   ${CMAKE_COMMAND} --build ${RunCMake_SOURCE_DIR}/cache-empty-entry/)
 
 function(run_ExplicitDirs)
+  set(source_dir ${RunCMake_BINARY_DIR}/ExplicitDirsMissing)
+
+  file(REMOVE_RECURSE "${source_dir}")
+  file(MAKE_DIRECTORY "${source_dir}")
+  file(WRITE ${source_dir}/CMakeLists.txt [=[
+cmake_minimum_required(VERSION 3.13)
+project(ExplicitDirsMissing LANGUAGES NONE)
+]=])
+  run_cmake_command(no-S-B ${CMAKE_COMMAND} -E chdir ${source_dir}
+    ${CMAKE_COMMAND} -DFOO=BAR)
+
   set(source_dir ${RunCMake_SOURCE_DIR}/ExplicitDirs)
   set(binary_dir ${RunCMake_BINARY_DIR}/ExplicitDirs-build)
 
@@ -323,9 +339,9 @@ set(RunCMake_TEST_OPTIONS -Wdev -Wno-dev)
 run_cmake(Wno-dev)
 unset(RunCMake_TEST_OPTIONS)
 
-run_cmake_command(W_bad-arg1 ${CMAKE_COMMAND} -W)
-run_cmake_command(W_bad-arg2 ${CMAKE_COMMAND} -Wno-)
-run_cmake_command(W_bad-arg3 ${CMAKE_COMMAND} -Werror=)
+run_cmake_command(W_bad-arg1 ${CMAKE_COMMAND} -B DummyBuildDir -W)
+run_cmake_command(W_bad-arg2 ${CMAKE_COMMAND} -B DummyBuildDir -Wno-)
+run_cmake_command(W_bad-arg3 ${CMAKE_COMMAND} -B DummyBuildDir -Werror=)
 
 set(RunCMake_TEST_OPTIONS --debug-output)
 run_cmake(debug-output)

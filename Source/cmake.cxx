@@ -609,16 +609,13 @@ bool cmake::FindPackage(const std::vector<std::string>& args)
 }
 
 // Parse the args
-void cmake::SetArgs(const std::vector<std::string>& args,
-                    bool directoriesSetBefore)
+void cmake::SetArgs(const std::vector<std::string>& args)
 {
-  bool directoriesSet = directoriesSetBefore;
   bool haveToolset = false;
   bool havePlatform = false;
   for (unsigned int i = 1; i < args.size(); ++i) {
     std::string const& arg = args[i];
     if (arg.find("-H", 0) == 0 || arg.find("-S", 0) == 0) {
-      directoriesSet = true;
       std::string path = arg.substr(2);
       if (path.empty()) {
         ++i;
@@ -639,7 +636,6 @@ void cmake::SetArgs(const std::vector<std::string>& args,
     } else if (arg.find("-O", 0) == 0) {
       // There is no local generate anymore.  Ignore -O option.
     } else if (arg.find("-B", 0) == 0) {
-      directoriesSet = true;
       std::string path = arg.substr(2);
       if (path.empty()) {
         ++i;
@@ -676,10 +672,25 @@ void cmake::SetArgs(const std::vector<std::string>& args,
 #endif
     else if (arg.find("-D", 0) == 0) {
       // skip for now
+      // in case '-D var=val' is given, also skip the next
+      // in case '-Dvar=val' is given, don't skip the next
+      if (arg.size() == 2) {
+        ++i;
+      }
     } else if (arg.find("-U", 0) == 0) {
       // skip for now
+      // in case '-U var' is given, also skip the next
+      // in case '-Uvar' is given, don't skip the next
+      if (arg.size() == 2) {
+        ++i;
+      }
     } else if (arg.find("-C", 0) == 0) {
       // skip for now
+      // in case '-C path' is given, also skip the next
+      // in case '-Cpath' is given, don't skip the next
+      if (arg.size() == 2) {
+        ++i;
+      }
     } else if (arg.find("-P", 0) == 0) {
       // skip for now
       i++;
@@ -786,15 +797,29 @@ void cmake::SetArgs(const std::vector<std::string>& args,
         this->SetGlobalGenerator(gen);
       }
     }
-    // no option assume it is the path to the source
+    // no option assume it is the path to the source or an existing build
     else {
-      directoriesSet = true;
       this->SetDirectoriesFromFile(arg.c_str());
     }
   }
-  if (!directoriesSet) {
-    this->SetHomeOutputDirectory(cmSystemTools::GetCurrentWorkingDirectory());
+
+  const bool haveSourceDir = !this->GetHomeDirectory().empty();
+  const bool haveBinaryDir = !this->GetHomeOutputDirectory().empty();
+
+  if (this->CurrentWorkingMode == cmake::NORMAL_MODE && !haveSourceDir &&
+      !haveBinaryDir) {
+    this->IssueMessage(
+      cmake::WARNING,
+      "No source or binary directory provided. Both will be assumed to be "
+      "the same as the current working directory, but note that this "
+      "warning will become a fatal error in future CMake releases.");
+  }
+
+  if (!haveSourceDir) {
     this->SetHomeDirectory(cmSystemTools::GetCurrentWorkingDirectory());
+  }
+  if (!haveBinaryDir) {
+    this->SetHomeOutputDirectory(cmSystemTools::GetCurrentWorkingDirectory());
   }
 }
 
