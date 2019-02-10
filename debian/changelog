@@ -1,8 +1,8 @@
-cmake (3.13.4-1) UNRELEASED; urgency=medium
+cmake (3.13.4-1) unstable; urgency=medium
 
   * New upstream release.
 
- -- Felix Geyer <fgeyer@debian.org>  Sun, 03 Feb 2019 13:16:07 +0100
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 10 Feb 2019 11:33:12 +0100
 
 cmake (3.13.2-1) unstable; urgency=medium
 
