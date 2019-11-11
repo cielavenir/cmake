@@ -10,7 +10,7 @@ Add a library to the project using the specified source files.
 Normal Libraries
 ^^^^^^^^^^^^^^^^
 
-::
+.. code-block:: cmake
 
   add_library(<name> [STATIC | SHARED | MODULE]
               [EXCLUDE_FROM_ALL]
@@ -67,7 +67,7 @@ within IDE.
 Imported Libraries
 ^^^^^^^^^^^^^^^^^^
 
-::
+.. code-block:: cmake
 
   add_library(<name> <SHARED|STATIC|MODULE|OBJECT|UNKNOWN> IMPORTED
               [GLOBAL])
@@ -80,19 +80,30 @@ option extends visibility.  It may be referenced like any target built
 within the project.  ``IMPORTED`` libraries are useful for convenient
 reference from commands like :command:`target_link_libraries`.  Details
 about the imported library are specified by setting properties whose names
-begin in ``IMPORTED_`` and ``INTERFACE_``.  The most important such
-property is :prop_tgt:`IMPORTED_LOCATION` (and its per-configuration
-variant :prop_tgt:`IMPORTED_LOCATION_<CONFIG>`) which specifies the
-location of the main library file on disk.  Or, for object libraries,
-:prop_tgt:`IMPORTED_OBJECTS` (and :prop_tgt:`IMPORTED_OBJECTS_<CONFIG>`)
-specifies the locations of object files on disk.
+begin in ``IMPORTED_`` and ``INTERFACE_``.
+
+The most important properties are:
+
+* :prop_tgt:`IMPORTED_LOCATION` (and its per-configuration
+  variant :prop_tgt:`IMPORTED_LOCATION_<CONFIG>`) which specifies the
+  location of the main library file on disk.
+* :prop_tgt:`IMPORTED_OBJECTS` (and :prop_tgt:`IMPORTED_OBJECTS_<CONFIG>`)
+  for object libraries, specifies the locations of object files on disk.
+* :prop_tgt:`PUBLIC_HEADER` files to be installed during :command:`install` invocation
+
 See documentation of the ``IMPORTED_*`` and ``INTERFACE_*`` properties
 for more information.
+
+An ``UNKNOWN`` library type is typically only used in the implementation of
+:ref:`Find Modules`.  It allows the path to an imported library (often found
+using the :command:`find_library` command) to be used without having to know
+what type of library it is.  This is especially useful on Windows where a
+static library and a DLL's import library both have the same file extension.
 
 Object Libraries
 ^^^^^^^^^^^^^^^^
 
-::
+.. code-block:: cmake
 
   add_library(<name> OBJECT <src>...)
 
@@ -121,7 +132,7 @@ consider adding at least one real source file to any target that references
 Alias Libraries
 ^^^^^^^^^^^^^^^
 
-::
+.. code-block:: cmake
 
   add_library(<name> ALIAS <target>)
 
@@ -141,7 +152,7 @@ installed or exported.
 Interface Libraries
 ^^^^^^^^^^^^^^^^^^^
 
-::
+.. code-block:: cmake
 
   add_library(<name> INTERFACE [IMPORTED [GLOBAL]])
 

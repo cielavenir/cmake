@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <set>
+#include <utility>
 
+#include "cmAlgorithms.h"
 #include "cmGeneratorExpression.h"
 #include "cmMakefile.h"
 #include "cmSystemTools.h"
@@ -51,11 +53,9 @@ bool cmIncludeDirectoryCommand::InitialPass(
     this->GetIncludes(*i, includes);
 
     if (before) {
-      beforeIncludes.insert(beforeIncludes.end(), includes.begin(),
-                            includes.end());
+      cmAppend(beforeIncludes, includes);
     } else {
-      afterIncludes.insert(afterIncludes.end(), includes.begin(),
-                           includes.end());
+      cmAppend(afterIncludes, includes);
     }
     if (system) {
       systemIncludes.insert(includes.begin(), includes.end());

@@ -12,7 +12,7 @@ Find an external project, and load its settings.
 Basic Signature and Module Mode
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-::
+.. code-block:: cmake
 
   find_package(<PackageName> [version] [EXACT] [QUIET] [MODULE]
                [REQUIRED] [[COMPONENTS] [components...]]
@@ -23,9 +23,9 @@ Finds and loads settings from an external project.  ``<PackageName>_FOUND``
 will be set to indicate whether the package was found.  When the
 package is found package-specific information is provided through
 variables and :ref:`Imported Targets` documented by the package itself.  The
-``QUIET`` option disables messages if the package cannot be found.  The
-``REQUIRED`` option stops processing with an error message if the package
-cannot be found.
+``QUIET`` option disables informational messages, including those indicating
+that the package cannot be found if it is not ``REQUIRED``.  The ``REQUIRED``
+option stops processing with an error message if the package cannot be found.
 
 A package-specific list of required components may be listed after the
 ``COMPONENTS`` option (or after the ``REQUIRED`` option if present).
@@ -51,12 +51,20 @@ mode and "Config" mode.  The above signature selects Module mode.
 If no module is found the command falls back to Config mode, described
 below. This fall back is disabled if the ``MODULE`` option is given.
 
-In Module mode, CMake searches for a file called ``Find<PackageName>.cmake``
-in the :variable:`CMAKE_MODULE_PATH` followed by the CMake installation.
+In Module mode, CMake searches for a file called ``Find<PackageName>.cmake``.
+The file is first searched in the :variable:`CMAKE_MODULE_PATH`,
+then among the :ref:`Find Modules` provided by the CMake installation.
 If the file is found, it is read and processed by CMake.  It is responsible
 for finding the package, checking the version, and producing any needed
 messages.  Some find-modules provide limited or no support for versioning;
 check the module documentation.
+
+If the ``MODULE`` option is not specfied in the above signature,
+CMake first searches for the package using Module mode. Then, if the
+package is not found, it searches again using Config mode. A user
+may set the variable :variable:`CMAKE_FIND_PACKAGE_PREFER_CONFIG` to
+``TRUE`` to direct CMake first search using Config mode before falling
+back to Module mode.
 
 Full Signature and Config Mode
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -67,7 +75,9 @@ full command signature and details of the search process.  Project
 maintainers wishing to provide a package to be found by this command
 are encouraged to read on.
 
-The complete Config mode command signature is::
+The complete Config mode command signature is
+
+.. code-block:: cmake
 
   find_package(<PackageName> [version] [EXACT] [QUIET]
                [REQUIRED] [[COMPONENTS] [components...]]
@@ -177,7 +187,7 @@ sets these variables:
 
 These variables are checked by the ``find_package`` command to determine
 whether the configuration file provides an acceptable version.  They
-are not available after the find_package call returns.  If the version
+are not available after the ``find_package`` call returns.  If the version
 is acceptable the following variables are set:
 
 ``<PackageName>_VERSION``
@@ -202,7 +212,9 @@ is set no attempt is made to choose a highest or closest version number.
 To control the order in which ``find_package`` checks for compatibility use
 the two variables :variable:`CMAKE_FIND_PACKAGE_SORT_ORDER` and
 :variable:`CMAKE_FIND_PACKAGE_SORT_DIRECTION`.
-For instance in order to select the highest version one can set::
+For instance in order to select the highest version one can set
+
+.. code-block:: cmake
 
   SET(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
   SET(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
@@ -215,8 +227,8 @@ Search Procedure
 CMake constructs a set of possible installation prefixes for the
 package.  Under each prefix several directories are searched for a
 configuration file.  The tables below show the directories searched.
-Each entry is meant for installation trees following Windows (W), UNIX
-(U), or Apple (A) conventions::
+Each entry is meant for installation trees following Windows (``W``), UNIX
+(``U``), or Apple (``A``) conventions::
 
   <prefix>/                                                       (W)
   <prefix>/(cmake|CMake)/                                         (W)
@@ -229,8 +241,8 @@ Each entry is meant for installation trees following Windows (W), UNIX
   <prefix>/<name>*/(lib/<arch>|lib*|share)/<name>*/               (W/U)
   <prefix>/<name>*/(lib/<arch>|lib*|share)/<name>*/(cmake|CMake)/ (W/U)
 
-On systems supporting macOS Frameworks and Application Bundles the
-following directories are searched for frameworks or bundles
+On systems supporting macOS :prop_tgt:`FRAMEWORK` and :prop_tgt:`BUNDLE`, the
+following directories are searched for Frameworks or Application Bundles
 containing a configuration file::
 
   <prefix>/<name>.framework/Resources/                    (A)
@@ -257,16 +269,16 @@ that order).
 * The ``lib`` path is always searched.
 
 If ``PATH_SUFFIXES`` is specified, the suffixes are appended to each
-(W) or (U) directory entry one-by-one.
+(``W``) or (``U``) directory entry one-by-one.
 
 This set of directories is intended to work in cooperation with
 projects that provide configuration files in their installation trees.
-Directories above marked with (W) are intended for installations on
+Directories above marked with (``W``) are intended for installations on
 Windows where the prefix may point at the top of an application's
-installation directory.  Those marked with (U) are intended for
+installation directory.  Those marked with (``U``) are intended for
 installations on UNIX platforms where the prefix is shared by multiple
-packages.  This is merely a convention, so all (W) and (U) directories
-are still searched on all platforms.  Directories marked with (A) are
+packages.  This is merely a convention, so all (``W``) and (``U``) directories
+are still searched on all platforms.  Directories marked with (``A``) are
 intended for installations on Apple platforms.  The
 :variable:`CMAKE_FIND_FRAMEWORK` and :variable:`CMAKE_FIND_APPBUNDLE`
 variables determine the order of preference.
@@ -286,7 +298,7 @@ enabled.
 
 2. Search paths specified in cmake-specific cache variables.  These
    are intended to be used on the command line with a ``-DVAR=value``.
-   The values are interpreted as :ref:`;-lists <CMake Language Lists>`.
+   The values are interpreted as :ref:`semicolon-separated lists <CMake Language Lists>`.
    This can be skipped if ``NO_CMAKE_PATH`` is passed::
 
      CMAKE_PREFIX_PATH
@@ -348,6 +360,11 @@ enabled.
 
 .. include:: FIND_XXX_ROOT.txt
 .. include:: FIND_XXX_ORDER.txt
+
+By default the value stored in the result variable will be the path at
+which the file is found.  The :variable:`CMAKE_FIND_PACKAGE_RESOLVE_SYMLINKS`
+variable may be set to ``TRUE`` before calling ``find_package`` in order
+to resolve symbolic links and store the real path to the file.
 
 Every non-REQUIRED ``find_package`` call can be disabled by setting the
 :variable:`CMAKE_DISABLE_FIND_PACKAGE_<PackageName>` variable to ``TRUE``.

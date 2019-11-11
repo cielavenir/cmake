@@ -1,7 +1,7 @@
 # Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
 # file Copyright.txt or https://cmake.org/licensing for details.
 
-cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.1...3.14 FATAL_ERROR)
 set(CMAKE_USER_MAKE_RULES_OVERRIDE_C ${CMAKE_CURRENT_SOURCE_DIR}/Source/Modules/OverrideC.cmake)
 set(CMAKE_USER_MAKE_RULES_OVERRIDE_CXX ${CMAKE_CURRENT_SOURCE_DIR}/Source/Modules/OverrideCXX.cmake)
 project(CMake)
@@ -117,6 +117,18 @@ option(CMake_BUILD_DEVELOPER_REFERENCE
   "Build CMake Developer Reference" OFF)
 mark_as_advanced(CMake_BUILD_DEVELOPER_REFERENCE)
 
+# option to build using interprocedural optimizations (IPO/LTO)
+if (NOT CMAKE_VERSION VERSION_LESS 3.12.2)
+  option(CMake_BUILD_LTO "Compile CMake with link-time optimization if supported" OFF)
+  if(CMake_BUILD_LTO)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT HAVE_IPO)
+    if(HAVE_IPO)
+      set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    endif()
+  endif()
+endif()
+
 #-----------------------------------------------------------------------
 # a macro to deal with system libraries, implemented as a macro
 # simply to improve readability of the main script
@@ -125,13 +137,9 @@ macro(CMAKE_HANDLE_SYSTEM_LIBRARIES)
   # Options have dependencies.
   include(CMakeDependentOption)
 
-  # Optionally use system xmlrpc.  We no longer build or use it by default.
-  option(CTEST_USE_XMLRPC "Enable xmlrpc submission method in CTest." OFF)
-  mark_as_advanced(CTEST_USE_XMLRPC)
-
   # Allow the user to enable/disable all system utility library options by
   # defining CMAKE_USE_SYSTEM_LIBRARIES or CMAKE_USE_SYSTEM_LIBRARY_${util}.
-  set(UTILITIES BZIP2 CURL EXPAT FORM JSONCPP LIBARCHIVE LIBLZMA LIBRHASH LIBUV ZLIB)
+  set(UTILITIES BZIP2 CURL EXPAT FORM JSONCPP LIBARCHIVE LIBLZMA LIBRHASH LIBUV ZLIB ZSTD)
   foreach(util ${UTILITIES})
     if(NOT DEFINED CMAKE_USE_SYSTEM_LIBRARY_${util}
         AND DEFINED CMAKE_USE_SYSTEM_LIBRARIES)
@@ -159,14 +167,14 @@ macro(CMAKE_HANDLE_SYSTEM_LIBRARIES)
 
   # Optionally use system utility libraries.
   option(CMAKE_USE_SYSTEM_LIBARCHIVE "Use system-installed libarchive" "${CMAKE_USE_SYSTEM_LIBRARY_LIBARCHIVE}")
-  CMAKE_DEPENDENT_OPTION(CMAKE_USE_SYSTEM_CURL "Use system-installed curl"
-    "${CMAKE_USE_SYSTEM_LIBRARY_CURL}" "NOT CTEST_USE_XMLRPC" ON)
-  CMAKE_DEPENDENT_OPTION(CMAKE_USE_SYSTEM_EXPAT "Use system-installed expat"
-    "${CMAKE_USE_SYSTEM_LIBRARY_EXPAT}" "NOT CTEST_USE_XMLRPC" ON)
+  option(CMAKE_USE_SYSTEM_CURL "Use system-installed curl" "${CMAKE_USE_SYSTEM_LIBRARY_CURL}")
+  option(CMAKE_USE_SYSTEM_EXPAT "Use system-installed expat" "${CMAKE_USE_SYSTEM_LIBRARY_EXPAT}")
   CMAKE_DEPENDENT_OPTION(CMAKE_USE_SYSTEM_ZLIB "Use system-installed zlib"
     "${CMAKE_USE_SYSTEM_LIBRARY_ZLIB}" "NOT CMAKE_USE_SYSTEM_LIBARCHIVE;NOT CMAKE_USE_SYSTEM_CURL" ON)
   CMAKE_DEPENDENT_OPTION(CMAKE_USE_SYSTEM_BZIP2 "Use system-installed bzip2"
     "${CMAKE_USE_SYSTEM_LIBRARY_BZIP2}" "NOT CMAKE_USE_SYSTEM_LIBARCHIVE" ON)
+  CMAKE_DEPENDENT_OPTION(CMAKE_USE_SYSTEM_ZSTD "Use system-installed zstd"
+    "${CMAKE_USE_SYSTEM_LIBRARY_ZSTD}" "NOT CMAKE_USE_SYSTEM_LIBARCHIVE" ON)
   CMAKE_DEPENDENT_OPTION(CMAKE_USE_SYSTEM_LIBLZMA "Use system-installed liblzma"
     "${CMAKE_USE_SYSTEM_LIBRARY_LIBLZMA}" "NOT CMAKE_USE_SYSTEM_LIBARCHIVE" ON)
   option(CMAKE_USE_SYSTEM_FORM "Use system-installed libform" "${CMAKE_USE_SYSTEM_LIBRARY_FORM}")
@@ -200,7 +208,7 @@ endmacro()
 macro(CMAKE_SETUP_TESTING)
   if(BUILD_TESTING)
     set(CMAKE_TEST_SYSTEM_LIBRARIES 0)
-    foreach(util CURL EXPAT XMLRPC ZLIB)
+    foreach(util CURL EXPAT ZLIB)
       if(CMAKE_USE_SYSTEM_${util})
         set(CMAKE_TEST_SYSTEM_LIBRARIES 1)
       endif()
@@ -326,6 +334,9 @@ macro (CMAKE_BUILD_UTILITIES)
   set(KWSYS_USE_ConsoleBuf 1)
   set(KWSYS_HEADER_ROOT ${CMake_BINARY_DIR}/Source)
   set(KWSYS_INSTALL_DOC_DIR "${CMAKE_DOC_DIR}")
+  if(CMake_NO_CXX_STANDARD)
+    set(KWSYS_CXX_STANDARD "")
+  endif()
   add_subdirectory(Source/kwsys)
   set(kwsys_folder "Utilities/KWSys")
   CMAKE_SET_TARGET_FOLDER(${KWSYS_NAMESPACE} "${kwsys_folder}")
@@ -436,14 +447,6 @@ macro (CMAKE_BUILD_UTILITIES)
   endif()
 
   #---------------------------------------------------------------------
-  # Build Compress library for CTest.
-  set(CMAKE_COMPRESS_INCLUDES
-    "${CMAKE_CURRENT_BINARY_DIR}/Utilities/cmcompress")
-  set(CMAKE_COMPRESS_LIBRARIES "cmcompress")
-  add_subdirectory(Utilities/cmcompress)
-  CMAKE_SET_TARGET_FOLDER(cmcompress "Utilities/3rdParty")
-
-  #---------------------------------------------------------------------
   # Build expat library for CMake, CTest, and libarchive.
   if(CMAKE_USE_SYSTEM_EXPAT)
     find_package(EXPAT)
@@ -475,6 +478,17 @@ macro (CMAKE_BUILD_UTILITIES)
   endif()
 
   #---------------------------------------------------------------------
+  # Build or use system zstd for libarchive.
+  if(NOT CMAKE_USE_SYSTEM_LIBARCHIVE)
+    if(NOT CMAKE_USE_SYSTEM_ZSTD)
+      set(ZSTD_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Utilities/cmzstd")
+      set(ZSTD_LIBRARY cmzstd)
+      add_subdirectory(Utilities/cmzstd)
+      CMAKE_SET_TARGET_FOLDER(cmzstd "Utilities/3rdParty")
+    endif()
+  endif()
+
+  #---------------------------------------------------------------------
   # Build or use system liblzma for libarchive.
   if(NOT CMAKE_USE_SYSTEM_LIBARCHIVE)
     if(CMAKE_USE_SYSTEM_LIBLZMA)
@@ -497,7 +511,7 @@ macro (CMAKE_BUILD_UTILITIES)
   #---------------------------------------------------------------------
   # Build or use system libarchive for CMake and CTest.
   if(CMAKE_USE_SYSTEM_LIBARCHIVE)
-    find_package(LibArchive 3.1.0)
+    find_package(LibArchive 3.3.3)
     if(NOT LibArchive_FOUND)
       message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBARCHIVE is ON but LibArchive is not found!")
     endif()
@@ -532,10 +546,14 @@ macro (CMAKE_BUILD_UTILITIES)
   #---------------------------------------------------------------------
   # Build jsoncpp library.
   if(CMAKE_USE_SYSTEM_JSONCPP)
-    find_package(JsonCpp)
+    find_package(JsonCpp 1.4.1)
     if(NOT JsonCpp_FOUND)
       message(FATAL_ERROR
         "CMAKE_USE_SYSTEM_JSONCPP is ON but a JsonCpp is not found!")
+    endif()
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+      set_property(TARGET JsonCpp::JsonCpp APPEND PROPERTY
+        INTERFACE_COMPILE_OPTIONS -Wno-deprecated-declarations)
     endif()
     set(CMAKE_JSONCPP_LIBRARIES JsonCpp::JsonCpp)
   else()
@@ -557,18 +575,6 @@ macro (CMAKE_BUILD_UTILITIES)
     set(CMAKE_LIBUV_LIBRARIES cmlibuv)
     add_subdirectory(Utilities/cmlibuv)
     CMAKE_SET_TARGET_FOLDER(cmlibuv "Utilities/3rdParty")
-  endif()
-
-  #---------------------------------------------------------------------
-  # Build XMLRPC library for CMake and CTest.
-  if(CTEST_USE_XMLRPC)
-    find_package(XMLRPC QUIET REQUIRED libwww-client)
-    if(NOT XMLRPC_FOUND)
-      message(FATAL_ERROR
-        "CTEST_USE_XMLRPC is ON but xmlrpc is not found!")
-    endif()
-    set(CMAKE_XMLRPC_INCLUDES ${XMLRPC_INCLUDE_DIRS})
-    set(CMAKE_XMLRPC_LIBRARIES ${XMLRPC_LIBRARIES})
   endif()
 
   #---------------------------------------------------------------------
@@ -724,7 +730,7 @@ if(NOT CMake_TEST_EXTERNAL_CMAKE)
   # the build tree, which is both the build and the install RPATH.
   if (UNIX)
     if(   CMAKE_USE_SYSTEM_CURL   OR  CMAKE_USE_SYSTEM_ZLIB
-          OR  CMAKE_USE_SYSTEM_EXPAT  OR  CTEST_USE_XMLRPC  OR  CURSES_NEED_RPATH  OR  QT_NEED_RPATH)
+          OR  CMAKE_USE_SYSTEM_EXPAT  OR  CURSES_NEED_RPATH  OR  QT_NEED_RPATH)
       set(CMAKE_SKIP_RPATH OFF CACHE INTERNAL "CMake built with RPATH.")
       set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
       set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
@@ -816,4 +822,10 @@ if(NOT CMake_TEST_EXTERNAL_CMAKE)
 
   # Install auxiliary files integrating with other tools.
   add_subdirectory(Auxiliary)
+
+  # Optionally sign installed binaries.
+  if(CMake_INSTALL_SIGNTOOL)
+    configure_file(Source/CMakeInstallSignTool.cmake.in Source/CMakeInstallSignTool.cmake @ONLY)
+    install(SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/Source/CMakeInstallSignTool.cmake)
+  endif()
 endif()

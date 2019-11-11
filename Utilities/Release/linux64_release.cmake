@@ -29,9 +29,9 @@ CURSES_LIBRARY:FILEPATH=/home/kitware/ncurses-5.9/lib/libncurses.a
 CURSES_INCLUDE_PATH:PATH=/home/kitware/ncurses-5.9/include
 FORM_LIBRARY:FILEPATH=/home/kitware/ncurses-5.9/lib/libform.a
 CMAKE_USE_OPENSSL:BOOL=ON
-OPENSSL_CRYPTO_LIBRARY:STRING=/home/kitware/openssl-1.1.0h/lib/libcrypto.a;-pthread
-OPENSSL_INCLUDE_DIR:PATH=/home/kitware/openssl-1.1.0h/include
-OPENSSL_SSL_LIBRARY:FILEPATH=/home/kitware/openssl-1.1.0h/lib/libssl.a
+OPENSSL_CRYPTO_LIBRARY:STRING=/home/kitware/openssl-1.1.1/lib/libcrypto.a;-pthread
+OPENSSL_INCLUDE_DIR:PATH=/home/kitware/openssl-1.1.1/include
+OPENSSL_SSL_LIBRARY:FILEPATH=/home/kitware/openssl-1.1.1/lib/libssl.a
 PYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3
 CPACK_SYSTEM_NAME:STRING=Linux-x86_64
 BUILD_CursesDialog:BOOL=ON
@@ -44,6 +44,7 @@ CMake_QT_STATIC_QXcbIntegrationPlugin_LIBRARIES:STRING=${qt_xcb_libs}
 set(ENV [[
 export CMAKE_PREFIX_PATH=/opt/binutils-2.31
 ]])
+set(SIGN "")
 
 # Exclude Qt5 tests because our Qt5 is static.
 set(EXTRA_CTEST_ARGS "-E Qt5")

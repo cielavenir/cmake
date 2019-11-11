@@ -485,12 +485,18 @@ endmacro()
 # Find Graphviz Dot...
 #
 macro(_Doxygen_find_dot)
-    set(_x86 "(x86)")
-    file(
-        GLOB _Doxygen_GRAPHVIZ_BIN_DIRS
-        "$ENV{ProgramFiles}/Graphviz*/bin"
-        "$ENV{ProgramFiles${_x86}}/Graphviz*/bin"
-    )
+    if(WIN32)
+        set(_x86 "(x86)")
+        file(
+            GLOB _Doxygen_GRAPHVIZ_BIN_DIRS
+            "$ENV{ProgramFiles}/Graphviz*/bin"
+            "$ENV{ProgramFiles${_x86}}/Graphviz*/bin"
+        )
+        unset(_x86)
+    else()
+        set(_Doxygen_GRAPHVIZ_BIN_DIRS "")
+    endif()
+
     find_program(
         DOXYGEN_DOT_EXECUTABLE
         NAMES dot
@@ -529,7 +535,6 @@ macro(_Doxygen_find_dot)
     endif()
 
     unset(_Doxygen_GRAPHVIZ_BIN_DIRS)
-    unset(_x86)
 endmacro()
 
 #
@@ -969,7 +974,7 @@ doxygen_add_docs() for target ${targetName}")
                 "${DOXYGEN_OUTPUT_DIRECTORY}/${DOXYGEN_HTML_OUTPUT}")
         endif()
         set_property(DIRECTORY APPEND PROPERTY
-            ADDITIONAL_MAKE_CLEAN_FILES "${_args_clean_html_dir}")
+            ADDITIONAL_CLEAN_FILES "${_args_clean_html_dir}")
     endif()
 
     # Build up a list of files we can identify from the inputs so we can list
