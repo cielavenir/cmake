@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "cmAlgorithms.h"
 #include "cmCustomCommandLines.h"
 #include "cmDuration.h"
 #include "cmExportSetMap.h"
@@ -24,6 +25,7 @@
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 #  include "cmFileLockPool.h"
+#  include "cm_jsoncpp_value.h"
 #endif
 
 #define CMAKE_DIRECTORY_ID_SEP "::@"
@@ -40,6 +42,41 @@ class cmSourceFile;
 class cmStateDirectory;
 class cmake;
 
+namespace detail {
+inline void AppendStrs(std::vector<std::string>&)
+{
+}
+template <typename T, typename... Ts>
+inline void AppendStrs(std::vector<std::string>& command, T&& s, Ts&&... ts)
+{
+  command.emplace_back(std::forward<T>(s));
+  AppendStrs(command, std::forward<Ts>(ts)...);
+}
+
+struct GeneratedMakeCommand
+{
+  // Add each argument as a separate element to the vector
+  template <typename... T>
+  void Add(T&&... args)
+  {
+    // iterate the args and append each one
+    AppendStrs(PrimaryCommand, std::forward<T>(args)...);
+  }
+
+  // Add each value in the iterators as a separate element to the vector
+  void Add(std::vector<std::string>::const_iterator start,
+           std::vector<std::string>::const_iterator end)
+  {
+    cmAppend(PrimaryCommand, start, end);
+  }
+
+  std::string Printable() const { return cmJoin(PrimaryCommand, " "); }
+
+  std::vector<std::string> PrimaryCommand;
+  bool RequiresOutputForward = false;
+};
+}
+
 /** \class cmGlobalGenerator
  * \brief Responsible for overseeing the generation process for the entire tree
  *
@@ -49,13 +86,13 @@ class cmake;
 class cmGlobalGenerator
 {
 public:
-  ///! Free any memory allocated with the GlobalGenerator
+  //! Free any memory allocated with the GlobalGenerator
   cmGlobalGenerator(cmake* cm);
   virtual ~cmGlobalGenerator();
 
   virtual cmLocalGenerator* CreateLocalGenerator(cmMakefile* mf);
 
-  ///! Get the name for this generator
+  //! Get the name for this generator
   virtual std::string GetName() const { return "Generic"; }
 
   /** Check whether the given name matches the current generator.  */
@@ -69,6 +106,11 @@ public:
   {
     return codecvt::None;
   }
+
+#if defined(CMAKE_BUILD_WITH_CMAKE)
+  /** Get a JSON object describing the generator.  */
+  virtual Json::Value GetJson() const;
+#endif
 
   /** Tell the generator about the target system.  */
   virtual bool SetSystemName(std::string const&, cmMakefile*) { return true; }
@@ -162,10 +204,10 @@ public:
    */
   int Build(
     int jobs, const std::string& srcdir, const std::string& bindir,
-    const std::string& projectName, const std::string& targetName,
-    std::string& output, const std::string& makeProgram,
-    const std::string& config, bool clean, bool fast, bool verbose,
-    cmDuration timeout,
+    const std::string& projectName,
+    std::vector<std::string> const& targetNames, std::string& output,
+    const std::string& makeProgram, const std::string& config, bool clean,
+    bool fast, bool verbose, cmDuration timeout,
     cmSystemTools::OutputOption outputflag = cmSystemTools::OUTPUT_NONE,
     std::vector<std::string> const& nativeOptions =
       std::vector<std::string>());
@@ -176,11 +218,14 @@ public:
   virtual bool Open(const std::string& bindir, const std::string& projectName,
                     bool dryRun);
 
-  virtual void GenerateBuildCommand(
-    std::vector<std::string>& makeCommand, const std::string& makeProgram,
-    const std::string& projectName, const std::string& projectDir,
-    const std::string& targetName, const std::string& config, bool fast,
-    int jobs, bool verbose,
+  struct GeneratedMakeCommand final : public detail::GeneratedMakeCommand
+  {
+  };
+
+  virtual std::vector<GeneratedMakeCommand> GenerateBuildCommand(
+    const std::string& makeProgram, const std::string& projectName,
+    const std::string& projectDir, std::vector<std::string> const& targetNames,
+    const std::string& config, bool fast, int jobs, bool verbose,
     std::vector<std::string> const& makeOptions = std::vector<std::string>());
 
   virtual void PrintBuildCommandAdvice(std::ostream& os, int jobs) const;
@@ -191,7 +236,7 @@ public:
                                         const std::string& native,
                                         bool ignoreErrors);
 
-  ///! Get the CMake instance
+  //! Get the CMake instance
   cmake* GetCMakeInstance() const { return this->CMakeInstance; }
 
   void SetConfiguredFilesPath(cmGlobalGenerator* gen);
@@ -216,7 +261,7 @@ public:
 
   void AddMakefile(cmMakefile* mf);
 
-  ///! Set an generator for an "external makefile based project"
+  //! Set an generator for an "external makefile based project"
   void SetExternalMakefileProjectGenerator(
     cmExternalMakefileProjectGenerator* extraGenerator);
 
@@ -245,19 +290,19 @@ public:
   bool GetForceUnixPaths() const { return this->ForceUnixPaths; }
   bool GetToolSupportsColor() const { return this->ToolSupportsColor; }
 
-  ///! return the language for the given extension
+  //! return the language for the given extension
   std::string GetLanguageFromExtension(const char* ext) const;
-  ///! is an extension to be ignored
+  //! is an extension to be ignored
   bool IgnoreFile(const char* ext) const;
-  ///! What is the preference for linkers and this language (None or Preferred)
+  //! What is the preference for linkers and this language (None or Preferred)
   int GetLinkerPreference(const std::string& lang) const;
-  ///! What is the object file extension for a given source file?
+  //! What is the object file extension for a given source file?
   std::string GetLanguageOutputExtension(cmSourceFile const&) const;
 
-  ///! What is the configurations directory variable called?
+  //! What is the configurations directory variable called?
   virtual const char* GetCMakeCFGIntDir() const { return "."; }
 
-  ///! expand CFGIntDir for a configuration
+  //! expand CFGIntDir for a configuration
   virtual std::string ExpandCFGIntDir(const std::string& str,
                                       const std::string& config) const;
 
@@ -273,7 +318,7 @@ public:
    */
   virtual bool FindMakeProgram(cmMakefile*);
 
-  ///! Find a target by name by searching the local generators.
+  //! Find a target by name by searching the local generators.
   cmTarget* FindTarget(const std::string& name,
                        bool excludeAliases = false) const;
 
@@ -426,6 +471,8 @@ public:
 
   std::string MakeSilentFlag;
 
+  int RecursionDepth;
+
 protected:
   typedef std::vector<cmLocalGenerator*> GeneratorVector;
   // for a project collect all its targets by following depend
@@ -472,11 +519,7 @@ protected:
     cmCustomCommandLines CommandLines;
     std::vector<std::string> Depends;
     std::string WorkingDir;
-    bool UsesTerminal;
-    GlobalTargetInfo()
-      : UsesTerminal(false)
-    {
-    }
+    bool UsesTerminal = false;
   };
 
   void CreateDefaultGlobalTargets(std::vector<GlobalTargetInfo>& targets);
@@ -566,6 +609,7 @@ private:
   virtual void ForceLinkerLanguages();
 
   bool CheckTargetsForMissingSources() const;
+  bool CheckTargetsForType() const;
 
   void CreateLocalGenerators();
 
@@ -602,13 +646,9 @@ private:
   // Cache directory content and target files to be built.
   struct DirectoryContent
   {
-    long LastDiskTime;
+    long LastDiskTime = -1;
     std::set<std::string> All;
     std::set<std::string> Generated;
-    DirectoryContent()
-      : LastDiskTime(-1)
-    {
-    }
   };
   std::map<std::string, DirectoryContent> DirectoryContentMap;
 

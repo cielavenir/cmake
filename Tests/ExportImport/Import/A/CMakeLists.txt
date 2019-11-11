@@ -332,7 +332,6 @@ if (APPLE OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 else()
   if (CMAKE_CXX_COMPILER_ID MATCHES "PGI"
       OR CMAKE_CXX_COMPILER_ID MATCHES "PathScale"
-      OR CMAKE_SYSTEM_NAME MATCHES "IRIX64"
       OR CMAKE_CXX_COMPILER_ID MATCHES "Intel")
     set(run_pic_test 0)
   else()
@@ -408,7 +407,7 @@ endforeach()
 unset(_configs)
 
 if (((CMAKE_C_COMPILER_ID STREQUAL GNU AND CMAKE_C_COMPILER_VERSION VERSION_GREATER 4.4)
-    OR CMAKE_C_COMPILER_ID STREQUAL Clang)
+    OR (CMAKE_C_COMPILER_ID STREQUAL Clang AND NOT "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC"))
     AND (CMAKE_GENERATOR STREQUAL "Unix Makefiles" OR CMAKE_GENERATOR STREQUAL "Ninja"))
   include(CheckCXXCompilerFlag)
   check_cxx_compiler_flag(-Wunused-variable run_sys_includes_test)

@@ -18,13 +18,13 @@
 
 #include "cmAlgorithms.h"
 #include "cmListFileCache.h"
+#include "cmMessageType.h"
 #include "cmNewLineStyle.h"
 #include "cmPolicies.h"
 #include "cmSourceFileLocationKind.h"
 #include "cmStateSnapshot.h"
 #include "cmStateTypes.h"
 #include "cmTarget.h"
-#include "cmake.h"
 
 #if defined(CMAKE_BUILD_WITH_CMAKE)
 #  include "cmSourceGroup.h"
@@ -46,6 +46,7 @@ class cmState;
 class cmTest;
 class cmTestGenerator;
 class cmVariableWatch;
+class cmake;
 
 /** A type-safe wrapper for a string representing a directory id.  */
 class cmDirectoryId
@@ -64,8 +65,6 @@ public:
  */
 class cmMakefile
 {
-  CM_DISABLE_COPY(cmMakefile)
-
 public:
   /* Mark a variable as used */
   void MarkVariableAsUsed(const std::string& var);
@@ -83,13 +82,15 @@ public:
    */
   ~cmMakefile();
 
+  cmMakefile(cmMakefile const&) = delete;
+  cmMakefile& operator=(cmMakefile const&) = delete;
+
   cmDirectoryId GetDirectoryId() const;
 
-  bool ReadListFile(const char* filename);
+  bool ReadListFile(const std::string& filename);
 
-  bool ReadDependentFile(const char* filename, bool noPolicyScope = true);
-
-  bool ProcessBuildsystemFile(const char* filename);
+  bool ReadDependentFile(const std::string& filename,
+                         bool noPolicyScope = true);
 
   /**
    * Add a function blocker to this makefile
@@ -149,7 +150,7 @@ public:
     const cmCustomCommandLines& commandLines, cmTarget::CustomCommandType type,
     const char* comment, const char* workingDir, bool escapeOldStyle = true,
     bool uses_terminal = false, const std::string& depfile = "",
-    bool command_expand_lists = false,
+    const std::string& job_pool = "", bool command_expand_lists = false,
     ObjectLibraryCommands objLibraryCommands = RejectObjectLibraryCommands);
   cmSourceFile* AddCustomCommandToOutput(
     const std::vector<std::string>& outputs,
@@ -159,14 +160,14 @@ public:
     const cmCustomCommandLines& commandLines, const char* comment,
     const char* workingDir, bool replace = false, bool escapeOldStyle = true,
     bool uses_terminal = false, bool command_expand_lists = false,
-    const std::string& depfile = "");
+    const std::string& depfile = "", const std::string& job_pool = "");
   cmSourceFile* AddCustomCommandToOutput(
     const std::string& output, const std::vector<std::string>& depends,
     const std::string& main_dependency,
     const cmCustomCommandLines& commandLines, const char* comment,
     const char* workingDir, bool replace = false, bool escapeOldStyle = true,
     bool uses_terminal = false, bool command_expand_lists = false,
-    const std::string& depfile = "");
+    const std::string& depfile = "", const std::string& job_pool = "");
   void AddCustomCommandOldStyle(const std::string& target,
                                 const std::vector<std::string>& outputs,
                                 const std::vector<std::string>& depends,
@@ -222,14 +223,14 @@ public:
     const char* workingDirectory, const std::vector<std::string>& depends,
     const cmCustomCommandLines& commandLines, bool escapeOldStyle = true,
     const char* comment = nullptr, bool uses_terminal = false,
-    bool command_expand_lists = false);
+    bool command_expand_lists = false, const std::string& job_pool = "");
   cmTarget* AddUtilityCommand(
     const std::string& utilityName, TargetOrigin origin, bool excludeFromAll,
     const char* workingDirectory, const std::vector<std::string>& byproducts,
     const std::vector<std::string>& depends,
     const cmCustomCommandLines& commandLines, bool escapeOldStyle = true,
     const char* comment = nullptr, bool uses_terminal = false,
-    bool command_expand_lists = false);
+    bool command_expand_lists = false, const std::string& job_pool = "");
 
   /**
    * Add a subdirectory to the build.
@@ -256,7 +257,7 @@ public:
    * can be used in CMake to refer to lists, directories, etc.
    */
   void AddDefinition(const std::string& name, const char* value);
-  ///! Add a definition to this makefile and the global cmake cache.
+  //! Add a definition to this makefile and the global cmake cache.
   void AddCacheDefinition(const std::string& name, const char* value,
                           const char* doc, cmStateEnums::CacheEntryType type,
                           bool force = false);
@@ -271,7 +272,7 @@ public:
    * for cache entries, and will only affect the current makefile.
    */
   void RemoveDefinition(const std::string& name);
-  ///! Remove a definition from the cache.
+  //! Remove a definition from the cache.
   void RemoveCacheDefinition(const std::string& name);
 
   /**
@@ -311,6 +312,9 @@ public:
   public:
     PolicyPushPop(cmMakefile* m);
     ~PolicyPushPop();
+
+    PolicyPushPop(const PolicyPushPop&) = delete;
+    PolicyPushPop& operator=(const PolicyPushPop&) = delete;
 
   private:
     cmMakefile* Makefile;
@@ -369,14 +373,13 @@ public:
     return this->ComplainFileRegularExpression.c_str();
   }
 
-  /**
-   * Get the list of targets
-   */
-  cmTargets& GetTargets() { return this->Targets; }
-  /**
-   * Get the list of targets, const version
-   */
-  const cmTargets& GetTargets() const { return this->Targets; }
+  // -- List of targets
+  typedef std::unordered_map<std::string, cmTarget> cmTargetMap;
+  /** Get the target map */
+  cmTargetMap& GetTargets() { return this->Targets; }
+  /** Get the target map - const version */
+  cmTargetMap const& GetTargets() const { return this->Targets; }
+
   const std::vector<cmTarget*>& GetOwnedImportedTargets() const
   {
     return this->ImportedTargetsOwned;
@@ -435,7 +438,7 @@ public:
   const char* GetDefinition(const std::string&) const;
   const std::string* GetDef(const std::string&) const;
   const std::string& GetSafeDefinition(const std::string&) const;
-  std::string GetRequiredDefinition(const std::string& name) const;
+  const std::string& GetRequiredDefinition(const std::string& name) const;
   bool IsDefinitionSet(const std::string&) const;
   /**
    * Get the list of all variables in the current space. If argument
@@ -544,7 +547,7 @@ public:
   {
     return this->ListFiles;
   }
-  ///! When the file changes cmake will be re-run from the build system.
+  //! When the file changes cmake will be re-run from the build system.
   void AddCMakeDependFile(const std::string& file)
   {
     this->ListFiles.push_back(file);
@@ -606,8 +609,8 @@ public:
   /**
    * Copy file but change lines according to ConfigureString
    */
-  int ConfigureFile(const char* infile, const char* outfile, bool copyonly,
-                    bool atOnly, bool escapeQuotes,
+  int ConfigureFile(const std::string& infile, const std::string& outfile,
+                    bool copyonly, bool atOnly, bool escapeQuotes,
                     cmNewLineStyle = cmNewLineStyle());
 
   /**
@@ -622,7 +625,7 @@ public:
   bool ExecuteCommand(const cmListFileFunction& lff,
                       cmExecutionStatus& status);
 
-  ///! Enable support for named language, if nil then all languages are
+  //! Enable support for named language, if nil then all languages are
   /// enabled.
   void EnableLanguage(std::vector<std::string> const& languages,
                       bool optional);
@@ -637,8 +640,8 @@ public:
   cmVariableWatch* GetVariableWatch() const;
 #endif
 
-  ///! Display progress or status message.
-  void DisplayStatus(const char*, float) const;
+  //! Display progress or status message.
+  void DisplayStatus(const std::string&, float) const;
 
   /**
    * Expand the given list file arguments into the full set after
@@ -673,7 +676,7 @@ public:
    */
   cmSourceFile* GetSourceFileWithOutput(const std::string& outName) const;
 
-  ///! Add a new cmTest to the list of tests for this makefile.
+  //! Add a new cmTest to the list of tests for this makefile.
   cmTest* CreateTest(const std::string& testName);
 
   /** Get a cmTest pointer for a given test name, if the name is
@@ -689,9 +692,15 @@ public:
   /**
    * Return a location of a file in cmake or custom modules directory
    */
-  std::string GetModulesFile(const char* name) const;
+  std::string GetModulesFile(const std::string& name) const
+  {
+    bool system;
+    return this->GetModulesFile(name, system);
+  }
 
-  ///! Set/Get a property of this directory
+  std::string GetModulesFile(const std::string& name, bool& system) const;
+
+  //! Set/Get a property of this directory
   void SetProperty(const std::string& prop, const char* value);
   void AppendProperty(const std::string& prop, const char* value,
                       bool asString = false);
@@ -700,7 +709,7 @@ public:
   bool GetPropertyAsBool(const std::string& prop) const;
   std::vector<std::string> GetPropertyKeys() const;
 
-  ///! Initialize a makefile from its parent
+  //! Initialize a makefile from its parent
   void InitializeFromParent(cmMakefile* parent);
 
   void AddInstallGenerator(cmInstallGenerator* g)
@@ -736,6 +745,9 @@ public:
                     cmPolicies::PolicyMap const& pm);
     ~FunctionPushPop();
 
+    FunctionPushPop(const FunctionPushPop&) = delete;
+    FunctionPushPop& operator=(const FunctionPushPop&) = delete;
+
     void Quiet() { this->ReportError = false; }
 
   private:
@@ -749,6 +761,9 @@ public:
     MacroPushPop(cmMakefile* mf, std::string const& fileName,
                  cmPolicies::PolicyMap const& pm);
     ~MacroPushPop();
+
+    MacroPushPop(const MacroPushPop&) = delete;
+    MacroPushPop& operator=(const MacroPushPop&) = delete;
 
     void Quiet() { this->ReportError = false; }
 
@@ -774,20 +789,23 @@ public:
   /** Helper class to push and pop scopes automatically.  */
   class ScopePushPop
   {
-    CM_DISABLE_COPY(ScopePushPop)
   public:
     ScopePushPop(cmMakefile* m)
       : Makefile(m)
     {
       this->Makefile->PushScope();
     }
+
     ~ScopePushPop() { this->Makefile->PopScope(); }
+
+    ScopePushPop(ScopePushPop const&) = delete;
+    ScopePushPop& operator=(ScopePushPop const&) = delete;
 
   private:
     cmMakefile* Makefile;
   };
 
-  void IssueMessage(cmake::MessageType t, std::string const& text) const;
+  void IssueMessage(MessageType t, std::string const& text) const;
 
   /** Set whether or not to report a CMP0000 violation.  */
   void SetCheckCMP0000(bool b) { this->CheckCMP0000 = b; }
@@ -860,6 +878,12 @@ public:
   std::deque<std::vector<std::string>> FindPackageRootPathStack;
 
   void MaybeWarnCMP0074(std::string const& pkg);
+  void MaybeWarnUninitialized(std::string const& variable,
+                              const char* sourceFilename) const;
+  bool IsProjectFile(const char* filename) const;
+
+  int GetRecursionDepth() const;
+  void SetRecursionDepth(int recursionDepth);
 
 protected:
   // add link libraries and directories to the target
@@ -871,7 +895,7 @@ protected:
   mutable std::set<cmListFileContext> CMP0054ReportedIds;
 
   // libraries, classes, and executables
-  mutable cmTargets Targets;
+  mutable cmTargetMap Targets;
   std::map<std::string, std::string> AliasTargets;
 
   typedef std::vector<cmSourceFile*> SourceFileVec;
@@ -921,6 +945,7 @@ protected:
 private:
   cmStateSnapshot StateSnapshot;
   cmListFileBacktrace Backtrace;
+  int RecursionDepth;
 
   void ReadListFile(cmListFile const& listFile,
                     const std::string& filenametoread);
@@ -973,15 +998,18 @@ private:
   friend class BuildsystemFileScope;
 
   // CMP0053 == old
-  cmake::MessageType ExpandVariablesInStringOld(
-    std::string& errorstr, std::string& source, bool escapeQuotes,
-    bool noEscapes, bool atOnly, const char* filename, long line,
-    bool removeEmpty, bool replaceAt) const;
+  MessageType ExpandVariablesInStringOld(std::string& errorstr,
+                                         std::string& source,
+                                         bool escapeQuotes, bool noEscapes,
+                                         bool atOnly, const char* filename,
+                                         long line, bool removeEmpty,
+                                         bool replaceAt) const;
   // CMP0053 == new
-  cmake::MessageType ExpandVariablesInStringNew(
-    std::string& errorstr, std::string& source, bool escapeQuotes,
-    bool noEscapes, bool atOnly, const char* filename, long line,
-    bool removeEmpty, bool replaceAt) const;
+  MessageType ExpandVariablesInStringNew(std::string& errorstr,
+                                         std::string& source,
+                                         bool escapeQuotes, bool noEscapes,
+                                         bool atOnly, const char* filename,
+                                         long line, bool replaceAt) const;
   /**
    * Old version of GetSourceFileWithOutput(const std::string&) kept for
    * backward-compatibility. It implements a linear search and support
@@ -1025,7 +1053,7 @@ private:
   bool CheckCMP0000;
   std::set<std::string> WarnedCMP0074;
   bool IsSourceFileTryCompile;
-  mutable bool SuppressWatches;
+  mutable bool SuppressSideEffects;
 };
 
 #endif

@@ -9,12 +9,14 @@ A ``pkg-config`` module for CMake.
 
 Finds the ``pkg-config`` executable and adds the :command:`pkg_get_variable`,
 :command:`pkg_check_modules` and :command:`pkg_search_module` commands. The
-following variables will also be set::
+following variables will also be set:
 
-  PKG_CONFIG_FOUND          ... if pkg-config executable was found
-  PKG_CONFIG_EXECUTABLE     ... pathname of the pkg-config program
-  PKG_CONFIG_VERSION_STRING ... the version of the pkg-config program found
-                                (since CMake 2.8.8)
+``PKG_CONFIG_FOUND``
+  if pkg-config executable was found
+``PKG_CONFIG_EXECUTABLE``
+  pathname of the pkg-config program
+``PKG_CONFIG_VERSION_STRING``
+  version of pkg-config (since CMake 2.8.8)
 
 #]========================================]
 
@@ -82,24 +84,8 @@ macro(_pkgconfig_invoke _pkglist _prefix _varname _regexp)
   endif()
 endmacro()
 
-#[========================================[.rst:
-.. command:: pkg_get_variable
-
-  Retrieves the value of a pkg-config variable ``varName`` and stores it in the
-  result variable ``resultVar`` in the calling scope. ::
-
-    pkg_get_variable(<resultVar> <moduleName> <varName>)
-
-  If ``pkg-config`` returns multiple values for the specified variable,
-  ``resultVar`` will contain a :ref:`;-list <CMake Language Lists>`.
-
-  For example:
-
-  .. code-block:: cmake
-
-    pkg_get_variable(GI_GIRDIR gobject-introspection-1.0 girdir)
-#]========================================]
-function (pkg_get_variable result pkg variable)
+# Internal version of pkg_get_variable; expects PKG_CONFIG_PATH to already be set
+function (_pkg_get_variable result pkg variable)
   _pkgconfig_invoke("${pkg}" "prefix" "result" "" "--variable=${variable}")
   set("${result}"
     "${prefix_result}"
@@ -227,6 +213,7 @@ function(_pkg_find_libs _prefix _no_cmake_path _no_cmake_environment_path)
     find_library(pkgcfg_lib_${_prefix}_${_pkg_search}
                  NAMES ${_pkg_search}
                  ${_find_opts})
+    mark_as_advanced(pkgcfg_lib_${_prefix}_${_pkg_search})
     list(APPEND _libs "${pkgcfg_lib_${_prefix}_${_pkg_search}}")
   endforeach()
 
@@ -237,7 +224,7 @@ endfunction()
 function(_pkg_create_imp_target _prefix _imp_target_global)
   # only create the target if it is linkable, i.e. no executables
   if (NOT TARGET PkgConfig::${_prefix}
-      AND ( ${_prefix}_INCLUDE_DIRS OR ${_prefix}_LINK_LIBRARIES OR ${_prefix}_CFLAGS_OTHER ))
+      AND ( ${_prefix}_INCLUDE_DIRS OR ${_prefix}_LINK_LIBRARIES OR ${_prefix}_LDFLAGS_OTHER OR ${_prefix}_CFLAGS_OTHER ))
     if(${_imp_target_global})
       set(_global_opt "GLOBAL")
     else()
@@ -253,6 +240,10 @@ function(_pkg_create_imp_target _prefix _imp_target_global)
       set_property(TARGET PkgConfig::${_prefix} PROPERTY
                    INTERFACE_LINK_LIBRARIES "${${_prefix}_LINK_LIBRARIES}")
     endif()
+    if(${_prefix}_LDFLAGS_OTHER)
+      set_property(TARGET PkgConfig::${_prefix} PROPERTY
+                   INTERFACE_LINK_OPTIONS "${${_prefix}_LDFLAGS_OTHER}")
+    endif()
     if(${_prefix}_CFLAGS_OTHER)
       set_property(TARGET PkgConfig::${_prefix} PROPERTY
                    INTERFACE_COMPILE_OPTIONS "${${_prefix}_CFLAGS_OTHER}")
@@ -267,6 +258,102 @@ macro(_pkg_recalculate _prefix _no_cmake_path _no_cmake_environment_path _imp_ta
   if(${_imp_target})
     _pkg_create_imp_target(${_prefix} ${_imp_target_global})
   endif()
+endmacro()
+
+###
+macro(_pkg_set_path_internal)
+  set(_extra_paths)
+
+  if(NOT _no_cmake_path)
+    _pkgconfig_add_extra_path(_extra_paths CMAKE_PREFIX_PATH)
+    _pkgconfig_add_extra_path(_extra_paths CMAKE_FRAMEWORK_PATH)
+    _pkgconfig_add_extra_path(_extra_paths CMAKE_APPBUNDLE_PATH)
+  endif()
+
+  if(NOT _no_cmake_environment_path)
+    _pkgconfig_add_extra_path(_extra_paths ENV CMAKE_PREFIX_PATH)
+    _pkgconfig_add_extra_path(_extra_paths ENV CMAKE_FRAMEWORK_PATH)
+    _pkgconfig_add_extra_path(_extra_paths ENV CMAKE_APPBUNDLE_PATH)
+  endif()
+
+  if(NOT _extra_paths STREQUAL "")
+    # Save the PKG_CONFIG_PATH environment variable, and add paths
+    # from the CMAKE_PREFIX_PATH variables
+    set(_pkgconfig_path_old "$ENV{PKG_CONFIG_PATH}")
+    set(_pkgconfig_path "${_pkgconfig_path_old}")
+    if(NOT _pkgconfig_path STREQUAL "")
+      file(TO_CMAKE_PATH "${_pkgconfig_path}" _pkgconfig_path)
+    endif()
+
+    # Create a list of the possible pkgconfig subfolder (depending on
+    # the system
+    set(_lib_dirs)
+    if(NOT DEFINED CMAKE_SYSTEM_NAME
+        OR (CMAKE_SYSTEM_NAME MATCHES "^(Linux|kFreeBSD|GNU)$"
+            AND NOT CMAKE_CROSSCOMPILING))
+      if(EXISTS "/etc/debian_version") # is this a debian system ?
+        if(CMAKE_LIBRARY_ARCHITECTURE)
+          list(APPEND _lib_dirs "lib/${CMAKE_LIBRARY_ARCHITECTURE}/pkgconfig")
+        endif()
+      else()
+        # not debian, check the FIND_LIBRARY_USE_LIB32_PATHS and FIND_LIBRARY_USE_LIB64_PATHS properties
+        get_property(uselib32 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB32_PATHS)
+        if(uselib32 AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+          list(APPEND _lib_dirs "lib32/pkgconfig")
+        endif()
+        get_property(uselib64 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS)
+        if(uselib64 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+          list(APPEND _lib_dirs "lib64/pkgconfig")
+        endif()
+        get_property(uselibx32 GLOBAL PROPERTY FIND_LIBRARY_USE_LIBX32_PATHS)
+        if(uselibx32 AND CMAKE_INTERNAL_PLATFORM_ABI STREQUAL "ELF X32")
+          list(APPEND _lib_dirs "libx32/pkgconfig")
+        endif()
+      endif()
+    endif()
+    if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" AND NOT CMAKE_CROSSCOMPILING)
+      list(APPEND _lib_dirs "libdata/pkgconfig")
+    endif()
+    list(APPEND _lib_dirs "lib/pkgconfig")
+    list(APPEND _lib_dirs "share/pkgconfig")
+
+    # Check if directories exist and eventually append them to the
+    # pkgconfig path list
+    foreach(_prefix_dir ${_extra_paths})
+      foreach(_lib_dir ${_lib_dirs})
+        if(EXISTS "${_prefix_dir}/${_lib_dir}")
+          list(APPEND _pkgconfig_path "${_prefix_dir}/${_lib_dir}")
+          list(REMOVE_DUPLICATES _pkgconfig_path)
+        endif()
+      endforeach()
+    endforeach()
+
+    # Prepare and set the environment variable
+    if(NOT _pkgconfig_path STREQUAL "")
+      # remove empty values from the list
+      list(REMOVE_ITEM _pkgconfig_path "")
+      file(TO_NATIVE_PATH "${_pkgconfig_path}" _pkgconfig_path)
+      if(UNIX)
+        string(REPLACE ";" ":" _pkgconfig_path "${_pkgconfig_path}")
+        string(REPLACE "\\ " " " _pkgconfig_path "${_pkgconfig_path}")
+      endif()
+      set(ENV{PKG_CONFIG_PATH} "${_pkgconfig_path}")
+    endif()
+
+    # Unset variables
+    unset(_lib_dirs)
+    unset(_pkgconfig_path)
+  endif()
+endmacro()
+
+macro(_pkg_restore_path_internal)
+  if(NOT _extra_paths STREQUAL "")
+    # Restore the environment variable
+    set(ENV{PKG_CONFIG_PATH} "${_pkgconfig_path_old}")
+  endif()
+
+  unset(_extra_paths)
+  unset(_pkgconfig_path_old)
 endmacro()
 
 ###
@@ -309,88 +396,7 @@ macro(_pkg_check_modules_internal _is_required _is_silent _no_cmake_path _no_cma
     set(_pkg_check_modules_packages)
     set(_pkg_check_modules_failed)
 
-    set(_extra_paths)
-
-    if(NOT _no_cmake_path)
-      _pkgconfig_add_extra_path(_extra_paths CMAKE_PREFIX_PATH)
-      _pkgconfig_add_extra_path(_extra_paths CMAKE_FRAMEWORK_PATH)
-      _pkgconfig_add_extra_path(_extra_paths CMAKE_APPBUNDLE_PATH)
-    endif()
-
-    if(NOT _no_cmake_environment_path)
-      _pkgconfig_add_extra_path(_extra_paths ENV CMAKE_PREFIX_PATH)
-      _pkgconfig_add_extra_path(_extra_paths ENV CMAKE_FRAMEWORK_PATH)
-      _pkgconfig_add_extra_path(_extra_paths ENV CMAKE_APPBUNDLE_PATH)
-    endif()
-
-    if(NOT "${_extra_paths}" STREQUAL "")
-      # Save the PKG_CONFIG_PATH environment variable, and add paths
-      # from the CMAKE_PREFIX_PATH variables
-      set(_pkgconfig_path_old "$ENV{PKG_CONFIG_PATH}")
-      set(_pkgconfig_path "${_pkgconfig_path_old}")
-      if(NOT "${_pkgconfig_path}" STREQUAL "")
-        file(TO_CMAKE_PATH "${_pkgconfig_path}" _pkgconfig_path)
-      endif()
-
-      # Create a list of the possible pkgconfig subfolder (depending on
-      # the system
-      set(_lib_dirs)
-      if(NOT DEFINED CMAKE_SYSTEM_NAME
-          OR (CMAKE_SYSTEM_NAME MATCHES "^(Linux|kFreeBSD|GNU)$"
-              AND NOT CMAKE_CROSSCOMPILING))
-        if(EXISTS "/etc/debian_version") # is this a debian system ?
-          if(CMAKE_LIBRARY_ARCHITECTURE)
-            list(APPEND _lib_dirs "lib/${CMAKE_LIBRARY_ARCHITECTURE}/pkgconfig")
-          endif()
-        else()
-          # not debian, check the FIND_LIBRARY_USE_LIB32_PATHS and FIND_LIBRARY_USE_LIB64_PATHS properties
-          get_property(uselib32 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB32_PATHS)
-          if(uselib32 AND CMAKE_SIZEOF_VOID_P EQUAL 4)
-            list(APPEND _lib_dirs "lib32/pkgconfig")
-          endif()
-          get_property(uselib64 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS)
-          if(uselib64 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-            list(APPEND _lib_dirs "lib64/pkgconfig")
-          endif()
-          get_property(uselibx32 GLOBAL PROPERTY FIND_LIBRARY_USE_LIBX32_PATHS)
-          if(uselibx32 AND CMAKE_INTERNAL_PLATFORM_ABI STREQUAL "ELF X32")
-            list(APPEND _lib_dirs "libx32/pkgconfig")
-          endif()
-        endif()
-      endif()
-      if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" AND NOT CMAKE_CROSSCOMPILING)
-        list(APPEND _lib_dirs "libdata/pkgconfig")
-      endif()
-      list(APPEND _lib_dirs "lib/pkgconfig")
-      list(APPEND _lib_dirs "share/pkgconfig")
-
-      # Check if directories exist and eventually append them to the
-      # pkgconfig path list
-      foreach(_prefix_dir ${_extra_paths})
-        foreach(_lib_dir ${_lib_dirs})
-          if(EXISTS "${_prefix_dir}/${_lib_dir}")
-            list(APPEND _pkgconfig_path "${_prefix_dir}/${_lib_dir}")
-            list(REMOVE_DUPLICATES _pkgconfig_path)
-          endif()
-        endforeach()
-      endforeach()
-
-      # Prepare and set the environment variable
-      if(NOT "${_pkgconfig_path}" STREQUAL "")
-        # remove empty values from the list
-        list(REMOVE_ITEM _pkgconfig_path "")
-        file(TO_NATIVE_PATH "${_pkgconfig_path}" _pkgconfig_path)
-        if(UNIX)
-          string(REPLACE ";" ":" _pkgconfig_path "${_pkgconfig_path}")
-          string(REPLACE "\\ " " " _pkgconfig_path "${_pkgconfig_path}")
-        endif()
-        set(ENV{PKG_CONFIG_PATH} "${_pkgconfig_path}")
-      endif()
-
-      # Unset variables
-      unset(_lib_dirs)
-      unset(_pkgconfig_path)
-    endif()
+    _pkg_set_path_internal()
 
     # iterate through module list and check whether they exist and match the required version
     foreach (_pkg_check_modules_pkg ${_pkg_check_modules_list})
@@ -493,13 +499,7 @@ macro(_pkg_check_modules_internal _is_required _is_silent _no_cmake_path _no_cma
       _pkg_recalculate("${_prefix}" ${_no_cmake_path} ${_no_cmake_environment_path} ${_imp_target} ${_imp_target_global})
     endif()
 
-    if(NOT "${_extra_paths}" STREQUAL "")
-      # Restore the environment variable
-      set(ENV{PKG_CONFIG_PATH} "${_pkgconfig_path_old}")
-    endif()
-
-    unset(_extra_paths)
-    unset(_pkgconfig_path_old)
+    _pkg_restore_path_internal()
   else()
     if (${_is_required})
       message(SEND_ERROR "pkg-config tool not found")
@@ -512,7 +512,9 @@ endmacro()
 .. command:: pkg_check_modules
 
   Checks for all the given modules, setting a variety of result variables in
-  the calling scope. ::
+  the calling scope.
+
+  .. code-block:: cmake
 
     pkg_check_modules(<prefix>
                       [REQUIRED] [QUIET]
@@ -543,27 +545,36 @@ endmacro()
   Each ``<moduleSpec>`` can be either a bare module name or it can be a
   module name with a version constraint (operators ``=``, ``<``, ``>``,
   ``<=`` and ``>=`` are supported).  The following are examples for a module
-  named ``foo`` with various constraints::
+  named ``foo`` with various constraints:
 
-    foo           # Any version matches
-    foo<2         # Only match versions before 2
-    foo>=3.1      # Match any version from 3.1 or later
-    foo=1.2.3     # Foo must be exactly version 1.2.3
+  - ``foo`` matches any version.
+  - ``foo<2`` only matches versions before 2.
+  - ``foo>=3.1`` matches any version from 3.1 or later.
+  - ``foo=1.2.3`` requires that foo must be exactly version 1.2.3.
 
-  The following variables may be set upon return.  Two sets of values exist,
-  one for the common case (``<XXX> = <prefix>``) and another for the
-  information ``pkg-config`` provides when it is called with the ``--static``
-  option (``<XXX> = <prefix>_STATIC``)::
+  The following variables may be set upon return.  Two sets of values exist:
+  One for the common case (``<XXX> = <prefix>``) and another for the
+  information ``pkg-config`` provides when called with the ``--static``
+  option (``<XXX> = <prefix>_STATIC``).
 
-    <XXX>_FOUND          ... set to 1 if module(s) exist
-    <XXX>_LIBRARIES      ... only the libraries (without the '-l')
-    <XXX>_LINK_LIBRARIES ... the libraries and their absolute paths
-    <XXX>_LIBRARY_DIRS   ... the paths of the libraries (without the '-L')
-    <XXX>_LDFLAGS        ... all required linker flags
-    <XXX>_LDFLAGS_OTHER  ... all other linker flags
-    <XXX>_INCLUDE_DIRS   ... the '-I' preprocessor flags (without the '-I')
-    <XXX>_CFLAGS         ... all required cflags
-    <XXX>_CFLAGS_OTHER   ... the other compiler flags
+  ``<XXX>_FOUND``
+    set to 1 if module(s) exist
+  ``<XXX>_LIBRARIES``
+    only the libraries (without the '-l')
+  ``<XXX>_LINK_LIBRARIES``
+    the libraries and their absolute paths
+  ``<XXX>_LIBRARY_DIRS``
+    the paths of the libraries (without the '-L')
+  ``<XXX>_LDFLAGS``
+    all required linker flags
+  ``<XXX>_LDFLAGS_OTHER``
+    all other linker flags
+  ``<XXX>_INCLUDE_DIRS``
+    the '-I' preprocessor flags (without the '-I')
+  ``<XXX>_CFLAGS``
+    all required cflags
+  ``<XXX>_CFLAGS_OTHER``
+    the other compiler flags
 
   All but ``<XXX>_FOUND`` may be a :ref:`;-list <CMake Language Lists>` if the
   associated variable returned from ``pkg-config`` has multiple values.
@@ -571,14 +582,18 @@ endmacro()
   There are some special variables whose prefix depends on the number of
   ``<moduleSpec>`` given.  When there is only one ``<moduleSpec>``,
   ``<YYY>`` will simply be ``<prefix>``, but if two or more ``<moduleSpec>``
-  items are given, ``<YYY>`` will be ``<prefix>_<moduleName>``::
+  items are given, ``<YYY>`` will be ``<prefix>_<moduleName>``.
 
-    <YYY>_VERSION    ... version of the module
-    <YYY>_PREFIX     ... prefix directory of the module
-    <YYY>_INCLUDEDIR ... include directory of the module
-    <YYY>_LIBDIR     ... lib directory of the module
+  ``<YYY>_VERSION``
+    version of the module
+  ``<YYY>_PREFIX``
+    prefix directory of the module
+  ``<YYY>_INCLUDEDIR``
+    include directory of the module
+  ``<YYY>_LIBDIR``
+    lib directory of the module
 
-  Examples
+  Examples:
 
   .. code-block:: cmake
 
@@ -638,7 +653,9 @@ endmacro()
 
   The behavior of this command is the same as :command:`pkg_check_modules`,
   except that rather than checking for all the specified modules, it searches
-  for just the first successful match. ::
+  for just the first successful match.
+
+  .. code-block:: cmake
 
     pkg_search_module(<prefix>
                       [REQUIRED] [QUIET]
@@ -647,7 +664,7 @@ endmacro()
                       [IMPORTED_TARGET [GLOBAL]]
                       <moduleSpec> [<moduleSpec>...])
 
-  Examples
+  Example:
 
   .. code-block:: cmake
 
@@ -685,6 +702,34 @@ macro(pkg_search_module _prefix _module0)
     _pkg_recalculate("${_prefix}" ${_no_cmake_path} ${_no_cmake_environment_path} ${_imp_target} ${_imp_target_global})
   endif()
 endmacro()
+
+#[========================================[.rst:
+.. command:: pkg_get_variable
+
+  Retrieves the value of a pkg-config variable ``varName`` and stores it in the
+  result variable ``resultVar`` in the calling scope.
+
+  .. code-block:: cmake
+
+    pkg_get_variable(<resultVar> <moduleName> <varName>)
+
+  If ``pkg-config`` returns multiple values for the specified variable,
+  ``resultVar`` will contain a :ref:`;-list <CMake Language Lists>`.
+
+  For example:
+
+  .. code-block:: cmake
+
+    pkg_get_variable(GI_GIRDIR gobject-introspection-1.0 girdir)
+#]========================================]
+function (pkg_get_variable result pkg variable)
+  _pkg_set_path_internal()
+  _pkgconfig_invoke("${pkg}" "prefix" "result" "" "--variable=${variable}")
+  set("${result}"
+    "${prefix_result}"
+    PARENT_SCOPE)
+  _pkg_restore_path_internal()
+endfunction ()
 
 
 #[========================================[.rst:
