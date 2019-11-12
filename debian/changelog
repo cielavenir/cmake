@@ -1,4 +1,4 @@
-cmake (3.15.4-1) UNRELEASED; urgency=medium
+cmake (3.15.4-1) unstable; urgency=medium
 
   * New upstream release. (Closes: #944090)
   * Disable FIleAPI json-extra test for now as it doesn't seem critical and
@@ -6,7 +6,7 @@ cmake (3.15.4-1) UNRELEASED; urgency=medium
   * Switch to debhelper compat level 12.
   * Pass --fail-missing to dh_missing.
 
- -- Felix Geyer <fgeyer@debian.org>  Mon, 11 Nov 2019 23:02:00 +0100
+ -- Felix Geyer <fgeyer@debian.org>  Tue, 12 Nov 2019 20:11:25 +0100
 
 cmake (3.13.4-1) unstable; urgency=medium
 
