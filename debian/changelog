@@ -4,6 +4,7 @@ cmake (3.15.4-1) UNRELEASED; urgency=medium
   * Disable FIleAPI json-extra test for now as it doesn't seem critical and
     fails with libjsoncpp 1.7.4.
   * Switch to debhelper compat level 12.
+  * Pass --fail-missing to dh_missing.
 
  -- Felix Geyer <fgeyer@debian.org>  Mon, 11 Nov 2019 23:02:00 +0100
 
