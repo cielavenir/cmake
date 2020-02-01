@@ -8,6 +8,7 @@
 #include "object.h++"
 #include "object.hpp"
 #include "object.hxx"
+#include "object_upper_ext.H"
 
 int main(int argv, char** args)
 {
@@ -23,5 +24,6 @@ int main(int argv, char** args)
   ::Object_hplpl obj_hplpl;
   ::Object_hpp obj_hpp;
   ::Object_hxx obj_hxx;
+  ::Object_Upper_Ext_H obj_upper_ext_h;
   return 0;
 }

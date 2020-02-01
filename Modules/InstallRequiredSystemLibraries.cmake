@@ -258,6 +258,7 @@ if(MSVC)
         cmake_host_system_information(RESULT _vs_dir QUERY VS_${_vs_ver}_DIR) # undocumented query
         if(IS_DIRECTORY "${_vs_dir}")
           file(GLOB _vs_glob_redist_paths "${_vs_dir}/VC/Redist/MSVC/*")
+          list(REVERSE _vs_glob_redist_paths)
           list(APPEND _vs_redist_paths ${_vs_glob_redist_paths})
         endif()
         unset(_vs_glob_redist_paths)
@@ -287,6 +288,16 @@ if(MSVC)
         "${MSVC_CRT_DIR}/msvcp${v}.dll"
         )
       if(NOT vs VERSION_LESS 14)
+        foreach(crt
+            "${MSVC_CRT_DIR}/msvcp${v}_1.dll"
+            "${MSVC_CRT_DIR}/msvcp${v}_2.dll"
+            "${MSVC_CRT_DIR}/msvcp${v}_codecvt_ids.dll"
+            "${MSVC_CRT_DIR}/vcruntime${v}_1.dll"
+            )
+          if(EXISTS "${crt}")
+            list(APPEND __install__libs "${crt}")
+          endif()
+        endforeach()
         list(APPEND __install__libs
             "${MSVC_CRT_DIR}/vcruntime${v}.dll"
             "${MSVC_CRT_DIR}/concrt${v}.dll"
@@ -305,6 +316,16 @@ if(MSVC)
         "${MSVC_CRT_DIR}/msvcp${v}d.dll"
         )
       if(NOT vs VERSION_LESS 14)
+        foreach(crt
+            "${MSVC_CRT_DIR}/msvcp${v}_1d.dll"
+            "${MSVC_CRT_DIR}/msvcp${v}_2d.dll"
+            "${MSVC_CRT_DIR}/msvcp${v}d_codecvt_ids.dll"
+            "${MSVC_CRT_DIR}/vcruntime${v}_1d.dll"
+            )
+          if(EXISTS "${crt}")
+            list(APPEND __install__libs "${crt}")
+          endif()
+        endforeach()
         list(APPEND __install__libs
             "${MSVC_CRT_DIR}/vcruntime${v}d.dll"
             "${MSVC_CRT_DIR}/concrt${v}d.dll"
