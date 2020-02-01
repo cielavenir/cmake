@@ -1,3 +1,9 @@
+cmake (3.16.3-1) UNRELEASED; urgency=medium
+
+  * New upstream release. (Closes: #949964)
+
+ -- Felix Geyer <fgeyer@debian.org>  Sat, 01 Feb 2020 23:06:35 +0100
+
 cmake (3.15.4-1) unstable; urgency=medium
 
   * New upstream release. (Closes: #944090)
