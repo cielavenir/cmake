@@ -35,10 +35,14 @@ This module will set the following variables in your project:
   The OpenSSL include directory.
 ``OPENSSL_CRYPTO_LIBRARY``
   The OpenSSL crypto library.
+``OPENSSL_CRYPTO_LIBRARIES``
+  The OpenSSL crypto library and its dependencies.
 ``OPENSSL_SSL_LIBRARY``
   The OpenSSL SSL library.
+``OPENSSL_SSL_LIBRARIES``
+  The OpenSSL SSL library and its dependencies.
 ``OPENSSL_LIBRARIES``
-  All OpenSSL libraries.
+  All OpenSSL libraries and their dependencies.
 ``OPENSSL_VERSION``
   This is set to ``$major.$minor.$revision$patch`` (e.g. ``0.9.8s``).
 
@@ -49,6 +53,32 @@ Set ``OPENSSL_ROOT_DIR`` to the root directory of an OpenSSL installation.
 Set ``OPENSSL_USE_STATIC_LIBS`` to ``TRUE`` to look for static libraries.
 Set ``OPENSSL_MSVC_STATIC_RT`` set ``TRUE`` to choose the MT version of the lib.
 #]=======================================================================]
+
+macro(_OpenSSL_test_and_find_dependencies ssl_library crypto_library)
+  if((CMAKE_SYSTEM_NAME STREQUAL "Linux") AND
+     (("${ssl_library}" MATCHES "\\${CMAKE_STATIC_LIBRARY_SUFFIX}$") OR
+      ("${crypto_library}" MATCHES "\\${CMAKE_STATIC_LIBRARY_SUFFIX}$")))
+    set(_OpenSSL_has_dependencies TRUE)
+    find_package(Threads)
+  else()
+    set(_OpenSSL_has_dependencies FALSE)
+  endif()
+endmacro()
+
+function(_OpenSSL_add_dependencies libraries_var)
+  if(CMAKE_THREAD_LIBS_INIT)
+    list(APPEND ${libraries_var} ${CMAKE_THREAD_LIBS_INIT})
+  endif()
+  list(APPEND ${libraries_var} ${CMAKE_DL_LIBS})
+  set(${libraries_var} ${${libraries_var}} PARENT_SCOPE)
+endfunction()
+
+function(_OpenSSL_target_add_dependencies target)
+  if(_OpenSSL_has_dependencies)
+    set_property( TARGET ${target} APPEND PROPERTY INTERFACE_LINK_LIBRARIES Threads::Threads )
+    set_property( TARGET ${target} APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${CMAKE_DL_LIBS} )
+  endif()
+endfunction()
 
 if (UNIX)
   find_package(PkgConfig QUIET)
@@ -306,10 +336,16 @@ else()
 
   mark_as_advanced(OPENSSL_CRYPTO_LIBRARY OPENSSL_SSL_LIBRARY)
 
-  # compat defines
-  set(OPENSSL_SSL_LIBRARIES ${OPENSSL_SSL_LIBRARY})
-  set(OPENSSL_CRYPTO_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY})
+endif()
 
+set(OPENSSL_SSL_LIBRARIES ${OPENSSL_SSL_LIBRARY})
+set(OPENSSL_CRYPTO_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY})
+set(OPENSSL_LIBRARIES ${OPENSSL_SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES} )
+_OpenSSL_test_and_find_dependencies("${OPENSSL_SSL_LIBRARY}" "${OPENSSL_CRYPTO_LIBRARY}")
+if(_OpenSSL_has_dependencies)
+  _OpenSSL_add_dependencies( OPENSSL_SSL_LIBRARIES )
+  _OpenSSL_add_dependencies( OPENSSL_CRYPTO_LIBRARIES )
+  _OpenSSL_add_dependencies( OPENSSL_LIBRARIES )
 endif()
 
 function(from_hex HEX DEC)
@@ -378,8 +414,6 @@ if(OPENSSL_INCLUDE_DIR AND EXISTS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h")
     set(OPENSSL_VERSION "${OPENSSL_VERSION_MAJOR}.${OPENSSL_VERSION_MINOR}.${OPENSSL_VERSION_FIX}${OPENSSL_VERSION_PATCH_STRING}")
   endif ()
 endif ()
-
-set(OPENSSL_LIBRARIES ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} )
 
 foreach(_comp IN LISTS OpenSSL_FIND_COMPONENTS)
   if(_comp STREQUAL "Crypto")
@@ -451,6 +485,7 @@ if(OPENSSL_FOUND)
         IMPORTED_LINK_INTERFACE_LANGUAGES_DEBUG "C"
         IMPORTED_LOCATION_DEBUG "${LIB_EAY_LIBRARY_DEBUG}")
     endif()
+    _OpenSSL_target_add_dependencies(OpenSSL::Crypto)
   endif()
 
   if(NOT TARGET OpenSSL::SSL AND
@@ -484,6 +519,7 @@ if(OPENSSL_FOUND)
       set_target_properties(OpenSSL::SSL PROPERTIES
         INTERFACE_LINK_LIBRARIES OpenSSL::Crypto)
     endif()
+    _OpenSSL_target_add_dependencies(OpenSSL::SSL)
   endif()
 endif()
 

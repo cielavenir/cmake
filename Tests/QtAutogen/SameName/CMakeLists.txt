@@ -21,6 +21,7 @@ add_executable(sameName
   object.h++
   object.hpp
   object.hxx
+  object_upper_ext.H
   data.qrc
   main.cpp
 )
