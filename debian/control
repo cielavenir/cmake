@@ -16,7 +16,7 @@ Build-Depends: debhelper-compat (= 12),
                librhash-dev,
                libuv1-dev (>= 1.10),
                procps [!hurd-any],
-               python3-sphinx (<< 2.0) | python3-sphinxcontrib.qthelp,
+               python3-sphinxcontrib.qthelp | python3-sphinx (<< 2.0),
                qtbase5-dev <!stage1>,
                zlib1g-dev
 Rules-Requires-Root: no
