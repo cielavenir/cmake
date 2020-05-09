@@ -1,3 +1,10 @@
+cmake (3.16.3-3) UNRELEASED; urgency=medium
+
+  * Handle -isystem from pkg-config correctly. (Closes: #959064)
+    - Cherry-pick upstream patch in FindPkgConfig_also_handle_isystem.patch
+
+ -- Felix Geyer <fgeyer@debian.org>  Sat, 09 May 2020 13:05:56 +0200
+
 cmake (3.16.3-2) unstable; urgency=medium
 
   * Build-depend on python3-sphinxcontrib.qthelp for sphinx >= 2.0
