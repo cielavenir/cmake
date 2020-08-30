@@ -8,13 +8,15 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include "cmAlgorithms.h"
+#include <cmext/algorithm>
+
 #include "cmGeneratorExpression.h"
 #include "cmGeneratorTarget.h"
 #include "cmGlobalGenerator.h"
@@ -26,6 +28,7 @@
 #include "cmLinkLineComputer.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
+#include "cmProperty.h"
 #include "cmPropertyMap.h"
 #include "cmSourceFile.h"
 #include "cmState.h"
@@ -43,7 +46,7 @@ namespace {
 std::vector<std::string> getConfigurations(const cmake* cm)
 {
   std::vector<std::string> configurations;
-  auto makefiles = cm->GetGlobalGenerator()->GetMakefiles();
+  const auto& makefiles = cm->GetGlobalGenerator()->GetMakefiles();
   if (makefiles.empty()) {
     return configurations;
   }
@@ -82,13 +85,14 @@ void cmGetCMakeInputs(const cmGlobalGenerator* gg,
                       std::vector<std::string>* tmpFiles)
 {
   const std::string cmakeRootDir = cmSystemTools::GetCMakeRoot() + '/';
-  std::vector<cmMakefile*> const& makefiles = gg->GetMakefiles();
-  for (cmMakefile const* mf : makefiles) {
+  auto const& makefiles = gg->GetMakefiles();
+  for (const auto& mf : makefiles) {
     for (std::string const& lf : mf->GetListFiles()) {
 
       const std::string startOfFile = lf.substr(0, cmakeRootDir.size());
       const bool isInternal = (startOfFile == cmakeRootDir);
-      const bool isTemporary = !isInternal && (lf.find(buildDir + '/') == 0);
+      const bool isTemporary =
+        !isInternal && (cmHasPrefix(lf, buildDir + '/'));
 
       std::string toAdd = lf;
       if (!sourceDir.empty()) {
@@ -272,14 +276,14 @@ static Json::Value DumpSourceFilesList(
 
       std::string compileFlags = ld.Flags;
       const std::string COMPILE_FLAGS("COMPILE_FLAGS");
-      if (const char* cflags = file->GetProperty(COMPILE_FLAGS)) {
+      if (cmProp cflags = file->GetProperty(COMPILE_FLAGS)) {
         lg->AppendFlags(compileFlags,
-                        genexInterpreter.Evaluate(cflags, COMPILE_FLAGS));
+                        genexInterpreter.Evaluate(*cflags, COMPILE_FLAGS));
       }
       const std::string COMPILE_OPTIONS("COMPILE_OPTIONS");
-      if (const char* coptions = file->GetProperty(COMPILE_OPTIONS)) {
+      if (cmProp coptions = file->GetProperty(COMPILE_OPTIONS)) {
         lg->AppendCompileOptions(
-          compileFlags, genexInterpreter.Evaluate(coptions, COMPILE_OPTIONS));
+          compileFlags, genexInterpreter.Evaluate(*coptions, COMPILE_OPTIONS));
       }
       fileData.Flags = compileFlags;
 
@@ -287,9 +291,9 @@ static Json::Value DumpSourceFilesList(
       std::vector<std::string> includes;
 
       const std::string INCLUDE_DIRECTORIES("INCLUDE_DIRECTORIES");
-      if (const char* cincludes = file->GetProperty(INCLUDE_DIRECTORIES)) {
+      if (cmProp cincludes = file->GetProperty(INCLUDE_DIRECTORIES)) {
         const std::string& evaluatedIncludes =
-          genexInterpreter.Evaluate(cincludes, INCLUDE_DIRECTORIES);
+          genexInterpreter.Evaluate(*cincludes, INCLUDE_DIRECTORIES);
         lg->AppendIncludeDirectories(includes, evaluatedIncludes, *file);
 
         for (const auto& include : includes) {
@@ -306,17 +310,17 @@ static Json::Value DumpSourceFilesList(
 
       const std::string COMPILE_DEFINITIONS("COMPILE_DEFINITIONS");
       std::set<std::string> defines;
-      if (const char* defs = file->GetProperty(COMPILE_DEFINITIONS)) {
+      if (cmProp defs = file->GetProperty(COMPILE_DEFINITIONS)) {
         lg->AppendDefines(
-          defines, genexInterpreter.Evaluate(defs, COMPILE_DEFINITIONS));
+          defines, genexInterpreter.Evaluate(*defs, COMPILE_DEFINITIONS));
       }
 
       const std::string defPropName =
         "COMPILE_DEFINITIONS_" + cmSystemTools::UpperCase(config);
-      if (const char* config_defs = file->GetProperty(defPropName)) {
+      if (cmProp config_defs = file->GetProperty(defPropName)) {
         lg->AppendDefines(
           defines,
-          genexInterpreter.Evaluate(config_defs, COMPILE_DEFINITIONS));
+          genexInterpreter.Evaluate(*config_defs, COMPILE_DEFINITIONS));
       }
 
       defines.insert(ld.Defines.begin(), ld.Defines.end());
@@ -485,10 +489,10 @@ static Json::Value DumpTarget(cmGeneratorTarget* target,
     result[kHAS_INSTALL_RULE] = true;
 
     Json::Value installPaths = Json::arrayValue;
-    auto targetGenerators = target->Makefile->GetInstallGenerators();
-    for (auto installGenerator : targetGenerators) {
+    for (const auto& installGenerator :
+         target->Makefile->GetInstallGenerators()) {
       auto installTargetGenerator =
-        dynamic_cast<cmInstallTargetGenerator*>(installGenerator);
+        dynamic_cast<cmInstallTargetGenerator*>(installGenerator.get());
       if (installTargetGenerator != nullptr &&
           installTargetGenerator->GetTarget()->Target == target->Target) {
         auto dest = installTargetGenerator->GetDestination(config);
@@ -601,7 +605,7 @@ static Json::Value DumpTargetsList(
 
   std::vector<cmGeneratorTarget*> targetList;
   for (auto const& lgIt : generators) {
-    cmAppend(targetList, lgIt->GetGeneratorTargets());
+    cm::append(targetList, lgIt->GetGeneratorTargets());
   }
   std::sort(targetList.begin(), targetList.end());
 
@@ -641,9 +645,9 @@ static Json::Value DumpProjectList(const cmake* cm, std::string const& config)
     // associated generators.
     bool hasInstallRule = false;
     for (const auto generator : projectIt.second) {
-      for (const auto installGen :
+      for (const auto& installGen :
            generator->GetMakefile()->GetInstallGenerators()) {
-        if (!dynamic_cast<cmInstallSubdirectoryGenerator*>(installGen)) {
+        if (!dynamic_cast<cmInstallSubdirectoryGenerator*>(installGen.get())) {
           hasInstallRule = true;
           break;
         }

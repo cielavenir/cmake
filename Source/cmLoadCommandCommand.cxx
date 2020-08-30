@@ -1,5 +1,15 @@
 /* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
    file Copyright.txt or https://cmake.org/licensing for details.  */
+
+#if !defined(_WIN32) && !defined(__sun)
+// POSIX APIs are needed
+#  define _POSIX_C_SOURCE 200809L
+#endif
+#if defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__)
+// For isascii
+#  define _XOPEN_SOURCE 700
+#endif
+
 #include "cmLoadCommandCommand.h"
 
 #include <csignal>
@@ -14,6 +24,7 @@
 #include "cmCommand.h"
 #include "cmDynamicLoader.h"
 #include "cmExecutionStatus.h"
+#include "cmLocalGenerator.h"
 #include "cmMakefile.h"
 #include "cmState.h"
 #include "cmStringAlgorithms.h"
@@ -24,6 +35,8 @@
 #ifdef __QNX__
 #  include <malloc.h> /* for malloc/free on QNX */
 #endif
+
+class cmListFileBacktrace;
 
 namespace {
 
@@ -158,8 +171,10 @@ bool cmLoadedCommand::InitialPass(std::vector<std::string> const& args,
   if (result) {
     if (this->Impl->FinalPass) {
       auto impl = this->Impl;
-      this->Makefile->AddFinalAction(
-        [impl](cmMakefile& makefile) { impl->DoFinalPass(&makefile); });
+      this->Makefile->AddGeneratorAction(
+        [impl](cmLocalGenerator& lg, const cmListFileBacktrace&) {
+          impl->DoFinalPass(lg.GetMakefile());
+        });
     }
     return true;
   }

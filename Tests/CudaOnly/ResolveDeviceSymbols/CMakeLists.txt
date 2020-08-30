@@ -21,12 +21,12 @@ endif()
 # confirming that the first static library is on the device link line
 # 3. Verify that we can't use those device symbols from anything that links
 # to the static library
-string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_30,code=[sm_30] -gencode arch=compute_50,code=\\\"compute_50\\\"")
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CUDA_STANDARD 11)
+set(CMAKE_CUDA_ARCHITECTURES 30 50)
 
 add_library(CUDAResolveDeviceDepsA STATIC file1.cu)
 add_library(CUDAResolveDeviceDepsB STATIC file2.cu)
+target_compile_features(CUDAResolveDeviceDepsA PUBLIC cuda_std_11)
+target_compile_features(CUDAResolveDeviceDepsB PUBLIC cuda_std_11)
 set_target_properties(CUDAResolveDeviceDepsA CUDAResolveDeviceDepsB
                       PROPERTIES
                       CUDA_SEPARABLE_COMPILATION ON

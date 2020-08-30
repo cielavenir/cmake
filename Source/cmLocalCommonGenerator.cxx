@@ -17,13 +17,9 @@ cmLocalCommonGenerator::cmLocalCommonGenerator(cmGlobalGenerator* gg,
   : cmLocalGenerator(gg, mf)
   , WorkingDirectory(std::move(wd))
 {
-  // Store the configuration name that will be generated.
-  if (const char* config = this->Makefile->GetDefinition("CMAKE_BUILD_TYPE")) {
-    // Use the build type given by the user.
-    this->ConfigName = config;
-  } else {
-    // No configuration type given.
-    this->ConfigName.clear();
+  this->Makefile->GetConfigurations(this->ConfigNames);
+  if (this->ConfigNames.empty()) {
+    this->ConfigNames.emplace_back();
   }
 }
 
@@ -54,6 +50,15 @@ std::string cmLocalCommonGenerator::GetTargetFortranFlags(
       this->Makefile->GetRequiredDefinition("CMAKE_Fortran_MODDIR_FLAG"),
       mod_dir);
     this->AppendFlags(flags, modflag);
+    // Some compilers do not search their own module output directory
+    // for using other modules.  Add an include directory explicitly
+    // for consistency with compilers that do search it.
+    std::string incflag =
+      this->Makefile->GetSafeDefinition("CMAKE_Fortran_MODDIR_INCLUDE_FLAG");
+    if (!incflag.empty()) {
+      incflag = cmStrCat(incflag, mod_dir);
+      this->AppendFlags(flags, incflag);
+    }
   }
 
   // If there is a separate module path flag then duplicate the

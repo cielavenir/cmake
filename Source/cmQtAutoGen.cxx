@@ -8,10 +8,11 @@
 #include <sstream>
 #include <utility>
 
+#include <cmext/algorithm>
+
 #include "cmsys/FStream.hxx"
 #include "cmsys/RegularExpression.hxx"
 
-#include "cmAlgorithms.h"
 #include "cmDuration.h"
 #include "cmProcessOutput.h"
 #include "cmStringAlgorithms.h"
@@ -53,7 +54,7 @@ void MergeOptions(std::vector<std::string>& baseOpts,
           }
         }
         // Test if this is a value option and change the existing value
-        if (!optName.empty() && cmContains(valueOpts, optName)) {
+        if (!optName.empty() && cm::contains(valueOpts, optName)) {
           const auto existItNext(existIt + 1);
           const auto fitNext(fit + 1);
           if ((existItNext != baseOpts.end()) && (fitNext != fitEnd)) {
@@ -67,7 +68,7 @@ void MergeOptions(std::vector<std::string>& baseOpts,
     }
   }
   // Append options
-  cmAppend(baseOpts, extraOpts);
+  cm::append(baseOpts, extraOpts);
 }
 
 // - Class definitions
@@ -328,7 +329,7 @@ bool cmQtAutoGen::RccLister::list(std::string const& qrcFile,
     {
       std::vector<std::string> cmd;
       cmd.emplace_back(this->RccExcutable_);
-      cmAppend(cmd, this->ListOptions_);
+      cm::append(cmd, this->ListOptions_);
       cmd.emplace_back(cmSystemTools::GetFilenameName(qrcFile));
 
       // Log command

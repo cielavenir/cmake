@@ -7,13 +7,15 @@
 
 #include <iosfwd>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "cm_kwiml.h"
+#include <cm3p/kwiml/int.h>
 
+#include "cmCustomCommandTypes.h"
 #include "cmListFileCache.h"
 #include "cmMessageType.h"
 #include "cmOutputConverter.h"
@@ -22,13 +24,16 @@
 
 class cmComputeLinkInformation;
 class cmCustomCommandGenerator;
+class cmCustomCommandLines;
 class cmGeneratorTarget;
 class cmGlobalGenerator;
+class cmImplicitDependsList;
 class cmLinkLineComputer;
 class cmMakefile;
 class cmRulePlaceholderExpander;
 class cmSourceFile;
 class cmState;
+class cmTarget;
 class cmake;
 
 /** \class cmLocalGenerator
@@ -100,8 +105,8 @@ public:
 
   void AddArchitectureFlags(std::string& flags,
                             cmGeneratorTarget const* target,
-                            const std::string& lang,
-                            const std::string& config);
+                            const std::string& lang, const std::string& config,
+                            const std::string& filterArch = std::string());
 
   void AddLanguageFlags(std::string& flags, cmGeneratorTarget const* target,
                         const std::string& lang, const std::string& config);
@@ -143,14 +148,16 @@ public:
                               bool forResponseFile = false,
                               const std::string& config = "");
 
-  const std::vector<cmGeneratorTarget*>& GetGeneratorTargets() const
+  using GeneratorTargetVector =
+    std::vector<std::unique_ptr<cmGeneratorTarget>>;
+  const GeneratorTargetVector& GetGeneratorTargets() const
   {
     return this->GeneratorTargets;
   }
 
-  void AddGeneratorTarget(cmGeneratorTarget* gt);
+  void AddGeneratorTarget(std::unique_ptr<cmGeneratorTarget> gt);
   void AddImportedGeneratorTarget(cmGeneratorTarget* gt);
-  void AddOwnedImportedGeneratorTarget(cmGeneratorTarget* gt);
+  void AddOwnedImportedGeneratorTarget(std::unique_ptr<cmGeneratorTarget> gt);
 
   cmGeneratorTarget* FindLocalNonAliasGeneratorTarget(
     const std::string& name) const;
@@ -160,15 +167,8 @@ public:
    * Process a list of include directories
    */
   void AppendIncludeDirectories(std::vector<std::string>& includes,
-                                const char* includes_list,
-                                const cmSourceFile& sourceFile) const;
-  void AppendIncludeDirectories(std::vector<std::string>& includes,
                                 std::string const& includes_list,
-                                const cmSourceFile& sourceFile) const
-  {
-    this->AppendIncludeDirectories(includes, includes_list.c_str(),
-                                   sourceFile);
-  }
+                                const cmSourceFile& sourceFile) const;
   void AppendIncludeDirectories(std::vector<std::string>& includes,
                                 const std::vector<std::string>& includes_vec,
                                 const cmSourceFile& sourceFile) const;
@@ -188,14 +188,9 @@ public:
    * Encode a list of compile options for the compiler
    * command line.
    */
-  void AppendCompileOptions(std::string& options, const char* options_list,
-                            const char* regex = nullptr) const;
   void AppendCompileOptions(std::string& options,
                             std::string const& options_list,
-                            const char* regex = nullptr) const
-  {
-    this->AppendCompileOptions(options, options_list.c_str(), regex);
-  }
+                            const char* regex = nullptr) const;
   void AppendCompileOptions(std::string& options,
                             const std::vector<std::string>& options_vec,
                             const char* regex = nullptr) const;
@@ -292,6 +287,55 @@ public:
                          cmGeneratorTarget* target, const std::string& lang,
                          const std::string& config);
 
+  /**
+   * Add a custom PRE_BUILD, PRE_LINK, or POST_BUILD command to a target.
+   */
+  cmTarget* AddCustomCommandToTarget(
+    const std::string& target, const std::vector<std::string>& byproducts,
+    const std::vector<std::string>& depends,
+    const cmCustomCommandLines& commandLines, cmCustomCommandType type,
+    const char* comment, const char* workingDir, bool escapeOldStyle = true,
+    bool uses_terminal = false, const std::string& depfile = "",
+    const std::string& job_pool = "", bool command_expand_lists = false,
+    cmObjectLibraryCommands objLibCommands = cmObjectLibraryCommands::Reject,
+    bool stdPipesUTF8 = false);
+
+  /**
+   * Add a custom command to a source file.
+   */
+  cmSourceFile* AddCustomCommandToOutput(
+    const std::string& output, const std::vector<std::string>& depends,
+    const std::string& main_dependency,
+    const cmCustomCommandLines& commandLines, const char* comment,
+    const char* workingDir, bool replace = false, bool escapeOldStyle = true,
+    bool uses_terminal = false, bool command_expand_lists = false,
+    const std::string& depfile = "", const std::string& job_pool = "",
+    bool stdPipesUTF8 = false);
+  cmSourceFile* AddCustomCommandToOutput(
+    const std::vector<std::string>& outputs,
+    const std::vector<std::string>& byproducts,
+    const std::vector<std::string>& depends,
+    const std::string& main_dependency,
+    const cmImplicitDependsList& implicit_depends,
+    const cmCustomCommandLines& commandLines, const char* comment,
+    const char* workingDir, bool replace = false, bool escapeOldStyle = true,
+    bool uses_terminal = false, bool command_expand_lists = false,
+    const std::string& depfile = "", const std::string& job_pool = "",
+    bool stdPipesUTF8 = false);
+
+  /**
+   * Add a utility to the build.  A utility target is a command that is run
+   * every time the target is built.
+   */
+  cmTarget* AddUtilityCommand(
+    const std::string& utilityName, bool excludeFromAll,
+    const char* workingDir, const std::vector<std::string>& byproducts,
+    const std::vector<std::string>& depends,
+    const cmCustomCommandLines& commandLines, bool escapeOldStyle = true,
+    const char* comment = nullptr, bool uses_terminal = false,
+    bool command_expand_lists = false, const std::string& job_pool = "",
+    bool stdPipesUTF8 = false);
+
   std::string GetProjectName() const;
 
   /** Compute the language used to compile the given source file.  */
@@ -377,6 +421,11 @@ public:
 
   /** Fill out these strings for the given target.  Libraries to link,
    *  flags, and linkflags. */
+  void GetDeviceLinkFlags(cmLinkLineComputer* linkLineComputer,
+                          const std::string& config, std::string& linkLibs,
+                          std::string& linkFlags, std::string& frameworkPath,
+                          std::string& linkPath, cmGeneratorTarget* target);
+
   void GetTargetFlags(cmLinkLineComputer* linkLineComputer,
                       const std::string& config, std::string& linkLibs,
                       std::string& flags, std::string& linkFlags,
@@ -395,10 +444,11 @@ public:
                                              std::string const& lang) const;
   void GetTargetCompileFlags(cmGeneratorTarget* target,
                              std::string const& config,
-                             std::string const& lang, std::string& flags);
-  std::vector<BT<std::string>> GetTargetCompileFlags(cmGeneratorTarget* target,
-                                                     std::string const& config,
-                                                     std::string const& lang);
+                             std::string const& lang, std::string& flags,
+                             std::string const& arch = std::string());
+  std::vector<BT<std::string>> GetTargetCompileFlags(
+    cmGeneratorTarget* target, std::string const& config,
+    std::string const& lang, std::string const& arch = std::string());
 
   std::string GetFrameworkFlags(std::string const& l,
                                 std::string const& config,
@@ -414,6 +464,7 @@ public:
   bool IsWatcomWMake() const;
   bool IsMinGWMake() const;
   bool IsNMake() const;
+  bool IsNinjaMulti() const;
 
   void IssueMessage(MessageType t, std::string const& text) const;
 
@@ -461,17 +512,18 @@ protected:
   using GeneratorTargetMap =
     std::unordered_map<std::string, cmGeneratorTarget*>;
   GeneratorTargetMap GeneratorTargetSearchIndex;
-  std::vector<cmGeneratorTarget*> GeneratorTargets;
+  GeneratorTargetVector GeneratorTargets;
 
   std::set<cmGeneratorTarget const*> WarnCMP0063;
   GeneratorTargetMap ImportedGeneratorTargets;
-  std::vector<cmGeneratorTarget*> OwnedImportedGeneratorTargets;
+  GeneratorTargetVector OwnedImportedGeneratorTargets;
   std::map<std::string, std::string> AliasTargets;
 
   std::map<std::string, std::string> Compilers;
   std::map<std::string, std::string> VariableMappings;
   std::string CompilerSysroot;
   std::string LinkerSysroot;
+  std::unordered_map<std::string, std::string> AppleArchSysroots;
 
   bool EmitUniversalBinaryFlags;
 
@@ -486,6 +538,13 @@ private:
                                    int targetType);
 
   void ComputeObjectMaxPath();
+  bool AllAppleArchSysrootsAreTheSame(const std::vector<std::string>& archs,
+                                      const char* sysroot);
+
+  void CopyPchCompilePdb(const std::string& config, cmGeneratorTarget* target,
+                         const std::string& ReuseFrom,
+                         cmGeneratorTarget* reuseTarget,
+                         std::vector<std::string> const& extensions);
 };
 
 #if !defined(CMAKE_BOOTSTRAP)
@@ -493,5 +552,47 @@ bool cmLocalGeneratorCheckObjectName(std::string& objName,
                                      std::string::size_type dir_len,
                                      std::string::size_type max_total_len);
 #endif
+
+namespace detail {
+void AddCustomCommandToTarget(cmLocalGenerator& lg,
+                              const cmListFileBacktrace& lfbt,
+                              cmCommandOrigin origin, cmTarget* target,
+                              const std::vector<std::string>& byproducts,
+                              const std::vector<std::string>& depends,
+                              const cmCustomCommandLines& commandLines,
+                              cmCustomCommandType type, const char* comment,
+                              const char* workingDir, bool escapeOldStyle,
+                              bool uses_terminal, const std::string& depfile,
+                              const std::string& job_pool,
+                              bool command_expand_lists, bool stdPipesUTF8);
+
+cmSourceFile* AddCustomCommandToOutput(
+  cmLocalGenerator& lg, const cmListFileBacktrace& lfbt,
+  cmCommandOrigin origin, const std::vector<std::string>& outputs,
+  const std::vector<std::string>& byproducts,
+  const std::vector<std::string>& depends, const std::string& main_dependency,
+  const cmImplicitDependsList& implicit_depends,
+  const cmCustomCommandLines& commandLines, const char* comment,
+  const char* workingDir, bool replace, bool escapeOldStyle,
+  bool uses_terminal, bool command_expand_lists, const std::string& depfile,
+  const std::string& job_pool, bool stdPipesUTF8);
+
+void AppendCustomCommandToOutput(cmLocalGenerator& lg,
+                                 const cmListFileBacktrace& lfbt,
+                                 const std::string& output,
+                                 const std::vector<std::string>& depends,
+                                 const cmImplicitDependsList& implicit_depends,
+                                 const cmCustomCommandLines& commandLines);
+
+void AddUtilityCommand(cmLocalGenerator& lg, const cmListFileBacktrace& lfbt,
+                       cmCommandOrigin origin, cmTarget* target,
+                       const cmUtilityOutput& force, const char* workingDir,
+                       const std::vector<std::string>& byproducts,
+                       const std::vector<std::string>& depends,
+                       const cmCustomCommandLines& commandLines,
+                       bool escapeOldStyle, const char* comment,
+                       bool uses_terminal, bool command_expand_lists,
+                       const std::string& job_pool, bool stdPipesUTF8);
+}
 
 #endif

@@ -3,9 +3,12 @@
 #include "cmExtraCodeBlocksGenerator.h"
 
 #include <map>
+#include <memory>
 #include <ostream>
 #include <set>
 #include <utility>
+
+#include <cmext/algorithm>
 
 #include "cmAlgorithms.h"
 #include "cmGeneratedFileStream.h"
@@ -209,13 +212,13 @@ void cmExtraCodeBlocksGenerator::CreateNewProjectFile(
     // Collect all files
     std::vector<std::string> listFiles;
     for (cmLocalGenerator* lg : it.second) {
-      cmAppend(listFiles, lg->GetMakefile()->GetListFiles());
+      cm::append(listFiles, lg->GetMakefile()->GetListFiles());
     }
 
     // Convert
     for (std::string const& listFile : listFiles) {
       // don't put cmake's own files into the project (#12110):
-      if (listFile.find(cmSystemTools::GetCMakeRoot()) == 0) {
+      if (cmHasPrefix(listFile, cmSystemTools::GetCMakeRoot())) {
         continue;
       }
 
@@ -283,8 +286,8 @@ void cmExtraCodeBlocksGenerator::CreateNewProjectFile(
   // add all executable and library targets and some of the GLOBAL
   // and UTILITY targets
   for (cmLocalGenerator* lg : lgs) {
-    const std::vector<cmGeneratorTarget*>& targets = lg->GetGeneratorTargets();
-    for (cmGeneratorTarget* target : targets) {
+    const auto& targets = lg->GetGeneratorTargets();
+    for (const auto& target : targets) {
       std::string targetName = target->GetName();
       switch (target->GetType()) {
         case cmStateEnums::GLOBAL_TARGET: {
@@ -298,11 +301,11 @@ void cmExtraCodeBlocksGenerator::CreateNewProjectFile(
         case cmStateEnums::UTILITY:
           // Add all utility targets, except the Nightly/Continuous/
           // Experimental-"sub"targets as e.g. NightlyStart
-          if (((targetName.find("Nightly") == 0) &&
+          if ((cmHasLiteralPrefix(targetName, "Nightly") &&
                (targetName != "Nightly")) ||
-              ((targetName.find("Continuous") == 0) &&
+              (cmHasLiteralPrefix(targetName, "Continuous") &&
                (targetName != "Continuous")) ||
-              ((targetName.find("Experimental") == 0) &&
+              (cmHasLiteralPrefix(targetName, "Experimental") &&
                (targetName != "Experimental"))) {
             break;
           }
@@ -315,7 +318,7 @@ void cmExtraCodeBlocksGenerator::CreateNewProjectFile(
         case cmStateEnums::SHARED_LIBRARY:
         case cmStateEnums::MODULE_LIBRARY:
         case cmStateEnums::OBJECT_LIBRARY: {
-          cmGeneratorTarget* gt = target;
+          cmGeneratorTarget* gt = target.get();
           this->AppendTarget(xml, targetName, gt, make, lg, compiler,
                              makeArgs);
           std::string fastTarget = cmStrCat(targetName, "/fast");
@@ -341,8 +344,8 @@ void cmExtraCodeBlocksGenerator::CreateNewProjectFile(
 
   for (cmLocalGenerator* lg : lgs) {
     cmMakefile* makefile = lg->GetMakefile();
-    const std::vector<cmGeneratorTarget*>& targets = lg->GetGeneratorTargets();
-    for (cmGeneratorTarget* target : targets) {
+    const auto& targets = lg->GetGeneratorTargets();
+    for (const auto& target : targets) {
       switch (target->GetType()) {
         case cmStateEnums::EXECUTABLE:
         case cmStateEnums::STATIC_LIBRARY:
@@ -352,13 +355,12 @@ void cmExtraCodeBlocksGenerator::CreateNewProjectFile(
         case cmStateEnums::UTILITY: // can have sources since 2.6.3
         {
           std::vector<cmSourceFile*> sources;
-          cmGeneratorTarget* gt = target;
-          gt->GetSourceFiles(sources,
-                             makefile->GetSafeDefinition("CMAKE_BUILD_TYPE"));
+          target->GetSourceFiles(
+            sources, makefile->GetSafeDefinition("CMAKE_BUILD_TYPE"));
           for (cmSourceFile* s : sources) {
             // don't add source files from UTILITY target which have the
             // GENERATED property set:
-            if (gt->GetType() == cmStateEnums::UTILITY &&
+            if (target->GetType() == cmStateEnums::UTILITY &&
                 s->GetIsGenerated()) {
               continue;
             }
@@ -391,7 +393,7 @@ void cmExtraCodeBlocksGenerator::CreateNewProjectFile(
             }
 
             CbpUnit& cbpUnit = allFiles[fullPath];
-            cbpUnit.Targets.push_back(target);
+            cbpUnit.Targets.push_back(target.get());
           }
         }
         default: // intended fallthrough
@@ -558,19 +560,19 @@ void cmExtraCodeBlocksGenerator::AppendTarget(
     {
       std::vector<std::string> includes;
       lg->GetIncludeDirectories(includes, target, "C", buildType);
-      cmAppend(allIncludeDirs, includes);
+      cm::append(allIncludeDirs, includes);
     }
 
     std::string systemIncludeDirs = makefile->GetSafeDefinition(
       "CMAKE_EXTRA_GENERATOR_CXX_SYSTEM_INCLUDE_DIRS");
     if (!systemIncludeDirs.empty()) {
-      cmAppend(allIncludeDirs, cmExpandedList(systemIncludeDirs));
+      cm::append(allIncludeDirs, cmExpandedList(systemIncludeDirs));
     }
 
     systemIncludeDirs = makefile->GetSafeDefinition(
       "CMAKE_EXTRA_GENERATOR_C_SYSTEM_INCLUDE_DIRS");
     if (!systemIncludeDirs.empty()) {
-      cmAppend(allIncludeDirs, cmExpandedList(systemIncludeDirs));
+      cm::append(allIncludeDirs, cmExpandedList(systemIncludeDirs));
     }
 
     auto end = cmRemoveDuplicates(allIncludeDirs);
@@ -721,7 +723,7 @@ std::string cmExtraCodeBlocksGenerator::BuildMakeCommand(
   if (generator == "NMake Makefiles" || generator == "NMake Makefiles JOM") {
     // For Windows ConvertToOutputPath already adds quotes when required.
     // These need to be escaped, see
-    // https://gitlab.kitware.com/cmake/cmake/issues/13952
+    // https://gitlab.kitware.com/cmake/cmake/-/issues/13952
     std::string makefileName = cmSystemTools::ConvertToOutputPath(makefile);
     command += " /NOLOGO /f ";
     command += makefileName;
@@ -729,7 +731,7 @@ std::string cmExtraCodeBlocksGenerator::BuildMakeCommand(
     command += target;
   } else if (generator == "MinGW Makefiles") {
     // no escaping of spaces in this case, see
-    // https://gitlab.kitware.com/cmake/cmake/issues/10014
+    // https://gitlab.kitware.com/cmake/cmake/-/issues/10014
     std::string const& makefileName = makefile;
     command += " -f \"";
     command += makefileName;

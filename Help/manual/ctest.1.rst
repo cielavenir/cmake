@@ -72,6 +72,9 @@ Options
  This option can also be enabled by setting the
  :envvar:`CTEST_OUTPUT_ON_FAILURE` environment variable
 
+``--stop-on-failure``
+ Stop running the tests when the first failure happens.
+
 ``-F``
  Enable failover.
 
@@ -261,10 +264,27 @@ Options
  fail, subsequent calls to CTest with the ``--rerun-failed`` option will run
  the set of tests that most recently failed (if any).
 
-``--repeat-until-fail <n>``
- Require each test to run ``<n>`` times without failing in order to pass.
+``--repeat <mode>:<n>``
+  Run tests repeatedly based on the given ``<mode>`` up to ``<n>`` times.
+  The modes are:
 
- This is useful in finding sporadic failures in test cases.
+  ``until-fail``
+    Require each test to run ``<n>`` times without failing in order to pass.
+    This is useful in finding sporadic failures in test cases.
+
+  ``until-pass``
+    Allow each test to run up to ``<n>`` times in order to pass.
+    Repeats tests if they fail for any reason.
+    This is useful in tolerating sporadic failures in test cases.
+
+  ``after-timeout``
+    Allow each test to run up to ``<n>`` times in order to pass.
+    Repeats tests only if they timeout.
+    This is useful in tolerating sporadic timeouts in test cases
+    on busy machines.
+
+``--repeat-until-fail <n>``
+ Equivalent to ``--repeat until-fail:<n>``.
 
 ``--max-width <width>``
  Set the max width for a test name to output.
@@ -352,6 +372,14 @@ See `Build and Test Mode`_.
 
  This option will not run any tests, it will simply print the list of
  all labels associated with the test set.
+
+``--no-tests=<[error|ignore]>``
+ Regard no tests found either as error or ignore it.
+
+ If no tests were found, the default behavior of CTest is to always log an
+ error message but to return an error code in script mode only.  This option
+ unifies the behavior of CTest by either returning an error code if no tests
+ were found or by ignoring it.
 
 .. include:: OPTIONS_HELP.txt
 
@@ -969,8 +997,12 @@ Configuration settings include:
 
 ``ResourceSpecFile``
   Specify a
-  :ref:`resource specification file <ctest-resource-specification-file>`. See
-  :ref:`ctest-resource-allocation` for more information.
+  :ref:`resource specification file <ctest-resource-specification-file>`.
+
+  * `CTest Script`_ variable: :variable:`CTEST_RESOURCE_SPEC_FILE`
+  * :module:`CTest` module variable: ``CTEST_RESOURCE_SPEC_FILE``
+
+  See :ref:`ctest-resource-allocation` for more information.
 
 ``LabelsForSubprojects``
   Specify a semicolon-separated list of labels that will be treated as
@@ -1095,6 +1127,20 @@ Additional configuration settings include:
 
   * `CTest Script`_ variable: none
   * :module:`CTest` module variable: ``VALGRIND_COMMAND_OPTIONS``
+
+``DrMemoryCommand``
+  Specify a ``MemoryCheckCommand`` that is known to be a command-line
+  compatible with DrMemory.
+
+  * `CTest Script`_ variable: none
+  * :module:`CTest` module variable: ``DRMEMORY_COMMAND``
+
+``DrMemoryCommandOptions``
+  Specify command-line options to the ``DrMemoryCommand`` tool.
+  They will be placed prior to the test command line.
+
+  * `CTest Script`_ variable: none
+  * :module:`CTest` module variable: ``DRMEMORY_COMMAND_OPTIONS``
 
 .. _`CTest Submit Step`:
 
@@ -1292,6 +1338,15 @@ the running machine. This allows CTest to internally keep track of which
 resources are in use and which are free, scheduling tests in a way that
 prevents them from trying to claim resources that are not available.
 
+When the resource allocation feature is used, CTest will not oversubscribe
+resources. For example, if a resource has 8 slots, CTest will not run tests
+that collectively use more than 8 slots at a time. This has the effect of
+limiting how many tests can run at any given time, even if a high ``-j``
+argument is used, if those tests all use some slots from the same resource.
+In addition, it means that a single test that uses more of a resource than is
+available on a machine will not run at all (and will be reported as
+``Not Run``).
+
 A common use case for this feature is for tests that require the use of a GPU.
 Multiple tests can simultaneously allocate memory from a GPU, but if too many
 tests try to do this at once, some of them will fail to allocate, resulting in
@@ -1355,9 +1410,16 @@ Resource Specification File
 
 The resource specification file is a JSON file which is passed to CTest, either
 on the :manual:`ctest(1)` command line as ``--resource-spec-file``, or as the
-``RESOURCE_SPEC_FILE`` argument of :command:`ctest_test`. The resource
-specification file must be a JSON object. All examples in this document assume
-the following resource specification file:
+``RESOURCE_SPEC_FILE`` argument of :command:`ctest_test`. If a dashboard script
+is used and ``RESOURCE_SPEC_FILE`` is not specified, the value of
+:variable:`CTEST_RESOURCE_SPEC_FILE` in the dashboard script is used instead.
+If ``--resource-spec-file``, ``RESOURCE_SPEC_FILE``, and
+:variable:`CTEST_RESOURCE_SPEC_FILE` in the dashboard script are not specified,
+the value of :variable:`CTEST_RESOURCE_SPEC_FILE` in the CMake build is used
+instead. If none of these are specified, no resource spec file is used.
+
+The resource specification file must be a JSON object. All examples in this
+document assume the following resource specification file:
 
 .. code-block:: json
 

@@ -12,8 +12,6 @@
 #include "cmCustomCommandLines.h"
 #include "cmListFileCache.h"
 
-class cmMakefile;
-
 class cmImplicitDependsList
   : public std::vector<std::pair<std::string, std::string>>
 {
@@ -28,11 +26,12 @@ class cmCustomCommand
 {
 public:
   /** Main constructor specifies all information for the command.  */
-  cmCustomCommand(cmMakefile const* mf, std::vector<std::string> outputs,
+  cmCustomCommand(std::vector<std::string> outputs,
                   std::vector<std::string> byproducts,
                   std::vector<std::string> depends,
-                  cmCustomCommandLines commandLines, const char* comment,
-                  const char* workingDirectory);
+                  cmCustomCommandLines commandLines, cmListFileBacktrace lfbt,
+                  const char* comment, const char* workingDirectory,
+                  bool stdPipesUTF8);
 
   /** Get the output file produced by the command.  */
   const std::vector<std::string>& GetOutputs() const;
@@ -54,6 +53,9 @@ public:
 
   /** Get the comment string for the command.  */
   const char* GetComment() const;
+
+  /** Get a value indicating if the command uses UTF-8 output pipes. */
+  bool GetStdPipesUTF8() const { return this->StdPipesUTF8; }
 
   /** Append to the list of command lines.  */
   void AppendCommands(const cmCustomCommandLines& commandLines);
@@ -110,6 +112,7 @@ private:
   bool EscapeOldStyle = true;
   bool UsesTerminal = false;
   bool CommandExpandLists = false;
+  bool StdPipesUTF8 = false;
 };
 
 #endif

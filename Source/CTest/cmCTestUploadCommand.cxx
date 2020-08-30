@@ -4,11 +4,10 @@
 
 #include <set>
 #include <sstream>
-#include <vector>
 
-#include "cm_static_string_view.hxx"
+#include <cm/vector>
+#include <cmext/string_view>
 
-#include "cmAlgorithms.h"
 #include "cmCTest.h"
 #include "cmCTestUploadHandler.h"
 #include "cmMakefile.h"
@@ -24,7 +23,7 @@ void cmCTestUploadCommand::BindArguments()
 
 void cmCTestUploadCommand::CheckArguments(std::vector<std::string> const&)
 {
-  cmEraseIf(this->Files, [this](std::string const& arg) -> bool {
+  cm::erase_if(this->Files, [this](std::string const& arg) -> bool {
     if (!cmSystemTools::FileExists(arg)) {
       std::ostringstream e;
       e << "File \"" << arg << "\" does not exist. Cannot submit "
