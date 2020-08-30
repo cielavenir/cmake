@@ -1,3 +1,9 @@
+cmake (3.18.2-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 30 Aug 2020 11:55:16 +0200
+
 cmake (3.16.3-3) unstable; urgency=medium
 
   * Handle -isystem from pkg-config correctly. (Closes: #959064)
