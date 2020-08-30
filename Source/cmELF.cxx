@@ -3,6 +3,7 @@
 #include "cmELF.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <sstream>
@@ -10,17 +11,15 @@
 #include <vector>
 
 #include <cm/memory>
+#include <cmext/algorithm>
+
+#include <cm3p/kwiml/abi.h>
 
 #include "cmsys/FStream.hxx"
-
-#include "cm_kwiml.h"
-
-#include "cmAlgorithms.h"
 
 // Include the ELF format information system header.
 #if defined(__OpenBSD__)
 #  include <elf_abi.h>
-#  include <stdint.h>
 #elif defined(__HAIKU__)
 #  include <elf32.h>
 #  include <elf64.h>
@@ -578,7 +577,7 @@ std::vector<char> cmELFInternalImpl<Types>::EncodeDynamicEntries(
     }
 
     char* pdyn = reinterpret_cast<char*>(&dyn);
-    cmAppend(result, pdyn, pdyn + sizeof(ELF_Dyn));
+    cm::append(result, pdyn, pdyn + sizeof(ELF_Dyn));
   }
 
   return result;

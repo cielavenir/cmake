@@ -6,7 +6,7 @@
 #include <sstream>
 #include <vector>
 
-#include "cm_static_string_view.hxx"
+#include <cmext/string_view>
 
 #include "cmCTest.h"
 #include "cmCTestConfigureHandler.h"
@@ -69,12 +69,11 @@ cmCTestGenericHandler* cmCTestConfigureCommand::InitializeHandler()
       bool multiConfig = false;
       bool cmakeBuildTypeInOptions = false;
 
-      cmGlobalGenerator* gg =
-        this->Makefile->GetCMakeInstance()->CreateGlobalGenerator(
-          cmakeGeneratorName);
+      auto gg = this->Makefile->GetCMakeInstance()->CreateGlobalGenerator(
+        cmakeGeneratorName);
       if (gg) {
         multiConfig = gg->IsMultiConfig();
-        delete gg;
+        gg.reset();
       }
 
       std::string cmakeConfigureCommand =

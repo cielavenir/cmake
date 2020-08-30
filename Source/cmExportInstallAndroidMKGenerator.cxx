@@ -49,7 +49,7 @@ void cmExportInstallAndroidMKGenerator::GenerateImportHeaderCode(
     if (te->ArchiveGenerator) {
       dest = te->ArchiveGenerator->GetDestination("");
     }
-    te->Target->Target->SetProperty("__dest", dest.c_str());
+    te->Target->Target->SetProperty("__dest", dest);
   }
 }
 
@@ -66,7 +66,7 @@ void cmExportInstallAndroidMKGenerator::GenerateImportTargetCode(
   os << "LOCAL_MODULE := ";
   os << targetName << "\n";
   os << "LOCAL_SRC_FILES := $(_IMPORT_PREFIX)/";
-  os << target->Target->GetProperty("__dest") << "/";
+  os << target->Target->GetSafeProperty("__dest") << "/";
   std::string config;
   if (!this->Configurations.empty()) {
     config = this->Configurations[0];

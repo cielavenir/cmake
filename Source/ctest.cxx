@@ -35,6 +35,7 @@ static const char* cmDocumentationOptions[][2] = {
   { "--output-on-failure",
     "Output anything outputted by the test program "
     "if the test should fail." },
+  { "--stop-on-failure", "Stop running the tests after one has failed." },
   { "--test-output-size-passed <size>",
     "Limit the output for passed tests "
     "to <size> bytes" },
@@ -98,9 +99,12 @@ static const char* cmDocumentationOptions[][2] = {
     "Run a specific number of tests by number." },
   { "-U, --union", "Take the Union of -I and -R" },
   { "--rerun-failed", "Run only the tests that failed previously" },
-  { "--repeat-until-fail <n>",
-    "Require each test to run <n> "
-    "times without failing in order to pass" },
+  { "--repeat until-fail:<n>, --repeat-until-fail <n>",
+    "Require each test to run <n> times without failing in order to pass" },
+  { "--repeat until-pass:<n>",
+    "Allow each test to run up to <n> times in order to pass" },
+  { "--repeat after-timeout:<n>",
+    "Allow each test to run up to <n> times if it times out" },
   { "--max-width <width>", "Set the max width for a test name to output" },
   { "--interactive-debug-mode [0|1]", "Set the interactive mode to 0 or 1." },
   { "--resource-spec-file <file>", "Set the resource spec file to use." },
@@ -141,6 +145,8 @@ static const char* cmDocumentationOptions[][2] = {
   { "--http1.0", "Submit using HTTP 1.0." },
   { "--no-compress-output", "Do not compress test output when submitting." },
   { "--print-labels", "Print all available test labels." },
+  { "--no-tests=<[error|ignore]>",
+    "Regard no tests found either as 'error' or 'ignore' it." },
   { nullptr, nullptr }
 };
 
@@ -161,7 +167,6 @@ int main(int argc, char const* const* argv)
   argv = encoding_args.argv();
 
   cmSystemTools::DoNotInheritStdPipes();
-  cmSystemTools::EnableMSVCDebugHook();
   cmSystemTools::InitializeLibUV();
   cmSystemTools::FindCMakeResources(argv[0]);
 

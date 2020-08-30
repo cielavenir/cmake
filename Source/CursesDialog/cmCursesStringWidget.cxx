@@ -4,6 +4,7 @@
 
 #include <cstdio>
 
+#include "cmCursesColor.h"
 #include "cmCursesForm.h"
 #include "cmCursesMainForm.h"
 #include "cmCursesStandardIncludes.h"
@@ -21,8 +22,13 @@ cmCursesStringWidget::cmCursesStringWidget(int width, int height, int left,
 {
   this->InEdit = false;
   this->Type = cmStateEnums::STRING;
-  set_field_fore(this->Field, A_NORMAL);
-  set_field_back(this->Field, A_STANDOUT);
+  if (cmCursesColor::HasColors()) {
+    set_field_fore(this->Field, COLOR_PAIR(cmCursesColor::String));
+    set_field_back(this->Field, COLOR_PAIR(cmCursesColor::String));
+  } else {
+    set_field_fore(this->Field, A_NORMAL);
+    set_field_back(this->Field, A_STANDOUT);
+  }
   field_opts_off(this->Field, O_STATIC);
 }
 
@@ -99,12 +105,10 @@ bool cmCursesStringWidget::HandleInput(int& key, cmCursesMainForm* fm,
     if (!this->InEdit && (key != 10 && key != KEY_ENTER && key != 'i')) {
       return false;
     }
-    // enter edit with return and i (vim binding)
-    if (!this->InEdit && (key == 10 || key == KEY_ENTER || key == 'i')) {
-      this->OnReturn(fm, w);
-    }
-    // leave edit with return (but not i -- not a toggle)
-    else if (this->InEdit && (key == 10 || key == KEY_ENTER)) {
+    // toggle edit with return
+    if ((key == 10 || key == KEY_ENTER)
+        // enter edit with i (and not-edit mode)
+        || (!this->InEdit && key == 'i')) {
       this->OnReturn(fm, w);
     } else if (key == KEY_DOWN || key == ctrl('n') || key == KEY_UP ||
                key == ctrl('p') || key == KEY_NPAGE || key == ctrl('d') ||

@@ -160,6 +160,8 @@ private:
   bool MultiConfig = false;
   bool CMP0071Accept = false;
   bool CMP0071Warn = false;
+  bool CMP0100Accept = false;
+  bool CMP0100Warn = false;
   std::string ConfigDefault;
   std::vector<std::string> ConfigsList;
   std::string TargetsFolder;
@@ -189,10 +191,13 @@ private:
     bool DependOrigin = false;
     std::set<std::string> DependFiles;
     std::set<cmTarget*> DependTargets;
+    std::string DepFile;
+    std::string DepFileRuleName;
     // Sources to process
     std::unordered_map<cmSourceFile*, MUFileHandle> Headers;
     std::unordered_map<cmSourceFile*, MUFileHandle> Sources;
     std::vector<MUFile*> FilesGenerated;
+    std::vector<cmSourceFile*> CMP0100HeadersWarn;
   } AutogenTarget;
 
   /** moc variables.  */

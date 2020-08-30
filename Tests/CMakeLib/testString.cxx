@@ -1,7 +1,7 @@
 /* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
    file Copyright.txt or https://cmake.org/licensing for details.  */
 
-#include <cstddef>
+#include <cstddef> // IWYU pragma: keep
 #include <cstring>
 #include <iostream>
 #include <iterator>
@@ -12,8 +12,7 @@
 #include <utility>
 
 #include <cm/string_view>
-
-#include "cm_static_string_view.hxx"
+#include <cmext/string_view>
 
 #include "cmString.hxx"
 
@@ -191,7 +190,7 @@ static bool testConstructFromView()
 {
   std::cout << "testConstructFromView()\n";
   cm::string_view view = cstr;
-  return testFromCStr(view);
+  return testFromCStr(cm::String(view));
 }
 
 static bool testAssignFromView()
@@ -297,7 +296,7 @@ static bool testFromStaticStringView(cm::String str)
 static bool testConstructFromStaticStringView()
 {
   std::cout << "testConstructFromStaticStringView()\n";
-  return testFromStaticStringView(staticStringView);
+  return testFromStaticStringView(cm::String(staticStringView));
 }
 
 static bool testAssignFromStaticStringView()
@@ -796,7 +795,7 @@ static bool testMethod_substr_AtEnd(cm::String str)
 static bool testMethod_substr_AtEndBorrowed()
 {
   std::cout << "testMethod_substr_AtEndBorrowed()\n";
-  return testMethod_substr_AtEnd("abc"_s);
+  return testMethod_substr_AtEnd(cm::String("abc"_s));
 }
 
 static bool testMethod_substr_AtEndOwned()
@@ -855,7 +854,7 @@ static bool testMethod_substr_AtStart(cm::String str)
 static bool testMethod_substr_AtStartBorrowed()
 {
   std::cout << "testMethod_substr_AtStartBorrowed()\n";
-  return testMethod_substr_AtStart("abc"_s);
+  return testMethod_substr_AtStart(cm::String("abc"_s));
 }
 
 static bool testMethod_substr_AtStartOwned()
@@ -1146,7 +1145,7 @@ static bool testAddition()
 static bool testStability()
 {
   std::cout << "testStability()\n";
-  cm::String str = "abc"_s;
+  cm::String str("abc"_s);
   ASSERT_TRUE(!str.is_stable());
   ASSERT_TRUE(str.str_if_stable() == nullptr);
   str.stabilize();

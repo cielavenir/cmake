@@ -81,7 +81,9 @@ endif()
 # Test MSVC for older host CMake versions, and test
 # WIN32/CMAKE_C_COMPILER_ID to fix check on Intel for Windows.
 if(MSVC OR (WIN32 AND CMAKE_C_COMPILER_ID MATCHES "MSVC|Intel"))
-  set(GeneratorExpression_ARGS -DLINKER_SUPPORTS_PDB=1)
+  set(LINKER_SUPPORTS_PDB 1)
+else()
+  set(LINKER_SUPPORTS_PDB 0)
 endif()
 
 add_RunCMake_test(CMP0019)
@@ -115,6 +117,13 @@ if(CMAKE_SYSTEM_NAME MATCHES Darwin AND CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG)
 endif()
 add_RunCMake_test(CMP0069)
 add_RunCMake_test(CMP0081)
+add_RunCMake_test(CMP0102)
+if(CMake_TEST_CUDA)
+  add_RunCMake_test(CMP0104)
+  set_property(TEST RunCMake.CMP0104 APPEND
+    PROPERTY LABELS "CUDA")
+endif()
+add_RunCMake_test(CMP0106)
 
 # The test for Policy 65 requires the use of the
 # CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS variable, which both the VS and Xcode
@@ -125,7 +134,7 @@ endif()
 if(CMAKE_GENERATOR MATCHES "Make")
   add_RunCMake_test(Make -DMAKE_IS_GNU=${MAKE_IS_GNU})
 endif()
-if(CMAKE_GENERATOR STREQUAL "Ninja")
+if(CMAKE_GENERATOR MATCHES "Ninja")
   set(Ninja_ARGS
     -DCMAKE_C_OUTPUT_EXTENSION=${CMAKE_C_OUTPUT_EXTENSION}
     -DCMAKE_SHARED_LIBRARY_PREFIX=${CMAKE_SHARED_LIBRARY_PREFIX}
@@ -133,7 +142,22 @@ if(CMAKE_GENERATOR STREQUAL "Ninja")
   if(CMAKE_Fortran_COMPILER)
     list(APPEND Ninja_ARGS -DTEST_Fortran=1)
   endif()
+  if(CMake_TEST_Qt5 AND Qt5Core_FOUND)
+    list(APPEND Ninja_ARGS -DCMake_TEST_Qt5=1 -DCMAKE_TEST_Qt5Core_Version=${Qt5Core_VERSION})
+  endif()
   add_RunCMake_test(Ninja)
+  set(NinjaMultiConfig_ARGS
+    -DCYGWIN=${CYGWIN}
+    )
+  if(CMake_TEST_Qt5 AND Qt5Core_FOUND)
+    list(APPEND NinjaMultiConfig_ARGS -DCMake_TEST_Qt5=1)
+  endif()
+  if(DEFINED CMake_TEST_CUDA)
+    list(APPEND NinjaMultiConfig_ARGS -DCMake_TEST_CUDA=${CMake_TEST_CUDA})
+  endif()
+  add_RunCMake_test(NinjaMultiConfig)
+  set_property(TEST RunCMake.NinjaMultiConfig APPEND
+    PROPERTY LABELS "CUDA")
 endif()
 add_RunCMake_test(CTest)
 
@@ -158,7 +182,20 @@ if(CMake_TEST_Qt5 AND Qt5Widgets_FOUND)
   set(autogen_with_qt5 TRUE)
 endif ()
 add_RunCMake_test(Autogen -Dwith_qt5=${autogen_with_qt5})
-add_RunCMake_test(BuildDepends)
+if(NOT DEFINED CMake_TEST_BuildDepends_GNU_AS
+    AND CMAKE_C_COMPILER_ID STREQUAL "GNU"
+    AND CMAKE_GENERATOR MATCHES "^Ninja"
+    )
+  execute_process(COMMAND "${CMAKE_C_COMPILER}" -print-prog-name=as
+    RESULT_VARIABLE _gnu_res
+    OUTPUT_VARIABLE _gnu_as OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+  if(_gnu_res EQUAL 0 AND _gnu_as)
+    set(CMake_TEST_BuildDepends_GNU_AS "${_gnu_as}")
+  endif()
+endif()
+add_RunCMake_test(BuildDepends
+  -DCMake_TEST_BuildDepends_GNU_AS=${CMake_TEST_BuildDepends_GNU_AS}
+  )
 if(UNIX AND "${CMAKE_GENERATOR}" MATCHES "Unix Makefiles|Ninja")
   add_RunCMake_test(Byproducts)
 endif()
@@ -169,19 +206,32 @@ endif()
 add_RunCMake_test(CompilerNotFound)
 add_RunCMake_test(Configure -DMSVC_IDE=${MSVC_IDE})
 add_RunCMake_test(DisallowedCommands)
+if("${CMAKE_GENERATOR}" MATCHES "Unix Makefiles|Ninja")
+  add_RunCMake_test(ExportCompileCommands)
+endif()
 add_RunCMake_test(ExternalData)
 add_RunCMake_test(FeatureSummary)
 add_RunCMake_test(FPHSA)
-add_RunCMake_test(FileAPI -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE})
+add_RunCMake_test(FileAPI -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}
+                          -DCMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID})
 add_RunCMake_test(FindBoost)
 add_RunCMake_test(FindLua)
 add_RunCMake_test(FindOpenGL)
 if(CMake_TEST_UseSWIG)
+  add_RunCMake_test(FindSWIG)
   add_RunCMake_test(UseSWIG -DCMake_TEST_FindPython=${CMake_TEST_FindPython})
 endif()
 if(NOT CMAKE_C_COMPILER_ID MATCHES "Watcom")
   add_RunCMake_test(GenerateExportHeader)
 endif()
+add_RunCMake_test(GenEx-COMPILE_LANGUAGE)
+add_RunCMake_test(GenEx-COMPILE_LANG_AND_ID)
+add_RunCMake_test(GenEx-LINK_LANGUAGE)
+add_RunCMake_test(GenEx-LINK_LANG_AND_ID)
+add_RunCMake_test(GenEx-HOST_LINK)
+add_RunCMake_test(GenEx-DEVICE_LINK)
+add_RunCMake_test(GenEx-TARGET_FILE -DLINKER_SUPPORTS_PDB=${LINKER_SUPPORTS_PDB})
+add_RunCMake_test(GenEx-GENEX_EVAL)
 add_RunCMake_test(GeneratorExpression)
 add_RunCMake_test(GeneratorInstance)
 add_RunCMake_test(GeneratorPlatform)
@@ -189,6 +239,7 @@ add_RunCMake_test(GeneratorToolset)
 add_RunCMake_test(GetPrerequisites)
 add_RunCMake_test(GNUInstallDirs -DSYSTEM_NAME=${CMAKE_SYSTEM_NAME})
 add_RunCMake_test(GoogleTest) # Note: does not actually depend on Google Test
+add_RunCMake_test(Graphviz)
 add_RunCMake_test(TargetPropertyGeneratorExpressions)
 add_RunCMake_test(Languages)
 add_RunCMake_test(LinkStatic)
@@ -209,6 +260,7 @@ add_RunCMake_test(ScriptMode)
 add_RunCMake_test(Swift -DCMAKE_Swift_COMPILER=${CMAKE_Swift_COMPILER})
 add_RunCMake_test(TargetObjects)
 add_RunCMake_test(TargetSources)
+add_RunCMake_test(TargetProperties)
 add_RunCMake_test(ToolchainFile)
 add_RunCMake_test(find_dependency)
 add_RunCMake_test(CompileDefinitions)
@@ -246,6 +298,7 @@ if(NOT CMake_TEST_EXTERNAL_CMAKE)
 endif()
 add_RunCMake_test(execute_process)
 add_RunCMake_test(export)
+add_RunCMake_test(cmake_language)
 add_RunCMake_test(cmake_minimum_required)
 add_RunCMake_test(cmake_parse_arguments)
 add_RunCMake_test(continue)
@@ -266,11 +319,12 @@ add_RunCMake_test(ctest_upload)
 add_RunCMake_test(ctest_fixtures)
 add_RunCMake_test(file)
 add_RunCMake_test(find_file)
-add_RunCMake_test(find_library)
+add_RunCMake_test(find_library -DCYGWIN=${CYGWIN})
 add_RunCMake_test(find_package)
 add_RunCMake_test(find_path)
 add_RunCMake_test(find_program -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME})
 add_RunCMake_test(foreach)
+add_RunCMake_test(function)
 add_RunCMake_test(get_filename_component)
 add_RunCMake_test(get_property)
 add_RunCMake_test(if)
@@ -278,6 +332,7 @@ add_RunCMake_test(include)
 add_RunCMake_test(include_directories)
 add_RunCMake_test(include_guard)
 add_RunCMake_test(list)
+add_RunCMake_test(load_cache)
 add_RunCMake_test(math)
 add_RunCMake_test(message)
 add_RunCMake_test(option)
@@ -289,6 +344,10 @@ add_RunCMake_test(set_property)
 add_RunCMake_test(string)
 add_RunCMake_test(test_include_dirs)
 add_RunCMake_test(BundleUtilities)
+if(APPLE)
+  add_RunCMake_test(INSTALL_NAME_DIR)
+  add_RunCMake_test(MacOSVersions)
+endif()
 
 function(add_RunCMake_test_try_compile)
   if(CMAKE_VERSION VERSION_LESS 3.9.20170907 AND "x${CMAKE_CXX_COMPILER_ID}" STREQUAL "xMSVC")
@@ -304,6 +363,15 @@ function(add_RunCMake_test_try_compile)
       unset(CMAKE_CXX_STANDARD_DEFAULT)
     endif()
   endif()
+  if(CMAKE_VERSION VERSION_LESS 3.18.20200813 AND "x${CMAKE_C_COMPILER_ID}" STREQUAL "xMSVC")
+    # Older CMake versions do not know about MSVC language standards.
+    # Approximate our logic from MSVC-C.cmake.
+    if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 19.27)
+      set(CMAKE_C_STANDARD_DEFAULT 99)
+    else()
+      set(CMAKE_C_STANDARD_DEFAULT "")
+    endif()
+  endif()
   foreach(var
       CMAKE_SYSTEM_NAME
       CMAKE_C_COMPILER_ID
@@ -313,6 +381,7 @@ function(add_RunCMake_test_try_compile)
       CMAKE_CXX_COMPILER_VERSION
       CMAKE_CXX_STANDARD_DEFAULT
       CMake_TEST_CUDA
+      CMake_TEST_FILESYSTEM_1S
       CMAKE_OBJC_STANDARD_DEFAULT
       CMAKE_OBJCXX_STANDARD_DEFAULT
       )
@@ -321,6 +390,8 @@ function(add_RunCMake_test_try_compile)
     endif()
   endforeach()
   add_RunCMake_test(try_compile)
+  set_property(TEST RunCMake.try_compile APPEND
+    PROPERTY LABELS "CUDA")
 endfunction()
 add_RunCMake_test_try_compile()
 
@@ -335,6 +406,7 @@ add_RunCMake_test(alias_targets)
 add_RunCMake_test(interface_library)
 add_RunCMake_test(no_install_prefix)
 add_RunCMake_test(configure_file)
+add_RunCMake_test(CTestTimeout -DTIMEOUT=${CTestTestTimeout_TIME})
 add_RunCMake_test(CTestTimeoutAfterMatch)
 
 # ctresalloc links against CMakeLib and CTestLib, which means it can't be built
@@ -372,8 +444,12 @@ endif()
 if(TARGET ctresalloc)
   add_RunCMake_test(CTestResourceAllocation -DCTRESALLOC_COMMAND=$<TARGET_FILE:ctresalloc>)
 else()
-  message(WARNING "Could not find or build ctresalloc")
+  message(STATUS "Could not find ctresalloc")
 endif()
+
+if(NOT WIN32)
+  add_RunCMake_test(SymlinkTrees)
+endif ()
 
 find_package(Qt4 QUIET)
 find_package(Qt5Core QUIET)
@@ -427,21 +503,35 @@ if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang"
   add_RunCMake_test(Framework)
 endif()
 
+add_RunCMake_test(File_Archive)
+add_RunCMake_test(File_Configure)
 add_RunCMake_test(File_Generate)
 add_RunCMake_test(ExportWithoutLanguage)
 add_RunCMake_test(target_link_directories)
 add_RunCMake_test(target_link_libraries)
+add_RunCMake_test(target_link_libraries-ALIAS)
+add_RunCMake_test(target_link_libraries-LINK_LANGUAGE)
+add_RunCMake_test(target_link_libraries-LINK_LANG_AND_ID)
 add_RunCMake_test(add_link_options -DCMAKE_C_COMPILER_ID=${CMAKE_C_COMPILER_ID})
-add_RunCMake_test(target_link_options -DCMAKE_C_COMPILER_ID=${CMAKE_C_COMPILER_ID})
+add_RunCMake_test(target_link_options -DCMAKE_C_COMPILER_ID=${CMAKE_C_COMPILER_ID}
+                                      -DCMake_TEST_CUDA=${CMake_TEST_CUDA})
+set_property(TEST RunCMake.target_link_options APPEND
+  PROPERTY LABELS "CUDA")
 
 add_RunCMake_test(target_compile_definitions)
 add_RunCMake_test(target_compile_features)
-add_RunCMake_test(target_compile_options)
+add_RunCMake_test(target_compile_options -DCMAKE_C_COMPILER_ID=${CMAKE_C_COMPILER_ID})
 add_RunCMake_test(target_include_directories)
 add_RunCMake_test(target_sources)
 add_RunCMake_test(CheckModules)
 add_RunCMake_test(CheckIPOSupported)
-add_RunCMake_test(CommandLine -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME})
+if (CMAKE_SYSTEM_NAME MATCHES "(Linux|Darwin)"
+    AND (CMAKE_C_COMPILER_ID MATCHES "Clang|GNU" OR CMAKE_Fortran_COMPILER_ID MATCHES "GNU"))
+  add_RunCMake_test(CheckLinkerFlag -DCMAKE_C_COMPILER_ID=${CMAKE_C_COMPILER_ID}
+                                    -DCMAKE_Fortran_COMPILER_ID=${CMAKE_Fortran_COMPILER_ID})
+endif()
+
+add_RunCMake_test(CommandLine -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME} -DCYGWIN=${CYGWIN} -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE})
 add_RunCMake_test(CommandLineTar)
 
 if(CMAKE_PLATFORM_NO_VERSIONED_SONAME OR (NOT CMAKE_SHARED_LIBRARY_SONAME_FLAG AND NOT CMAKE_SHARED_LIBRARY_SONAME_C_FLAG))
@@ -450,11 +540,17 @@ else()
   set(NO_NAMELINK 0)
 endif()
 
-add_RunCMake_test(install -DNO_NAMELINK=${NO_NAMELINK} -DCYGWIN=${CYGWIN} -DCMAKE_C_COMPILER_ID=${CMAKE_C_COMPILER_ID}
+add_RunCMake_test(install -DNO_NAMELINK=${NO_NAMELINK} -DCYGWIN=${CYGWIN}
   -DCMAKE_SHARED_LIBRARY_RPATH_ORIGIN_TOKEN=${CMAKE_SHARED_LIBRARY_RPATH_ORIGIN_TOKEN}
   -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME}
   -DCMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG=${CMAKE_SHARED_LIBRARY_RUNTIME_C_FLAG}
-  -DCMAKE_EXECUTABLE_FORMAT=${CMAKE_EXECUTABLE_FORMAT})
+  -DCMAKE_EXECUTABLE_FORMAT=${CMAKE_EXECUTABLE_FORMAT}
+  )
+
+add_RunCMake_test(file-GET_RUNTIME_DEPENDENCIES
+  -DCMAKE_C_COMPILER_ID=${CMAKE_C_COMPILER_ID}
+  -DCMake_INSTALL_NAME_TOOL_BUG=${CMake_INSTALL_NAME_TOOL_BUG}
+  )
 
 add_RunCMake_test(CPackCommandLine)
 add_RunCMake_test(CPackConfig)
@@ -534,6 +630,8 @@ if("${CMAKE_GENERATOR}" MATCHES "Make|Ninja")
     list(APPEND CompilerLauncher_ARGS -DCMake_TEST_OBJC=1)
   endif()
   add_RunCMake_test(CompilerLauncher)
+  set_property(TEST RunCMake.CompilerLauncher APPEND
+    PROPERTY LABELS "CUDA")
   add_RunCMake_test(ctest_labels_for_subprojects)
 endif()
 
@@ -554,6 +652,7 @@ set(cpack_tests
   DEB.MD5SUMS
   DEB.DEB_PACKAGE_VERSION_BACK_COMPATIBILITY
   DEB.DEB_DESCRIPTION
+  DEB.PROJECT_META
 
   RPM.CUSTOM_BINARY_SPEC_FILE
   RPM.CUSTOM_NAMES
@@ -574,6 +673,7 @@ set(cpack_tests
   RPM.SUGGESTS
   RPM.SYMLINKS
   RPM.USER_FILELIST
+  RPM.PROJECT_META
 
   7Z
   TBZ2
@@ -584,10 +684,16 @@ set(cpack_tests
   STGZ
   External
   )
+if(APPLE)
+  list(APPEND cpack_tests DragNDrop)
+endif()
 add_RunCMake_test_group(CPack "${cpack_tests}")
 # add a test to make sure symbols are exported from a shared library
 # for MSVC compilers CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS property is used
-add_RunCMake_test(AutoExportDll -DCMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID})
+add_RunCMake_test(AutoExportDll
+  -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME}
+  -DCMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
+  )
 
 add_RunCMake_test(AndroidMK)
 
@@ -619,5 +725,5 @@ endif()
 
 add_RunCMake_test("CTestCommandExpandLists")
 
-add_RunCMake_test(PrecompileHeaders)
+add_RunCMake_test(PrecompileHeaders -DCMAKE_C_COMPILER_ID=${CMAKE_C_COMPILER_ID})
 add_RunCMake_test("UnityBuild")

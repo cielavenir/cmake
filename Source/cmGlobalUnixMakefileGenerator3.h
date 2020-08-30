@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <iosfwd>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -61,11 +62,18 @@ class cmGlobalUnixMakefileGenerator3 : public cmGlobalCommonGenerator
 {
 public:
   cmGlobalUnixMakefileGenerator3(cmake* cm);
-  static cmGlobalGeneratorFactory* NewFactory()
+  static std::unique_ptr<cmGlobalGeneratorFactory> NewFactory()
   {
-    return new cmGlobalGeneratorSimpleFactory<
-      cmGlobalUnixMakefileGenerator3>();
+    return std::unique_ptr<cmGlobalGeneratorFactory>(
+      new cmGlobalGeneratorSimpleFactory<cmGlobalUnixMakefileGenerator3>());
   }
+
+  ~cmGlobalUnixMakefileGenerator3() override;
+
+  cmGlobalUnixMakefileGenerator3(const cmGlobalUnixMakefileGenerator3&) =
+    delete;
+  cmGlobalUnixMakefileGenerator3& operator=(
+    const cmGlobalUnixMakefileGenerator3&) = delete;
 
   //! Get the name for the generator.
   std::string GetName() const override
@@ -89,7 +97,8 @@ public:
   /** Get the documentation entry for this generator.  */
   static void GetDocumentation(cmDocumentationEntry& entry);
 
-  cmLocalGenerator* CreateLocalGenerator(cmMakefile* mf) override;
+  std::unique_ptr<cmLocalGenerator> CreateLocalGenerator(
+    cmMakefile* mf) override;
 
   /**
    * Try to determine system information such as shared library
@@ -107,8 +116,9 @@ public:
    */
   void Generate() override;
 
-  void WriteMainCMakefileLanguageRules(cmGeneratedFileStream& cmakefileStream,
-                                       std::vector<cmLocalGenerator*>&);
+  void WriteMainCMakefileLanguageRules(
+    cmGeneratedFileStream& cmakefileStream,
+    std::vector<std::unique_ptr<cmLocalGenerator>>&);
 
   // write out the help rule listing the valid targets
   void WriteHelpRule(std::ostream& ruleFileStream,
@@ -125,6 +135,12 @@ public:
   /** Get the fake dependency to use when a rule has no real commands
       or dependencies.  */
   std::string GetEmptyRuleHackDepends() { return this->EmptyRuleHackDepends; }
+
+  /**
+   * Convert a file path to a Makefile target or dependency with
+   * escaping and quoting suitable for the generator's make tool.
+   */
+  std::string ConvertToMakefilePath(std::string const& path) const;
 
   // change the build command for speed
   std::vector<GeneratedMakeCommand> GenerateBuildCommand(
@@ -147,6 +163,9 @@ public:
   /** Does the make tool tolerate .DELETE_ON_ERROR? */
   virtual bool AllowDeleteOnError() const { return true; }
 
+  /** Does the make tool interpret '\#' as '#'?  */
+  virtual bool CanEscapeOctothorpe() const;
+
   bool IsIPOSupported() const override { return true; }
 
   void ComputeTargetObjectDirectory(cmGeneratorTarget* gt) const override;
@@ -161,7 +180,7 @@ protected:
   void WriteMainCMakefile();
 
   void WriteConvenienceRules2(std::ostream& ruleFileStream,
-                              cmLocalUnixMakefileGenerator3*);
+                              cmLocalUnixMakefileGenerator3&);
 
   void WriteDirectoryRule2(std::ostream& ruleFileStream,
                            DirectoryTarget const& dt, const char* pass,
@@ -227,9 +246,9 @@ protected:
   size_t CountProgressMarksInTarget(
     cmGeneratorTarget const* target,
     std::set<cmGeneratorTarget const*>& emitted);
-  size_t CountProgressMarksInAll(cmLocalGenerator* lg);
+  size_t CountProgressMarksInAll(const cmLocalGenerator& lg);
 
-  cmGeneratedFileStream* CommandDatabase;
+  std::unique_ptr<cmGeneratedFileStream> CommandDatabase;
 
 private:
   const char* GetBuildIgnoreErrorsFlag() const override { return "-i"; }

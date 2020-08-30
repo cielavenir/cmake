@@ -51,6 +51,31 @@ The :variable:`CMAKE_MINIMUM_REQUIRED_VERSION` variable may also be used
 to determine whether to report an error on use of deprecated macros or
 functions.
 
+Policies Introduced by CMake 3.18
+=================================
+
+.. toctree::
+   :maxdepth: 1
+
+   CMP0108: A target cannot link to itself through an alias. </policy/CMP0108>
+   CMP0107: An ALIAS target cannot overwrite another target. </policy/CMP0107>
+   CMP0106: The Documentation module is removed. </policy/CMP0106>
+   CMP0105: Device link step uses the link options. </policy/CMP0105>
+   CMP0104: CMAKE_CUDA_ARCHITECTURES now detected for NVCC, empty CUDA_ARCHITECTURES not allowed. </policy/CMP0104>
+   CMP0103: Multiple export() with same FILE without APPEND is not allowed. </policy/CMP0103>
+
+Policies Introduced by CMake 3.17
+=================================
+
+.. toctree::
+   :maxdepth: 1
+
+   CMP0102: mark_as_advanced() does nothing if a cache entry does not exist. </policy/CMP0102>
+   CMP0101: target_compile_options honors BEFORE keyword in all scopes. </policy/CMP0101>
+   CMP0100: Let AUTOMOC and AUTOUIC process .hh header files. </policy/CMP0100>
+   CMP0099: Link properties are transitive over private dependency on static libraries. </policy/CMP0099>
+   CMP0098: FindFLEX runs flex in CMAKE_CURRENT_BINARY_DIR when executing. </policy/CMP0098>
+
 Policies Introduced by CMake 3.16
 =================================
 

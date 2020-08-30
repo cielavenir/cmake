@@ -8,6 +8,7 @@
 #include "cmCursesForm.h"
 #include "cmCursesMainForm.h"
 #include "cmCursesStandardIncludes.h"
+#include "cmStringAlgorithms.h"
 #include "cmVersion.h"
 
 inline int ctrl(int z)
@@ -16,14 +17,12 @@ inline int ctrl(int z)
 }
 
 cmCursesLongMessageForm::cmCursesLongMessageForm(
-  std::vector<std::string> const& messages, const char* title)
+  std::vector<std::string> const& messages, const char* title,
+  ScrollBehavior scrollBehavior)
+  : Scrolling(scrollBehavior)
 {
   // Append all messages into on big string
-  for (std::string const& message : messages) {
-    this->Messages += message;
-    // Add one blank line after each message
-    this->Messages += "\n\n";
-  }
+  this->Messages = cmJoin(messages, "\n");
   this->Title = title;
   this->Fields[0] = nullptr;
   this->Fields[1] = nullptr;
@@ -34,6 +33,23 @@ cmCursesLongMessageForm::~cmCursesLongMessageForm()
   if (this->Fields[0]) {
     free_field(this->Fields[0]);
   }
+}
+
+void cmCursesLongMessageForm::UpdateContent(std::string const& output,
+                                            std::string const& title)
+{
+  this->Title = title;
+
+  if (!output.empty() && this->Messages.size() < MAX_CONTENT_SIZE) {
+    this->Messages.push_back('\n');
+    this->Messages.append(output);
+    form_driver(this->Form, REQ_NEW_LINE);
+    this->DrawMessage(output.c_str());
+  }
+
+  this->UpdateStatusBar();
+  touchwin(stdscr);
+  refresh();
 }
 
 void cmCursesLongMessageForm::UpdateStatusBar()
@@ -48,11 +64,11 @@ void cmCursesLongMessageForm::UpdateStatusBar()
     size = cmCursesMainForm::MAX_WIDTH - 1;
   }
   strncpy(bar, this->Title.c_str(), size);
-  for (size_t i = size - 1; i < cmCursesMainForm::MAX_WIDTH; i++) {
+  for (size_t i = size; i < cmCursesMainForm::MAX_WIDTH; i++) {
     bar[i] = ' ';
   }
   int width;
-  if (x < cmCursesMainForm::MAX_WIDTH) {
+  if (x >= 0 && x < cmCursesMainForm::MAX_WIDTH) {
     width = x;
   } else {
     width = cmCursesMainForm::MAX_WIDTH - 1;
@@ -89,7 +105,7 @@ void cmCursesLongMessageForm::PrintKeys()
     return;
   }
   char firstLine[512];
-  sprintf(firstLine, "Press [e] to exit help");
+  sprintf(firstLine, "Press [e] to exit screen");
 
   char fmt_s[] = "%s";
   curses_move(y - 2, 0);
@@ -110,10 +126,6 @@ void cmCursesLongMessageForm::Render(int /*left*/, int /*top*/, int /*width*/,
     this->Form = nullptr;
   }
 
-  const char* msg = this->Messages.c_str();
-
-  curses_clear();
-
   if (this->Fields[0]) {
     free_field(this->Fields[0]);
     this->Fields[0] = nullptr;
@@ -126,9 +138,18 @@ void cmCursesLongMessageForm::Render(int /*left*/, int /*top*/, int /*width*/,
   this->Form = new_form(this->Fields);
   post_form(this->Form);
 
-  int i = 0;
   form_driver(this->Form, REQ_BEG_FIELD);
-  while (msg[i] != '\0' && i < 60000) {
+  this->DrawMessage(this->Messages.c_str());
+
+  this->UpdateStatusBar();
+  touchwin(stdscr);
+  refresh();
+}
+
+void cmCursesLongMessageForm::DrawMessage(const char* msg) const
+{
+  int i = 0;
+  while (msg[i] != '\0' && i < MAX_CONTENT_SIZE) {
     if (msg[i] == '\n' && msg[i + 1] != '\0') {
       form_driver(this->Form, REQ_NEW_LINE);
     } else {
@@ -136,12 +157,11 @@ void cmCursesLongMessageForm::Render(int /*left*/, int /*top*/, int /*width*/,
     }
     i++;
   }
-  form_driver(this->Form, REQ_BEG_FIELD);
-
-  this->UpdateStatusBar();
-  this->PrintKeys();
-  touchwin(stdscr);
-  refresh();
+  if (this->Scrolling == ScrollBehavior::ScrollDown) {
+    form_driver(this->Form, REQ_END_FIELD);
+  } else {
+    form_driver(this->Form, REQ_BEG_FIELD);
+  }
 }
 
 void cmCursesLongMessageForm::HandleInput()
@@ -153,6 +173,7 @@ void cmCursesLongMessageForm::HandleInput()
   char debugMessage[128];
 
   for (;;) {
+    this->PrintKeys();
     int key = getch();
 
     sprintf(debugMessage, "Message widget handling input, key: %d", key);
@@ -173,7 +194,6 @@ void cmCursesLongMessageForm::HandleInput()
     }
 
     this->UpdateStatusBar();
-    this->PrintKeys();
     touchwin(stdscr);
     wrefresh(stdscr);
   }

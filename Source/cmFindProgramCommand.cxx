@@ -3,6 +3,7 @@
 #include "cmFindProgramCommand.h"
 
 #include "cmMakefile.h"
+#include "cmMessageType.h"
 #include "cmStateTypes.h"
 #include "cmStringAlgorithms.h"
 #include "cmSystemTools.h"
@@ -15,7 +16,9 @@ class cmExecutionStatus;
 
 struct cmFindProgramHelper
 {
-  cmFindProgramHelper()
+  cmFindProgramHelper(cmMakefile* makefile, cmFindBase const* base)
+    : DebugSearches("find_program", base)
+    , Makefile(makefile)
   {
 #if defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__)
     // Consider platform-specific extensions.
@@ -40,6 +43,10 @@ struct cmFindProgramHelper
 
   // Current full path under consideration.
   std::string TestPath;
+
+  // Debug state
+  cmFindBaseDebugState DebugSearches;
+  cmMakefile* Makefile;
 
   void AddName(std::string const& name) { this->Names.push_back(name); }
   void SetName(std::string const& name)
@@ -78,8 +85,10 @@ struct cmFindProgramHelper
       this->TestNameExt = cmStrCat(name, ext);
       this->TestPath =
         cmSystemTools::CollapseFullPath(this->TestNameExt, path);
-
-      if (cmSystemTools::FileExists(this->TestPath, true)) {
+      bool exists = cmSystemTools::FileExists(this->TestPath, true);
+      exists ? this->DebugSearches.FoundAt(this->TestPath)
+             : this->DebugSearches.FailedAt(this->TestPath);
+      if (exists) {
         this->BestPath = this->TestPath;
         return true;
       }
@@ -97,6 +106,7 @@ cmFindProgramCommand::cmFindProgramCommand(cmExecutionStatus& status)
 // cmFindProgramCommand
 bool cmFindProgramCommand::InitialPass(std::vector<std::string> const& argsIn)
 {
+  this->DebugMode = ComputeIfDebugModeWanted();
   this->VariableDocumentation = "Path to a program.";
   this->CMakePathName = "PROGRAM";
   // call cmFindBase::ParseArguments
@@ -118,15 +128,22 @@ bool cmFindProgramCommand::InitialPass(std::vector<std::string> const& argsIn)
   std::string const result = FindProgram();
   if (!result.empty()) {
     // Save the value in the cache
-    this->Makefile->AddCacheDefinition(this->VariableName, result.c_str(),
+    this->Makefile->AddCacheDefinition(this->VariableName, result,
                                        this->VariableDocumentation.c_str(),
                                        cmStateEnums::FILEPATH);
 
     return true;
   }
   this->Makefile->AddCacheDefinition(
-    this->VariableName, (this->VariableName + "-NOTFOUND").c_str(),
+    this->VariableName, this->VariableName + "-NOTFOUND",
     this->VariableDocumentation.c_str(), cmStateEnums::FILEPATH);
+  if (this->Required) {
+    this->Makefile->IssueMessage(
+      MessageType::FATAL_ERROR,
+      "Could not find " + this->VariableName +
+        " using the following names: " + cmJoin(this->Names, ", "));
+    cmSystemTools::SetFatalErrorOccured();
+  }
   return true;
 }
 
@@ -158,7 +175,7 @@ std::string cmFindProgramCommand::FindNormalProgram()
 std::string cmFindProgramCommand::FindNormalProgramNamesPerDir()
 {
   // Search for all names in each directory.
-  cmFindProgramHelper helper;
+  cmFindProgramHelper helper(this->Makefile, this);
   for (std::string const& n : this->Names) {
     helper.AddName(n);
   }
@@ -181,7 +198,7 @@ std::string cmFindProgramCommand::FindNormalProgramNamesPerDir()
 std::string cmFindProgramCommand::FindNormalProgramDirsPerName()
 {
   // Search the entire path for each name.
-  cmFindProgramHelper helper;
+  cmFindProgramHelper helper(this->Makefile, this);
   for (std::string const& n : this->Names) {
     // Switch to searching for this name.
     helper.SetName(n);
