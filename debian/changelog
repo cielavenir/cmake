@@ -1,9 +1,9 @@
-cmake (3.18.2-1) UNRELEASED; urgency=medium
+cmake (3.18.2-1) unstable; urgency=medium
 
   * New upstream release.
   * Drop FindPkgConfig_also_handle_isystem.patch, applied upstream.
 
- -- Felix Geyer <fgeyer@debian.org>  Sun, 30 Aug 2020 11:55:16 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 30 Aug 2020 14:41:24 +0200
 
 cmake (3.16.3-3) unstable; urgency=medium
 
