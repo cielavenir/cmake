@@ -9,6 +9,9 @@
 # Initial configuration
 #
 
+cmake_policy(PUSH)
+# numbers and boolean constants
+cmake_policy (SET CMP0012 NEW)
 # IN_LIST operator
 cmake_policy (SET CMP0057 NEW)
 
@@ -44,7 +47,6 @@ macro (_PYTHON_DISPLAY_FAILURE _PYTHON_MSG)
   set (${_PYTHON_PREFIX}_FOUND FALSE)
   string (TOUPPER "${_PYTHON_PREFIX}" _${_PYTHON_PREFIX}_UPPER_PREFIX)
   set (${_PYTHON_UPPER_PREFIX}_FOUND FALSE)
-  return()
 endmacro()
 
 
@@ -607,14 +609,24 @@ function (_PYTHON_GET_VERSION)
           # ABI not used on Windows
           set (abi "")
         else()
-          if (config MATCHES "#[ ]*define[ ]+Py_DEBUG[ ]+1")
-            string (APPEND abi "d")
-          endif()
-          if (config MATCHES "#[ ]*define[ ]+WITH_PYMALLOC[ ]+1")
-            string (APPEND abi "m")
-          endif()
-          if (config MATCHES "#[ ]*define[ ]+Py_UNICODE_SIZE[ ]+4")
-            string (APPEND abi "u")
+          if (NOT config)
+            # pyconfig.h can be a wrapper to a platform specific pyconfig.h
+            # In this case, try to identify ABI from include directory
+            if (_${_PYTHON_PREFIX}_INCLUDE_DIR MATCHES "python${version_major}\\.${version_minor}+([dmu]*)")
+              set (abi "${CMAKE_MATCH_1}")
+            else()
+              set (abi "")
+            endif()
+          else()
+            if (config MATCHES "#[ ]*define[ ]+Py_DEBUG[ ]+1")
+              string (APPEND abi "d")
+            endif()
+            if (config MATCHES "#[ ]*define[ ]+WITH_PYMALLOC[ ]+1")
+              string (APPEND abi "m")
+            endif()
+            if (config MATCHES "#[ ]*define[ ]+Py_UNICODE_SIZE[ ]+4")
+              string (APPEND abi "u")
+            endif()
           endif()
           set (${_PGV_PREFIX}ABI "${abi}" PARENT_SCOPE)
         endif()
@@ -1012,6 +1024,9 @@ endfunction()
 if (DEFINED ${_PYTHON_PREFIX}_FIND_VERSION_MAJOR
     AND NOT ${_PYTHON_PREFIX}_FIND_VERSION_MAJOR VERSION_EQUAL _${_PYTHON_PREFIX}_REQUIRED_VERSION_MAJOR)
   _python_display_failure ("Could NOT find ${_PYTHON_PREFIX}: Wrong major version specified is \"${${_PYTHON_PREFIX}_FIND_VERSION_MAJOR}\", but expected major version is \"${_${_PYTHON_PREFIX}_REQUIRED_VERSION_MAJOR}\"")
+
+  cmake_policy(POP)
+  return()
 endif()
 
 
@@ -2952,6 +2967,9 @@ endif()
 if (${_PYTHON_PREFIX}_VERSION_MAJOR AND
     NOT ${_PYTHON_PREFIX}_VERSION_MAJOR VERSION_EQUAL _${_PYTHON_PREFIX}_REQUIRED_VERSION_MAJOR)
   _python_display_failure ("Could NOT find ${_PYTHON_PREFIX}: Found unsuitable major version \"${${_PYTHON_PREFIX}_VERSION_MAJOR}\", but required major version is exact version \"${_${_PYTHON_PREFIX}_REQUIRED_VERSION_MAJOR}\"")
+
+  cmake_policy(POP)
+  return()
 endif()
 
 unset (_${_PYTHON_PREFIX}_REASON_FAILURE)
@@ -3160,3 +3178,5 @@ if (DEFINED _${_PYTHON_PREFIX}_CMAKE_FIND_FRAMEWORK)
 else()
   unset (CMAKE_FIND_FRAMEWORK)
 endif()
+
+cmake_policy(POP)
