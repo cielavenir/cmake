@@ -8,6 +8,9 @@ cmake (3.18.4-1) UNRELEASED; urgency=medium
 
   [ Felix Geyer ]
   * New upstream release
+  * Cherry-pick commit to build with -D_FILE_OFFSET_BITS=64 on 32bit archs.
+    - Add Compile_with_FILE_OFFSET_BITS_64_on_32-bit_Linux.patch
+    - Closes: #965046
 
  -- Felix Geyer <fgeyer@debian.org>  Thu, 15 Oct 2020 20:02:27 +0200
 
