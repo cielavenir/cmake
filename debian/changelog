@@ -1,4 +1,4 @@
-cmake (3.18.4-1) UNRELEASED; urgency=medium
+cmake (3.18.4-1) unstable; urgency=medium
 
   [ Tobias Frost ]
   * B-D on libarchive >=3.3.3 (Closes: #972252)
@@ -12,7 +12,7 @@ cmake (3.18.4-1) UNRELEASED; urgency=medium
     - Add Compile_with_FILE_OFFSET_BITS_64_on_32-bit_Linux.patch
     - Closes: #965046
 
- -- Felix Geyer <fgeyer@debian.org>  Thu, 15 Oct 2020 20:02:27 +0200
+ -- Felix Geyer <fgeyer@debian.org>  Mon, 19 Oct 2020 16:20:14 +0200
 
 cmake (3.18.2-1) unstable; urgency=medium
 
