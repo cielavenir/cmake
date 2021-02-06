@@ -1,3 +1,10 @@
+cmake (3.18.4-2) UNRELEASED; urgency=medium
+
+  * Drop unused Build-Depends: libbz2-dev and liblzma-dev. (Closes: #981135)
+    Compression support is handled via libarchive.
+
+ -- Helmut Grohne <helmut@subdivi.de>  Tue, 26 Jan 2021 16:54:47 +0100
+
 cmake (3.18.4-1) unstable; urgency=medium
 
   [ Tobias Frost ]
