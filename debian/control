@@ -50,6 +50,7 @@ Description: cross-platform, open-source make system
 
 Package: cmake-data
 Architecture: all
+Multi-Arch: foreign
 Depends: ${misc:Depends}
 Description: CMake data files (modules, templates and documentation)
  This package provides CMake architecture independent data files (modules,
