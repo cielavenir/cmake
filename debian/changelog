@@ -1,3 +1,9 @@
+cmake (3.18.4-2~bpo9+1) stretch-backports; urgency=medium
+
+  * Built on stretch.
+
+ -- Ciel Avenir <cielartisan@gmail.com>  Wed, 30 Jun 2021 12:00:00 +0900
+
 cmake (3.18.4-2) unstable; urgency=medium
 
   [ Helmut Grohne ]
@@ -1888,5 +1894,3 @@ cmake (0.96-1) unstable; urgency=low
     (Closes: #121610)
 
  -- A. Maitland Bottoms <bottoms@debian.org>  Wed, 28 Nov 2001 08:45:22 -0500
-
-
