@@ -1,3 +1,9 @@
+cmake (3.18.4-3) UNRELEASED; urgency=medium
+
+  * Trim trailing whitespace.
+
+ -- Debian Janitor <janitor@jelmer.uk>  Fri, 03 Sep 2021 17:36:22 -0000
+
 cmake (3.18.4-2) unstable; urgency=medium
 
   [ Helmut Grohne ]
@@ -1888,5 +1894,3 @@ cmake (0.96-1) unstable; urgency=low
     (Closes: #121610)
 
  -- A. Maitland Bottoms <bottoms@debian.org>  Wed, 28 Nov 2001 08:45:22 -0500
-
-
