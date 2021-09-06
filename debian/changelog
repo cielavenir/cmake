@@ -1,3 +1,11 @@
+cmake (3.18.4-3) UNRELEASED; urgency=medium
+
+  * Trim trailing whitespace.
+  * Fix day-of-week for changelog entries 1.2-1, 1.0-1, 1.2-1, 1.0-1.
+  * Drop transition for old debug package migration.
+
+ -- Debian Janitor <janitor@jelmer.uk>  Fri, 03 Sep 2021 17:36:22 -0000
+
 cmake (3.18.4-2) unstable; urgency=medium
 
   [ Helmut Grohne ]
@@ -1719,7 +1727,7 @@ cmake (1.2-1) unstable; urgency=low
 
   * New upstream.
 
- -- A. Maitland Bottoms <bottoms@debian.org>  Thu,  9 Jan 2002 17:20:12 -0500
+ -- A. Maitland Bottoms <bottoms@debian.org>  Wed, 09 Jan 2002 17:20:12 -0500
 
 cmake (1.0-1) unstable; urgency=low
 
@@ -1728,7 +1736,7 @@ cmake (1.0-1) unstable; urgency=low
   * Patched option to disable use of -rpath using CMAKE_SKIP_RPATH
   * include cmake-mode.el
 
- -- A. Maitland Bottoms <bottoms@debian.org>  Thu,  9 Jan 2002 17:20:12 -0500
+ -- A. Maitland Bottoms <bottoms@debian.org>  Wed, 09 Jan 2002 17:20:12 -0500
 
 cmake (0.98-1) unstable; urgency=low
 
@@ -1864,7 +1872,7 @@ cmake (1.2-1) unstable; urgency=low
 
   * New upstream.
 
- -- A. Maitland Bottoms <bottoms@debian.org>  Thu,  9 Jan 2002 17:20:12 -0500
+ -- A. Maitland Bottoms <bottoms@debian.org>  Wed, 09 Jan 2002 17:20:12 -0500
 
 cmake (1.0-1) unstable; urgency=low
 
@@ -1873,7 +1881,7 @@ cmake (1.0-1) unstable; urgency=low
   * Patched option to disable use of -rpath using CMAKE_SKIP_RPATH
   * include cmake-mode.el
 
- -- A. Maitland Bottoms <bottoms@debian.org>  Thu,  9 Jan 2002 17:20:12 -0500
+ -- A. Maitland Bottoms <bottoms@debian.org>  Wed, 09 Jan 2002 17:20:12 -0500
 
 cmake (0.98-1) unstable; urgency=low
 
@@ -1888,5 +1896,3 @@ cmake (0.96-1) unstable; urgency=low
     (Closes: #121610)
 
  -- A. Maitland Bottoms <bottoms@debian.org>  Wed, 28 Nov 2001 08:45:22 -0500
-
-
