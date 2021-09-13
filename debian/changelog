@@ -1,3 +1,10 @@
+cmake (3.18.4-2+deb11u1) bullseye; urgency=medium
+
+  * Team upload.
+  * Add PostgreSQL 13 to known versions (Closes: #990623)
+
+ -- Timo Röhling <roehling@debian.org>  Tue, 14 Sep 2021 00:08:52 +0200
+
 cmake (3.18.4-2) unstable; urgency=medium
 
   [ Helmut Grohne ]
