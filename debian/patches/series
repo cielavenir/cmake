@@ -1,2 +1,1 @@
-disable_fileapi_json_extra_test.patch
-Compile_with_FILE_OFFSET_BITS_64_on_32-bit_Linux.patch
+0001-Fix-cross-compilation-with-MPI.patch
