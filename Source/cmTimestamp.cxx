@@ -1,12 +1,14 @@
 /* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
    file Copyright.txt or https://cmake.org/licensing for details.  */
 
-#if !defined(_WIN32) && !defined(__sun)
+#if !defined(_WIN32) && !defined(__sun) && !defined(__OpenBSD__)
 // POSIX APIs are needed
+// NOLINTNEXTLINE(bugprone-reserved-identifier)
 #  define _POSIX_C_SOURCE 200809L
 #endif
-#if defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__QNX__)
 // For isascii
+// NOLINTNEXTLINE(bugprone-reserved-identifier)
 #  define _XOPEN_SOURCE 700
 #endif
 
@@ -20,7 +22,7 @@
 #include "cmSystemTools.h"
 
 std::string cmTimestamp::CurrentTime(const std::string& formatString,
-                                     bool utcFlag)
+                                     bool utcFlag) const
 {
   time_t currentTimeT = time(nullptr);
   std::string source_date_epoch;
@@ -37,12 +39,12 @@ std::string cmTimestamp::CurrentTime(const std::string& formatString,
     return std::string();
   }
 
-  return CreateTimestampFromTimeT(currentTimeT, formatString, utcFlag);
+  return this->CreateTimestampFromTimeT(currentTimeT, formatString, utcFlag);
 }
 
 std::string cmTimestamp::FileModificationTime(const char* path,
                                               const std::string& formatString,
-                                              bool utcFlag)
+                                              bool utcFlag) const
 {
   std::string real_path =
     cmSystemTools::GetRealPathResolvingWindowsSubst(path);
@@ -52,7 +54,7 @@ std::string cmTimestamp::FileModificationTime(const char* path,
   }
 
   time_t mtime = cmsys::SystemTools::ModifiedTime(real_path);
-  return CreateTimestampFromTimeT(mtime, formatString, utcFlag);
+  return this->CreateTimestampFromTimeT(mtime, formatString, utcFlag);
 }
 
 std::string cmTimestamp::CreateTimestampFromTimeT(time_t timeT,
@@ -89,7 +91,7 @@ std::string cmTimestamp::CreateTimestampFromTimeT(time_t timeT,
                                             : static_cast<char>(0);
 
     if (c1 == '%' && c2 != 0) {
-      result += AddTimestampComponent(c2, timeStruct, timeT);
+      result += this->AddTimestampComponent(c2, timeStruct, timeT);
       ++i;
     } else {
       result += c1;
@@ -164,7 +166,7 @@ std::string cmTimestamp::AddTimestampComponent(char flag,
       break;
     case 's': // Seconds since UNIX epoch (midnight 1-jan-1970)
     {
-      // Build a time_t for UNIX epoch and substract from the input "timeT":
+      // Build a time_t for UNIX epoch and subtract from the input "timeT":
       struct tm tmUnixEpoch;
       memset(&tmUnixEpoch, 0, sizeof(tmUnixEpoch));
       tmUnixEpoch.tm_mday = 1;

@@ -15,6 +15,7 @@
 #include "cmMakefile.h"
 #include "cmOutputConverter.h"
 #include "cmProperty.h"
+#include "cmRange.h"
 #include "cmSourceFile.h"
 #include "cmStateTypes.h"
 #include "cmStringAlgorithms.h"
@@ -27,7 +28,7 @@ cmCommonTargetGenerator::cmCommonTargetGenerator(cmGeneratorTarget* gt)
       static_cast<cmLocalCommonGenerator*>(gt->LocalGenerator))
   , GlobalCommonGenerator(static_cast<cmGlobalCommonGenerator*>(
       gt->LocalGenerator->GetGlobalGenerator()))
-  , ConfigNames(LocalCommonGenerator->GetConfigNames())
+  , ConfigNames(this->LocalCommonGenerator->GetConfigNames())
 {
 }
 
@@ -41,7 +42,7 @@ std::vector<std::string> const& cmCommonTargetGenerator::GetConfigNames() const
 const char* cmCommonTargetGenerator::GetFeature(const std::string& feature,
                                                 const std::string& config)
 {
-  return this->GeneratorTarget->GetFeature(feature, config);
+  return this->GeneratorTarget->GetFeature(feature, config)->c_str();
 }
 
 void cmCommonTargetGenerator::AddModuleDefinitionFlag(
@@ -55,7 +56,7 @@ void cmCommonTargetGenerator::AddModuleDefinitionFlag(
   }
 
   // TODO: Create a per-language flag variable.
-  const char* defFileFlag =
+  cmProp defFileFlag =
     this->Makefile->GetDefinition("CMAKE_LINK_DEF_FILE_FLAG");
   if (!defFileFlag) {
     return;
@@ -64,7 +65,7 @@ void cmCommonTargetGenerator::AddModuleDefinitionFlag(
   // Append the flag and value.  Use ConvertToLinkReference to help
   // vs6's "cl -link" pass it to the linker.
   std::string flag =
-    cmStrCat(defFileFlag,
+    cmStrCat(*defFileFlag,
              this->LocalCommonGenerator->ConvertToOutputFormat(
                linkLineComputer->ConvertToLinkReference(mdi->DefFile),
                cmOutputConverter::SHELL));
@@ -241,8 +242,7 @@ std::string cmCommonTargetGenerator::GetManifests(const std::string& config)
   manifests.reserve(manifest_srcs.size());
   for (cmSourceFile const* manifest_src : manifest_srcs) {
     manifests.push_back(this->LocalCommonGenerator->ConvertToOutputFormat(
-      this->LocalCommonGenerator->MaybeConvertToRelativePath(
-        this->LocalCommonGenerator->GetWorkingDirectory(),
+      this->LocalCommonGenerator->MaybeRelativeToWorkDir(
         manifest_src->GetFullPath()),
       cmOutputConverter::SHELL));
   }
@@ -270,7 +270,7 @@ void cmCommonTargetGenerator::AppendOSXVerFlag(std::string& flags,
 {
   // Lookup the flag to specify the version.
   std::string fvar = cmStrCat("CMAKE_", lang, "_OSX_", name, "_VERSION_FLAG");
-  const char* flag = this->Makefile->GetDefinition(fvar);
+  cmProp flag = this->Makefile->GetDefinition(fvar);
 
   // Skip if no such flag.
   if (!flag) {
@@ -288,7 +288,28 @@ void cmCommonTargetGenerator::AppendOSXVerFlag(std::string& flags,
   if (major > 0 || minor > 0 || patch > 0) {
     // Append the flag since a non-zero version is specified.
     std::ostringstream vflag;
-    vflag << flag << major << "." << minor << "." << patch;
+    vflag << *flag << major << "." << minor << "." << patch;
     this->LocalCommonGenerator->AppendFlags(flags, vflag.str());
   }
+}
+
+std::string cmCommonTargetGenerator::GetLinkerLauncher(
+  const std::string& config)
+{
+  std::string lang = this->GeneratorTarget->GetLinkerLanguage(config);
+  cmProp launcherProp =
+    this->GeneratorTarget->GetProperty(lang + "_LINKER_LAUNCHER");
+  if (cmNonempty(launcherProp)) {
+    // Convert ;-delimited list to single string
+    std::vector<std::string> args = cmExpandedList(*launcherProp, true);
+    if (!args.empty()) {
+      args[0] = this->LocalCommonGenerator->ConvertToOutputFormat(
+        args[0], cmOutputConverter::SHELL);
+      for (std::string& i : cmMakeRange(args.begin() + 1, args.end())) {
+        i = this->LocalCommonGenerator->EscapeForShell(i);
+      }
+      return cmJoin(args, " ");
+    }
+  }
+  return std::string();
 }

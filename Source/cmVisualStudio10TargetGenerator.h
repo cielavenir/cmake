@@ -1,7 +1,6 @@
 /* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
    file Copyright.txt or https://cmake.org/licensing for details.  */
-#ifndef cmVisualStudioTargetGenerator_h
-#define cmVisualStudioTargetGenerator_h
+#pragma once
 
 #include "cmConfigure.h" // IWYU pragma: keep
 
@@ -17,6 +16,7 @@
 
 class cmComputeLinkInformation;
 class cmCustomCommand;
+class cmCustomCommandGenerator;
 class cmGeneratedFileStream;
 class cmGlobalVisualStudio10Generator;
 class cmLocalVisualStudio10Generator;
@@ -70,6 +70,7 @@ private:
   void WriteExtraSource(Elem& e1, cmSourceFile const* sf);
   void WriteNsightTegraConfigurationValues(Elem& e1,
                                            std::string const& config);
+  void WriteAndroidConfigurationValues(Elem& e1, std::string const& config);
   void WriteSource(Elem& e2, cmSourceFile const* sf);
   void WriteExcludeFromBuild(Elem& e2,
                              std::vector<size_t> const& exclude_configs);
@@ -143,13 +144,15 @@ private:
                           std::string const& script,
                           std::string const& additional_inputs,
                           std::string const& outputs,
-                          std::string const& comment, bool symbolic);
+                          std::string const& comment,
+                          cmCustomCommandGenerator const& ccg, bool symbolic);
   void WriteCustomRuleCSharp(Elem& e0, std::string const& config,
                              std::string const& commandName,
                              std::string const& script,
                              std::string const& inputs,
                              std::string const& outputs,
-                             std::string const& comment);
+                             std::string const& comment,
+                             cmCustomCommandGenerator const& ccg);
   void WriteCustomCommands(Elem& e0);
   void WriteCustomCommand(Elem& e0, cmSourceFile const* sf);
   void WriteGroups();
@@ -215,6 +218,8 @@ private:
   bool MSTools;
   bool Managed;
   bool NsightTegra;
+  bool Android;
+  bool HaveCustomCommandDepfile = false;
   unsigned int NsightTegraVersion[4];
   bool TargetCompileAsWinRT;
   std::set<std::string> IPOEnabledConfigurations;
@@ -257,5 +262,3 @@ private:
                              ConfigToSettings& toolSettings);
   std::string GetCMakeFilePath(const char* name) const;
 };
-
-#endif
