@@ -11,14 +11,13 @@ cmCTestGenericHandler* cmCTestUpdateCommand::InitializeHandler()
 {
   if (!this->Source.empty()) {
     this->CTest->SetCTestConfiguration(
-      "SourceDirectory", cmSystemTools::CollapseFullPath(this->Source).c_str(),
+      "SourceDirectory", cmSystemTools::CollapseFullPath(this->Source),
       this->Quiet);
   } else {
     this->CTest->SetCTestConfiguration(
       "SourceDirectory",
       cmSystemTools::CollapseFullPath(
-        this->Makefile->GetDefinition("CTEST_SOURCE_DIRECTORY"))
-        .c_str(),
+        this->Makefile->GetSafeDefinition("CTEST_SOURCE_DIRECTORY")),
       this->Quiet);
   }
   std::string source_dir =
@@ -76,7 +75,6 @@ cmCTestGenericHandler* cmCTestUpdateCommand::InitializeHandler()
 
   cmCTestUpdateHandler* handler = this->CTest->GetUpdateHandler();
   handler->Initialize();
-  handler->SetCommand(this);
   if (source_dir.empty()) {
     this->SetError("source directory not specified. Please use SOURCE tag");
     return nullptr;

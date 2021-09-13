@@ -162,6 +162,7 @@ bool cmCacheManager::LoadCache(const std::string& path, bool internal,
       cmSystemTools::Error(message.str());
     }
   }
+  this->CacheLoaded = true;
   return true;
 }
 
@@ -182,7 +183,7 @@ bool cmCacheManager::ReadPropertyEntry(const std::string& entryKey,
     if (entryKey.size() > plen && *(end - plen) == '-' &&
         strcmp(end - plen + 1, p) == 0) {
       std::string key = entryKey.substr(0, entryKey.size() - plen);
-      if (auto entry = this->GetCacheEntry(key)) {
+      if (auto* entry = this->GetCacheEntry(key)) {
         // Store this property on its entry.
         entry->SetProperty(p, e.Value.c_str());
       } else {
@@ -497,7 +498,7 @@ const cmCacheManager::CacheEntry* cmCacheManager::GetCacheEntry(
 
 cmProp cmCacheManager::GetInitializedCacheValue(const std::string& key) const
 {
-  if (auto entry = this->GetCacheEntry(key)) {
+  if (const auto* entry = this->GetCacheEntry(key)) {
     if (entry->Initialized) {
       return &entry->GetValue();
     }
@@ -578,10 +579,7 @@ cmProp cmCacheManager::CacheEntry::GetProperty(const std::string& prop) const
 bool cmCacheManager::CacheEntry::GetPropertyAsBool(
   const std::string& prop) const
 {
-  if (cmProp value = this->GetProperty(prop)) {
-    return cmIsOn(*value);
-  }
-  return false;
+  return cmIsOn(this->GetProperty(prop));
 }
 
 void cmCacheManager::CacheEntry::SetProperty(const std::string& prop,

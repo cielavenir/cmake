@@ -16,15 +16,8 @@
 #include "cmState.h"
 #include "cmStateDirectory.h"
 #include "cmStatePrivate.h"
+#include "cmSystemTools.h"
 #include "cmVersion.h"
-
-#if !defined(_WIN32)
-#  include <sys/utsname.h>
-#endif
-
-#if defined(__CYGWIN__)
-#  include "cmSystemTools.h"
-#endif
 
 cmStateSnapshot::cmStateSnapshot(cmState* state)
   : State(state)
@@ -53,7 +46,7 @@ void cmStateSnapshot::SetListFile(const std::string& listfile)
   *this->Position->ExecutionListFile = listfile;
 }
 
-std::string cmStateSnapshot::GetExecutionListFile() const
+std::string const& cmStateSnapshot::GetExecutionListFile() const
 {
   return *this->Position->ExecutionListFile;
 }
@@ -148,7 +141,7 @@ bool cmStateSnapshot::PopPolicy()
 
 bool cmStateSnapshot::CanPopPolicyScope()
 {
-  return this->Position->Policies == this->Position->PolicyScope;
+  return this->Position->Policies != this->Position->PolicyScope;
 }
 
 void cmStateSnapshot::SetPolicy(cmPolicies::PolicyID id,
@@ -232,11 +225,6 @@ void cmStateSnapshot::RemoveDefinition(std::string const& name)
   this->Position->Vars->Unset(name);
 }
 
-std::vector<std::string> cmStateSnapshot::UnusedKeys() const
-{
-  return this->Position->Vars->UnusedKeys();
-}
-
 std::vector<std::string> cmStateSnapshot::ClosureKeys() const
 {
   return cmDefinitions::ClosureKeys(this->Position->Vars,
@@ -297,38 +285,30 @@ void InitializeContentFromParent(T& parentContent, T& thisContent,
 
 void cmStateSnapshot::SetDefaultDefinitions()
 {
-/* Up to CMake 2.4 here only WIN32, UNIX and APPLE were set.
-  With CMake must separate between target and host platform. In most cases
-  the tests for WIN32, UNIX and APPLE will be for the target system, so an
-  additional set of variables for the host system is required ->
-  CMAKE_HOST_WIN32, CMAKE_HOST_UNIX, CMAKE_HOST_APPLE.
-  WIN32, UNIX and APPLE are now set in the platform files in
-  Modules/Platforms/.
-  To keep cmake scripts (-P) and custom language and compiler modules
-  working, these variables are still also set here in this place, but they
-  will be reset in CMakeSystemSpecificInformation.cmake before the platform
-  files are executed. */
-#if defined(_WIN32)
-  this->SetDefinition("WIN32", "1");
-  this->SetDefinition("CMAKE_HOST_WIN32", "1");
-  this->SetDefinition("CMAKE_HOST_SYSTEM_NAME", "Windows");
-#else
-  this->SetDefinition("UNIX", "1");
-  this->SetDefinition("CMAKE_HOST_UNIX", "1");
-
-#  if defined(__ANDROID__)
-  this->SetDefinition("CMAKE_HOST_SYSTEM_NAME", "Android");
-#  else
-  struct utsname uts_name;
-  if (uname(&uts_name) >= 0) {
-    this->SetDefinition("CMAKE_HOST_SYSTEM_NAME", uts_name.sysname);
+  /* Up to CMake 2.4 here only WIN32, UNIX and APPLE were set.
+    With CMake must separate between target and host platform. In most cases
+    the tests for WIN32, UNIX and APPLE will be for the target system, so an
+    additional set of variables for the host system is required ->
+    CMAKE_HOST_WIN32, CMAKE_HOST_UNIX, CMAKE_HOST_APPLE.
+    WIN32, UNIX and APPLE are now set in the platform files in
+    Modules/Platforms/.
+    To keep cmake scripts (-P) and custom language and compiler modules
+    working, these variables are still also set here in this place, but they
+    will be reset in CMakeSystemSpecificInformation.cmake before the platform
+    files are executed. */
+  cm::string_view hostSystemName = cmSystemTools::GetSystemName();
+  this->SetDefinition("CMAKE_HOST_SYSTEM_NAME", hostSystemName);
+  if (hostSystemName == "Windows") {
+    this->SetDefinition("WIN32", "1");
+    this->SetDefinition("CMAKE_HOST_WIN32", "1");
+  } else {
+    this->SetDefinition("UNIX", "1");
+    this->SetDefinition("CMAKE_HOST_UNIX", "1");
   }
-#  endif
-#endif
 #if defined(__CYGWIN__)
   std::string legacy;
   if (cmSystemTools::GetEnv("CMAKE_LEGACY_CYGWIN_WIN32", legacy) &&
-      cmIsOn(legacy.c_str())) {
+      cmIsOn(legacy)) {
     this->SetDefinition("WIN32", "1");
     this->SetDefinition("CMAKE_HOST_WIN32", "1");
   }
@@ -416,8 +396,7 @@ void cmStateSnapshot::InitializeFromParent()
     parent->BuildSystemDirectory->Properties.GetPropertyValue(
       "INCLUDE_REGULAR_EXPRESSION");
   this->Position->BuildSystemDirectory->Properties.SetProperty(
-    "INCLUDE_REGULAR_EXPRESSION",
-    include_regex ? include_regex->c_str() : nullptr);
+    "INCLUDE_REGULAR_EXPRESSION", cmToCStr(include_regex));
 }
 
 cmState* cmStateSnapshot::GetState() const

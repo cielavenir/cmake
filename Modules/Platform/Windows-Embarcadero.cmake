@@ -35,8 +35,8 @@ else()
   set(_tR "-tR") # Target uses the dynamic RTL
   set(_tW "-tW") # Target is a Windows application
 endif()
-set(_COMPILE_C "-c")
-set(_COMPILE_CXX "-P -c")
+set(_COMPILE_C "")
+set(_COMPILE_CXX " -P")
 
 set(CMAKE_LIBRARY_PATH_FLAG "-L")
 set(CMAKE_LINK_LIBRARY_FLAG "")
@@ -50,11 +50,6 @@ set(CMAKE_FIND_LIBRARY_SUFFIXES "-bcc.lib" ".lib")
 
 # Borland cannot handle + in the file name, so mangle object file name
 set (CMAKE_MANGLE_OBJECT_FILE_NAMES "ON")
-
-# extra flags for a win32 exe
-set(CMAKE_CREATE_WIN32_EXE "${_tW}" )
-# extra flags for a console app
-set(CMAKE_CREATE_CONSOLE_EXE "${_tC}" )
 
 set (CMAKE_BUILD_TYPE Debug CACHE STRING
      "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel.")
@@ -87,7 +82,7 @@ macro(__embarcadero_language lang)
   # place <DEFINES> outside the response file because Borland refuses
   # to parse quotes from the response file.
   set(CMAKE_${lang}_COMPILE_OBJECT
-    "<CMAKE_${lang}_COMPILER> ${_tR} -DWIN32 <DEFINES> <INCLUDES> <FLAGS> -o<OBJECT> ${_COMPILE_${lang}} <SOURCE>"
+    "<CMAKE_${lang}_COMPILER> ${_tR} -DWIN32 <DEFINES> <INCLUDES> <FLAGS> -o<OBJECT>${_COMPILE_${lang}} -c <SOURCE>"
     )
 
   set(CMAKE_${lang}_LINK_EXECUTABLE
@@ -98,7 +93,7 @@ macro(__embarcadero_language lang)
   # place <DEFINES> outside the response file because Borland refuses
   # to parse quotes from the response file.
   set(CMAKE_${lang}_CREATE_PREPROCESSED_SOURCE
-    "cpp32 -DWIN32 <DEFINES> <INCLUDES> <FLAGS> -o<PREPROCESSED_SOURCE> ${_COMPILE_${lang}} <SOURCE>"
+    "cpp32 -DWIN32 <DEFINES> <INCLUDES> <FLAGS> -o<PREPROCESSED_SOURCE>${_COMPILE_${lang}} -c <SOURCE>"
     )
   # Borland >= 5.6 allows -P option for cpp32, <= 5.5 does not
 
@@ -123,6 +118,9 @@ macro(__embarcadero_language lang)
   set(CMAKE_${lang}_CREATE_STATIC_LIBRARY
     "tlib ${CMAKE_START_TEMP_FILE}/p512 <LINK_FLAGS> /a <TARGET_QUOTED> <OBJECTS>${CMAKE_END_TEMP_FILE}"
     )
+
+  set(CMAKE_${lang}_CREATE_WIN32_EXE "${_tW}")
+  set(CMAKE_${lang}_CREATE_CONSOLE_EXE "${_tC}")
 
   # Precompile Headers
   if (EMBARCADERO)

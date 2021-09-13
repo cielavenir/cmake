@@ -40,6 +40,22 @@ void cmCTestRunTest::CheckOutput(std::string const& line)
 {
   cmCTestLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
              this->GetIndex() << ": " << line << std::endl);
+
+  // Check for special CTest XML tags in this line of output.
+  // If any are found, this line is excluded from ProcessOutput.
+  if (!line.empty() && line.find("<CTest") != std::string::npos) {
+    if (this->TestHandler->CustomCompletionStatusRegex.find(line)) {
+      this->TestResult.CustomCompletionStatus =
+        this->TestHandler->CustomCompletionStatusRegex.match(1);
+      cmCTestLog(this->CTest, HANDLER_VERBOSE_OUTPUT,
+                 this->GetIndex() << ": "
+                                  << "Test Details changed to '"
+                                  << this->TestResult.CustomCompletionStatus
+                                  << "'" << std::endl);
+      return;
+    }
+  }
+
   this->ProcessOutput += line;
   this->ProcessOutput += "\n";
 
@@ -139,7 +155,7 @@ bool cmCTestRunTest::EndTest(size_t completed, size_t total, bool started)
         s << "SKIP_RETURN_CODE=" << this->TestProperties->SkipReturnCode;
       }
       this->TestResult.CompletionStatus = s.str();
-      cmCTestLog(this->CTest, HANDLER_OUTPUT, "***Skipped ");
+      outputStream << "***Skipped ";
       skipped = true;
     } else if (success != this->TestProperties->WillFail) {
       this->TestResult.Status = cmCTestTestHandler::COMPLETED;
@@ -195,10 +211,11 @@ bool cmCTestRunTest::EndTest(size_t completed, size_t total, bool started)
   sprintf(buf, "%6.2f sec", this->TestProcess->GetTotalTime().count());
   outputStream << buf << "\n";
 
+  bool passedOrSkipped = passed || skipped;
   if (this->CTest->GetTestProgressOutput()) {
-    if (!passed) {
+    if (!passedOrSkipped) {
       // If the test did not pass, reprint test name and error
-      std::string output = GetTestPrefix(completed, total);
+      std::string output = this->GetTestPrefix(completed, total);
       std::string testName = this->TestProperties->Name;
       const int maxTestNameWidth = this->CTest->GetMaxTestNameWidth();
       testName.resize(maxTestNameWidth + 4, '.');
@@ -211,12 +228,12 @@ bool cmCTestRunTest::EndTest(size_t completed, size_t total, bool started)
       cmCTestLog(this->CTest, HANDLER_TEST_PROGRESS_OUTPUT, "\n"); // flush
     }
     if (completed == total) {
-      std::string testName =
-        GetTestPrefix(completed, total) + this->TestProperties->Name + "\n";
+      std::string testName = this->GetTestPrefix(completed, total) +
+        this->TestProperties->Name + "\n";
       cmCTestLog(this->CTest, HANDLER_TEST_PROGRESS_OUTPUT, testName);
     }
   }
-  if (!this->CTest->GetTestProgressOutput() || !passed) {
+  if (!this->CTest->GetTestProgressOutput() || !passedOrSkipped) {
     cmCTestLog(this->CTest, HANDLER_OUTPUT, outputStream.str());
   }
 
@@ -485,8 +502,8 @@ bool cmCTestRunTest::StartTest(size_t completed, size_t total)
                  << this->TestProperties->Index << ": "
                  << this->TestProperties->Name << std::endl);
   } else {
-    std::string testName =
-      GetTestPrefix(completed, total) + this->TestProperties->Name + "\n";
+    std::string testName = this->GetTestPrefix(completed, total) +
+      this->TestProperties->Name + "\n";
     cmCTestLog(this->CTest, HANDLER_TEST_PROGRESS_OUTPUT, testName);
   }
 
@@ -619,11 +636,11 @@ void cmCTestRunTest::ComputeArguments()
     cmCTestMemCheckHandler* handler =
       static_cast<cmCTestMemCheckHandler*>(this->TestHandler);
     this->ActualCommand = handler->MemoryTester;
-    this->TestProperties->Args[1] = this->TestHandler->FindTheExecutable(
-      this->TestProperties->Args[1].c_str());
+    this->TestProperties->Args[1] =
+      this->TestHandler->FindTheExecutable(this->TestProperties->Args[1]);
   } else {
-    this->ActualCommand = this->TestHandler->FindTheExecutable(
-      this->TestProperties->Args[1].c_str());
+    this->ActualCommand =
+      this->TestHandler->FindTheExecutable(this->TestProperties->Args[1]);
     ++j; // skip the executable (it will be actualCommand)
   }
   std::string testCommand =

@@ -2,9 +2,12 @@
 # file Copyright.txt or https://cmake.org/licensing for details.
 
 # To ensure maximum portability across various compilers and platforms
-# deactivate any compiler extensions
-set(CMAKE_C_EXTENSIONS FALSE)
-set(CMAKE_CXX_EXTENSIONS FALSE)
+# deactivate any compiler extensions.  Skip this for QNX, where additional
+# work is needed to build without compiler extensions.
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "QNX")
+  set(CMAKE_C_EXTENSIONS FALSE)
+  set(CMAKE_CXX_EXTENSIONS FALSE)
+endif()
 
 include(CheckIncludeFile)
 # Check if we can build support for ELF parsing.
@@ -16,7 +19,7 @@ else()
   CHECK_INCLUDE_FILE("elf.h" HAVE_ELF_H)
 endif()
 if(HAVE_ELF_H)
-  set(CMAKE_USE_ELF_PARSER 1)
+  set(CMake_USE_ELF_PARSER 1)
 elseif(HAIKU)
   # On Haiku, we need to include elf32.h from the private headers
   set(CMake_HAIKU_INCLUDE_DIRS
@@ -29,27 +32,33 @@ elseif(HAIKU)
   unset(CMAKE_REQUIRED_INCLUDES)
 
   if(HAVE_ELF32_H)
-    set(CMAKE_USE_ELF_PARSER 1)
+    set(CMake_USE_ELF_PARSER 1)
   else()
     unset(CMake_HAIKU_INCLUDE_DIRS)
-    set(CMAKE_USE_ELF_PARSER)
+    set(CMake_USE_ELF_PARSER)
   endif()
 else()
-  set(CMAKE_USE_ELF_PARSER)
+  set(CMake_USE_ELF_PARSER)
 endif()
 
 if(NOT CMake_DEFAULT_RECURSION_LIMIT)
   if(DEFINED ENV{DASHBOARD_TEST_FROM_CTEST})
     set(CMake_DEFAULT_RECURSION_LIMIT 100)
-  elseif(MINGW)
+  elseif(MINGW OR MSYS)
     set(CMake_DEFAULT_RECURSION_LIMIT 400)
+  elseif(WIN32 AND CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
+    set(CMake_DEFAULT_RECURSION_LIMIT 600)
   else()
     set(CMake_DEFAULT_RECURSION_LIMIT 1000)
   endif()
 endif()
 
 if(APPLE)
-  set(CMAKE_USE_MACH_PARSER 1)
+  set(CMake_USE_MACH_PARSER 1)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
+  set(CMake_USE_XCOFF_PARSER 1)
 endif()
 
 set(EXECUTABLE_OUTPUT_PATH ${CMake_BIN_DIR})
@@ -103,13 +112,18 @@ include_directories(
   )
 
 # Check if we can build the ELF parser.
-if(CMAKE_USE_ELF_PARSER)
+if(CMake_USE_ELF_PARSER)
   set(ELF_SRCS cmELF.h cmELF.cxx)
 endif()
 
 # Check if we can build the Mach-O parser.
-if(CMAKE_USE_MACH_PARSER)
+if(CMake_USE_MACH_PARSER)
   set(MACH_SRCS cmMachO.h cmMachO.cxx)
+endif()
+
+# Check if we can build the XCOFF parser.
+if(CMake_USE_XCOFF_PARSER)
+  set(XCOFF_SRCS cmXCOFF.h cmXCOFF.cxx)
 endif()
 
 #
@@ -178,10 +192,14 @@ set(SRCS
   cmBinUtilsWindowsPEObjdumpGetRuntimeDependenciesTool.h
   cmCacheManager.cxx
   cmCacheManager.h
-  cmCheckCustomOutputs.h
-  cmCheckCustomOutputs.cxx
   cmCLocaleEnvironmentScope.h
   cmCLocaleEnvironmentScope.cxx
+  cmCMakePath.h
+  cmCMakePath.cxx
+  cmCMakePresetsFile.cxx
+  cmCMakePresetsFile.h
+  cmCMakePresetsFileInternal.h
+  cmCMakePresetsFileReadJSON.cxx
   cmCommandArgumentParserHelper.cxx
   cmCommonTargetGenerator.cxx
   cmCommonTargetGenerator.h
@@ -193,6 +211,8 @@ set(SRCS
   cmComputeLinkInformation.h
   cmComputeTargetDepends.h
   cmComputeTargetDepends.cxx
+  cmConsoleBuf.h
+  cmConsoleBuf.cxx
   cmCPackPropertiesGenerator.h
   cmCPackPropertiesGenerator.cxx
   cmCryptoHash.cxx
@@ -218,6 +238,8 @@ set(SRCS
   cmDependsJava.h
   cmDependsJavaParserHelper.cxx
   cmDependsJavaParserHelper.h
+  cmDependsCompiler.cxx
+  cmDependsCompiler.h
   cmDocumentation.cxx
   cmDocumentationFormatter.cxx
   cmDocumentationSection.cxx
@@ -259,6 +281,8 @@ set(SRCS
   cmFileAPICodemodel.h
   cmFileAPICMakeFiles.cxx
   cmFileAPICMakeFiles.h
+  cmFileAPIToolchains.cxx
+  cmFileAPIToolchains.h
   cmFileCopier.cxx
   cmFileCopier.h
   cmFileInstaller.cxx
@@ -321,11 +345,19 @@ set(SRCS
   cmGraphVizWriter.h
   cmInstallGenerator.h
   cmInstallGenerator.cxx
+  cmInstallGetRuntimeDependenciesGenerator.h
+  cmInstallGetRuntimeDependenciesGenerator.cxx
   cmInstallExportGenerator.cxx
   cmInstalledFile.h
   cmInstalledFile.cxx
   cmInstallFilesGenerator.h
   cmInstallFilesGenerator.cxx
+  cmInstallImportedRuntimeArtifactsGenerator.h
+  cmInstallImportedRuntimeArtifactsGenerator.cxx
+  cmInstallRuntimeDependencySet.h
+  cmInstallRuntimeDependencySet.cxx
+  cmInstallRuntimeDependencySetGenerator.h
+  cmInstallRuntimeDependencySetGenerator.cxx
   cmInstallScriptGenerator.h
   cmInstallScriptGenerator.cxx
   cmInstallSubdirectoryGenerator.h
@@ -334,6 +366,7 @@ set(SRCS
   cmInstallTargetGenerator.cxx
   cmInstallDirectoryGenerator.h
   cmInstallDirectoryGenerator.cxx
+  cmJSONHelpers.h
   cmLDConfigLDConfigTool.cxx
   cmLDConfigLDConfigTool.h
   cmLDConfigTool.cxx
@@ -412,6 +445,8 @@ set(SRCS
   cmSourceFileLocationKind.h
   cmSourceGroup.cxx
   cmSourceGroup.h
+  cmStandardLevelResolver.cxx
+  cmStandardLevelResolver.h
   cmState.cxx
   cmState.h
   cmStateDirectory.cxx
@@ -432,6 +467,8 @@ set(SRCS
   cmTest.h
   cmTestGenerator.cxx
   cmTestGenerator.h
+  cmTransformDepfile.cxx
+  cmTransformDepfile.h
   cmUuid.cxx
   cmUVHandlePtr.cxx
   cmUVHandlePtr.h
@@ -447,6 +484,7 @@ set(SRCS
   cmWorkerPool.h
   cmWorkingDirectory.cxx
   cmWorkingDirectory.h
+  ${XCOFF_SRCS}
   cmXMLParser.cxx
   cmXMLParser.h
   cmXMLSafe.cxx
@@ -496,6 +534,8 @@ set(SRCS
   cmCMakeLanguageCommand.h
   cmCMakeMinimumRequired.cxx
   cmCMakeMinimumRequired.h
+  cmCMakePathCommand.h
+  cmCMakePathCommand.cxx
   cmCMakePolicyCommand.cxx
   cmCMakePolicyCommand.h
   cmConditionEvaluator.cxx
@@ -606,6 +646,7 @@ set(SRCS
   cmMathCommand.h
   cmMessageCommand.cxx
   cmMessageCommand.h
+  cmMessageMetadata.h
   cmOptionCommand.cxx
   cmOptionCommand.h
   cmOutputRequiredFilesCommand.cxx
@@ -755,8 +796,6 @@ if (WIN32)
       cmVisualStudioGeneratorOptions.cxx
       cmVisualStudio10TargetGenerator.h
       cmVisualStudio10TargetGenerator.cxx
-      cmVisualStudio10ToolsetOptions.h
-      cmVisualStudio10ToolsetOptions.cxx
       cmLocalVisualStudio10Generator.cxx
       cmLocalVisualStudio10Generator.h
       cmGlobalVisualStudio10Generator.h
@@ -821,6 +860,7 @@ endif()
 
 # Ninja support
 set(SRCS ${SRCS}
+  cmScanDepFormat.cxx
   cmGlobalNinjaGenerator.cxx
   cmGlobalNinjaGenerator.h
   cmNinjaTypes.h
@@ -939,6 +979,7 @@ set(CTEST_SRCS cmCTest.cxx
   CTest/cmCTestResourceAllocator.cxx
   CTest/cmCTestResourceSpec.cxx
   CTest/cmCTestLaunch.cxx
+  CTest/cmCTestLaunchReporter.cxx
   CTest/cmCTestMemCheckCommand.cxx
   CTest/cmCTestMemCheckHandler.cxx
   CTest/cmCTestMultiProcessHandler.cxx
@@ -1143,20 +1184,6 @@ endif()
 add_executable(cmake cmakemain.cxx cmcmd.cxx cmcmd.h ${MANIFEST_FILE})
 list(APPEND _tools cmake)
 target_link_libraries(cmake CMakeLib)
-
-add_library(CMakeServerLib
-  cmConnection.h cmConnection.cxx
-  cmFileMonitor.cxx cmFileMonitor.h
-  cmJsonObjectDictionary.h
-  cmJsonObjects.h
-  cmJsonObjects.cxx
-  cmPipeConnection.cxx cmPipeConnection.h
-  cmServer.cxx cmServer.h
-  cmServerConnection.cxx cmServerConnection.h
-  cmServerProtocol.cxx cmServerProtocol.h
-  )
-target_link_libraries(CMakeServerLib CMakeLib)
-target_link_libraries(cmake CMakeServerLib)
 
 # Build CTest executable
 add_executable(ctest ctest.cxx ${MANIFEST_FILE})

@@ -5,6 +5,8 @@
 FetchContent
 ------------------
 
+.. versionadded:: 3.11
+
 .. only:: html
 
   .. contents::
@@ -32,7 +34,7 @@ The following shows a typical example of declaring content details:
   FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG        release-1.8.0
+    GIT_TAG        703bd9caab50b139428cea1aaff9974ebee5742e # release-1.10.0
   )
 
 For most typical cases, populating the content can then be done with a single
@@ -75,6 +77,9 @@ operation and would not normally be the way the module is used, but it is
 sometimes useful as part of implementing some higher level feature or to
 populate some content in CMake's script mode.
 
+.. versionchanged:: 3.14
+  ``FetchContent`` commands can access the terminal. This is necessary
+  for password prompts and real-time progress displays to work.
 
 Commands
 ^^^^^^^^
@@ -121,13 +126,13 @@ Declaring Content Details
     FetchContent_Declare(
       googletest
       GIT_REPOSITORY https://github.com/google/googletest.git
-      GIT_TAG        release-1.8.0
+      GIT_TAG        703bd9caab50b139428cea1aaff9974ebee5742e # release-1.10.0
     )
 
     FetchContent_Declare(
       myCompanyIcons
       URL      https://intranet.mycompany.com/assets/iconset_1.12.tar.gz
-      URL_HASH 5588a7b18261c20068beabfb4f530b87
+      URL_HASH MD5=5588a7b18261c20068beabfb4f530b87
     )
 
     FetchContent_Declare(
@@ -135,6 +140,11 @@ Declaring Content Details
       SVN_REPOSITORY svn+ssh://svn.mycompany.com/srv/svn/trunk/certs
       SVN_REVISION   -r12345
     )
+
+  Where contents are being fetched from a remote location and you do not
+  control that server, it is advisable to use a hash for ``GIT_TAG`` rather
+  than a branch or tag name.  A commit hash is more secure and helps to
+  confirm that the downloaded contents are what you expected.
 
 Populating The Content
 """"""""""""""""""""""
@@ -286,7 +296,7 @@ is simpler and provides additional features over the pattern above.
   The ``FetchContent_Populate()`` command also supports a syntax allowing the
   content details to be specified directly rather than using any saved
   details.  This is more low-level and use of this form is generally to be
-  avoided in favour of using saved content details as outlined above.
+  avoided in favor of using saved content details as outlined above.
   Nevertheless, in certain situations it can be useful to invoke the content
   population as an isolated operation (typically as part of implementing some
   other higher level feature or when using CMake in script mode):
@@ -369,6 +379,8 @@ is simpler and provides additional features over the pattern above.
   :variable:`CMAKE_MAKE_PROGRAM` variables will need to be set appropriately
   on the command line invoking the script.
 
+  .. versionadded:: 3.18
+    Added support for ``DOWNLOAD_NO_EXTRACT`` and ``SOURCE_SUBDIR`` options.
 
 .. command:: FetchContent_GetProperties
 
@@ -414,6 +426,8 @@ is simpler and provides additional features over the pattern above.
 
     FetchContent_MakeAvailable( <name1> [<name2>...] )
 
+  .. versionadded:: 3.14
+
   This command implements the common pattern typically needed for most
   dependencies.  It iterates over each of the named dependencies in turn
   and for each one it loosely follows the
@@ -447,12 +461,12 @@ frameworks are available to the main build:
   FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG        release-1.8.0
+    GIT_TAG        703bd9caab50b139428cea1aaff9974ebee5742e # release-1.10.0
   )
   FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    GIT_TAG        v2.5.0
+    GIT_TAG        de6fe184a9ac1a06895cdd1c9b437f0a0bdf14ad # v2.13.4
   )
 
   # After the following call, the CMake targets defined by googletest and
@@ -471,7 +485,7 @@ it into the main build:
   FetchContent_Declare(
     protobuf
     GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-    GIT_TAG        v3.12.0
+    GIT_TAG        ae50d9b9902526efd6c7a1907d09739f959c6297 # v3.15.0
     SOURCE_SUBDIR  cmake
   )
   set(protobuf_BUILD_TESTS OFF)
@@ -508,7 +522,7 @@ that all five projects are available on a company git server.  The
   FetchContent_Declare(
     projE
     GIT_REPOSITORY git@mycompany.com:git/projE.git
-    GIT_TAG        origin/release/2.3-rc1
+    GIT_TAG        v2.3-rc1
   )
 
   # Order is important, see notes in the discussion further below
@@ -955,6 +969,22 @@ ExternalProject_Add_Step(${contentName}-populate copyfile
       "-DCMAKE_EP_GIT_REMOTE_UPDATE_STRATEGY=${CMAKE_EP_GIT_REMOTE_UPDATE_STRATEGY}")
   endif()
 
+  # Avoid using if(... IN_LIST ...) so we don't have to alter policy settings
+  set(__FETCHCONTENT_CACHED_INFO "")
+  list(FIND ARG_UNPARSED_ARGUMENTS GIT_REPOSITORY indexResult)
+  if(indexResult GREATER_EQUAL 0)
+    find_package(Git QUIET)
+    set(__FETCHCONTENT_CACHED_INFO
+"# Pass through things we've already detected in the main project to avoid
+# paying the cost of redetecting them again in ExternalProject_Add()
+set(GIT_EXECUTABLE [==[${GIT_EXECUTABLE}]==])
+set(GIT_VERSION_STRING [==[${GIT_VERSION_STRING}]==])
+set_property(GLOBAL PROPERTY _CMAKE_FindGit_GIT_EXECUTABLE_VERSION
+  [==[${GIT_EXECUTABLE};${GIT_VERSION_STRING}]==]
+)
+")
+  endif()
+
   # Create and build a separate CMake project to carry out the population.
   # If we've already previously done these steps, they will not cause
   # anything to be updated, so extra rebuilds of the project won't occur.
@@ -1023,7 +1053,7 @@ function(FetchContent_Populate contentName)
     # Don't set global properties, or record that we did this population, since
     # this was a direct call outside of the normal declared details form.
     # We only want to save values in the global properties for content that
-    # honours the hierarchical details mechanism so that projects are not
+    # honors the hierarchical details mechanism so that projects are not
     # robbed of the ability to override details set in nested projects.
     return()
   endif()
@@ -1036,6 +1066,11 @@ function(FetchContent_Populate contentName)
     message(FATAL_ERROR "Content ${contentName} already populated in ${${contentNameLower}_SOURCE_DIR}")
   endif()
 
+  __FetchContent_getSavedDetails(${contentName} contentDetails)
+  if("${contentDetails}" STREQUAL "")
+    message(FATAL_ERROR "No details have been set for content: ${contentName}")
+  endif()
+
   string(TOUPPER ${contentName} contentNameUpper)
   set(FETCHCONTENT_SOURCE_DIR_${contentNameUpper}
       "${FETCHCONTENT_SOURCE_DIR_${contentNameUpper}}"
@@ -1043,14 +1078,48 @@ function(FetchContent_Populate contentName)
 
   if(FETCHCONTENT_SOURCE_DIR_${contentNameUpper})
     # The source directory has been explicitly provided in the cache,
-    # so no population is required
+    # so no population is required. The build directory may still be specified
+    # by the declared details though.
+
+    if(NOT IS_ABSOLUTE "${FETCHCONTENT_SOURCE_DIR_${contentNameUpper}}")
+      # Don't check this directory because we don't know what location it is
+      # expected to be relative to. We can't make this a hard error for backward
+      # compatibility reasons.
+      message(WARNING "Relative source directory specified. This is not safe, "
+        "as it depends on the calling directory scope.\n"
+        "  FETCHCONTENT_SOURCE_DIR_${contentNameUpper} --> ${FETCHCONTENT_SOURCE_DIR_${contentNameUpper}}")
+    elseif(NOT EXISTS "${FETCHCONTENT_SOURCE_DIR_${contentNameUpper}}")
+      message(FATAL_ERROR "Manually specified source directory is missing:\n"
+        "  FETCHCONTENT_SOURCE_DIR_${contentNameUpper} --> ${FETCHCONTENT_SOURCE_DIR_${contentNameUpper}}")
+    endif()
+
     set(${contentNameLower}_SOURCE_DIR "${FETCHCONTENT_SOURCE_DIR_${contentNameUpper}}")
-    set(${contentNameLower}_BINARY_DIR "${FETCHCONTENT_BASE_DIR}/${contentNameLower}-build")
+
+    cmake_parse_arguments(savedDetails "" "BINARY_DIR" "" ${contentDetails})
+
+    if(savedDetails_BINARY_DIR)
+      set(${contentNameLower}_BINARY_DIR ${savedDetails_BINARY_DIR})
+    else()
+      set(${contentNameLower}_BINARY_DIR "${FETCHCONTENT_BASE_DIR}/${contentNameLower}-build")
+    endif()
 
   elseif(FETCHCONTENT_FULLY_DISCONNECTED)
-    # Bypass population and assume source is already there from a previous run
-    set(${contentNameLower}_SOURCE_DIR "${FETCHCONTENT_BASE_DIR}/${contentNameLower}-src")
-    set(${contentNameLower}_BINARY_DIR "${FETCHCONTENT_BASE_DIR}/${contentNameLower}-build")
+    # Bypass population and assume source is already there from a previous run.
+    # Declared details may override the default source or build directories.
+
+    cmake_parse_arguments(savedDetails "" "SOURCE_DIR;BINARY_DIR" "" ${contentDetails})
+
+    if(savedDetails_SOURCE_DIR)
+      set(${contentNameLower}_SOURCE_DIR ${savedDetails_SOURCE_DIR})
+    else()
+      set(${contentNameLower}_SOURCE_DIR "${FETCHCONTENT_BASE_DIR}/${contentNameLower}-src")
+    endif()
+
+    if(savedDetails_BINARY_DIR)
+      set(${contentNameLower}_BINARY_DIR ${savedDetails_BINARY_DIR})
+    else()
+      set(${contentNameLower}_BINARY_DIR "${FETCHCONTENT_BASE_DIR}/${contentNameLower}-build")
+    endif()
 
   else()
     # Support both a global "disconnect all updates" and a per-content
@@ -1068,11 +1137,6 @@ function(FetchContent_Populate contentName)
       set(quietFlag QUIET)
     else()
       unset(quietFlag)
-    endif()
-
-    __FetchContent_getSavedDetails(${contentName} contentDetails)
-    if("${contentDetails}" STREQUAL "")
-      message(FATAL_ERROR "No details have been set for content: ${contentName}")
     endif()
 
     set(__detailsQuoted)
@@ -1118,11 +1182,11 @@ endfunction()
 # calls will be available to the caller.
 macro(FetchContent_MakeAvailable)
 
-  foreach(contentName IN ITEMS ${ARGV})
-    string(TOLOWER ${contentName} contentNameLower)
-    FetchContent_GetProperties(${contentName})
-    if(NOT ${contentNameLower}_POPULATED)
-      FetchContent_Populate(${contentName})
+  foreach(__cmake_contentName IN ITEMS ${ARGV})
+    string(TOLOWER ${__cmake_contentName} __cmake_contentNameLower)
+    FetchContent_GetProperties(${__cmake_contentName})
+    if(NOT ${__cmake_contentNameLower}_POPULATED)
+      FetchContent_Populate(${__cmake_contentName})
 
       # Only try to call add_subdirectory() if the populated content
       # can be treated that way. Protecting the call with the check
@@ -1133,22 +1197,28 @@ macro(FetchContent_MakeAvailable)
       # for ExternalProject. It won't matter if it was passed through
       # to the ExternalProject sub-build, since it would have been
       # ignored there.
-      set(__fc_srcdir "${${contentNameLower}_SOURCE_DIR}")
-      __FetchContent_getSavedDetails(${contentName} contentDetails)
-      if("${contentDetails}" STREQUAL "")
-        message(FATAL_ERROR "No details have been set for content: ${contentName}")
+      set(__cmake_srcdir "${${__cmake_contentNameLower}_SOURCE_DIR}")
+      __FetchContent_getSavedDetails(${__cmake_contentName} __cmake_contentDetails)
+      if("${__cmake_contentDetails}" STREQUAL "")
+        message(FATAL_ERROR "No details have been set for content: ${__cmake_contentName}")
       endif()
-      cmake_parse_arguments(__fc_arg "" "SOURCE_SUBDIR" "" ${contentDetails})
-      if(NOT "${__fc_arg_SOURCE_SUBDIR}" STREQUAL "")
-        string(APPEND __fc_srcdir "/${__fc_arg_SOURCE_SUBDIR}")
-      endif()
-
-      if(EXISTS ${__fc_srcdir}/CMakeLists.txt)
-        add_subdirectory(${__fc_srcdir} ${${contentNameLower}_BINARY_DIR})
+      cmake_parse_arguments(__cmake_arg "" "SOURCE_SUBDIR" "" ${__cmake_contentDetails})
+      if(NOT "${__cmake_arg_SOURCE_SUBDIR}" STREQUAL "")
+        string(APPEND __cmake_srcdir "/${__cmake_arg_SOURCE_SUBDIR}")
       endif()
 
-      unset(__fc_srcdir)
+      if(EXISTS ${__cmake_srcdir}/CMakeLists.txt)
+        add_subdirectory(${__cmake_srcdir} ${${__cmake_contentNameLower}_BINARY_DIR})
+      endif()
+
+      unset(__cmake_srcdir)
     endif()
   endforeach()
+
+  # clear local variables to prevent leaking into the caller's scope
+  unset(__cmake_contentName)
+  unset(__cmake_contentNameLower)
+  unset(__cmake_contentDetails)
+  unset(__cmake_arg_SOURCE_SUBDIR)
 
 endmacro()

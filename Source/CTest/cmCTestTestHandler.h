@@ -1,7 +1,6 @@
 /* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
    file Copyright.txt or https://cmake.org/licensing for details.  */
-#ifndef cmCTestTestHandler_h
-#define cmCTestTestHandler_h
+#pragma once
 
 #include "cmConfigure.h" // IWYU pragma: keep
 
@@ -176,6 +175,7 @@ public:
     std::string ExceptionStatus;
     bool CompressOutput;
     std::string CompletionStatus;
+    std::string CustomCompletionStatus;
     std::string Output;
     std::string DartString;
     int TestCount;
@@ -198,7 +198,8 @@ public:
                                 std::string filepath, std::string& filename);
 
   // full signature static method to find an executable
-  static std::string FindExecutable(cmCTest* ctest, const char* testCommand,
+  static std::string FindExecutable(cmCTest* ctest,
+                                    const std::string& testCommand,
                                     std::string& resultingConfig,
                                     std::vector<std::string>& extraPaths,
                                     std::vector<std::string>& failed);
@@ -208,6 +209,9 @@ public:
     std::vector<std::vector<cmCTestTestResourceRequirement>>& resourceGroups);
 
   using ListOfTests = std::vector<cmCTestTestProperties>;
+
+  // Support for writing test results in JUnit XML format.
+  void SetJUnitXMLFileName(const std::string& id);
 
 protected:
   using SetOfTests =
@@ -234,6 +238,8 @@ protected:
                              cmCTestTestResult const& result);
   // Write attached test files into the xml
   void AttachFiles(cmXMLWriter& xml, cmCTestTestResult& result);
+  void AttachFile(cmXMLWriter& xml, std::string const& file,
+                  std::string const& name);
 
   //! Clean test output to specified length
   void CleanTestOutput(std::string& output, size_t length);
@@ -274,6 +280,11 @@ private:
    */
   virtual void GenerateDartOutput(cmXMLWriter& xml);
 
+  /**
+   * Write test results in JUnit XML format
+   */
+  bool WriteJUnitXML();
+
   void PrintLabelOrSubprojectSummary(bool isSubProject);
 
   /**
@@ -285,10 +296,10 @@ private:
   /**
    * Get the list of tests in directory and subdirectories.
    */
-  void GetListOfTests();
+  bool GetListOfTests();
   // compute the lists of tests that will actually run
   // based on union regex and -I stuff
-  void ComputeTestList();
+  bool ComputeTestList();
 
   // compute the lists of tests that will actually run
   // based on LastTestFailed.log
@@ -309,7 +320,7 @@ private:
   /**
    * Find the executable for a test
    */
-  std::string FindTheExecutable(const char* exe);
+  std::string FindTheExecutable(const std::string& exe);
 
   std::string GetTestStatus(cmCTestTestResult const&);
   void ExpandTestsToRunInformation(size_t numPossibleTests);
@@ -320,20 +331,16 @@ private:
 
   std::vector<int> TestsToRun;
 
-  bool UseIncludeLabelRegExpFlag;
-  bool UseExcludeLabelRegExpFlag;
   bool UseIncludeRegExpFlag;
   bool UseExcludeRegExpFlag;
   bool UseExcludeRegExpFirst;
-  std::string IncludeLabelRegExp;
-  std::string ExcludeLabelRegExp;
   std::string IncludeRegExp;
   std::string ExcludeRegExp;
   std::string ExcludeFixtureRegExp;
   std::string ExcludeFixtureSetupRegExp;
   std::string ExcludeFixtureCleanupRegExp;
-  cmsys::RegularExpression IncludeLabelRegularExpression;
-  cmsys::RegularExpression ExcludeLabelRegularExpression;
+  std::vector<cmsys::RegularExpression> IncludeLabelRegularExpressions;
+  std::vector<cmsys::RegularExpression> ExcludeLabelRegularExpressions;
   cmsys::RegularExpression IncludeTestsRegularExpression;
   cmsys::RegularExpression ExcludeTestsRegularExpression;
 
@@ -352,12 +359,13 @@ private:
   ListOfTests TestList;
   size_t TotalNumberOfTests;
   cmsys::RegularExpression DartStuff;
+  cmsys::RegularExpression CustomCompletionStatusRegex;
 
   std::ostream* LogFile;
 
   cmCTest::Repeat RepeatMode = cmCTest::Repeat::Never;
   int RepeatCount = 1;
   bool RerunFailed;
-};
 
-#endif
+  std::string JUnitXMLFileName;
+};

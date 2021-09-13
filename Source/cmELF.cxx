@@ -168,6 +168,9 @@ public:
   // Return the recorded ELF type.
   cmELF::FileType GetFileType() const { return this->ELFType; }
 
+  // Return the recorded machine.
+  std::uint16_t GetMachine() const { return this->Machine; }
+
 protected:
   // Data common to all ELF class implementations.
 
@@ -182,6 +185,9 @@ protected:
 
   // The ELF file type.
   cmELF::FileType ELFType;
+
+  // The ELF architecture.
+  std::uint16_t Machine;
 
   // Whether we need to byte-swap structures read from the stream.
   bool NeedSwap;
@@ -379,7 +385,7 @@ private:
 
     // Fix the byte order of the header.
     if (this->NeedSwap) {
-      ByteSwap(x);
+      this->ByteSwap(x);
     }
     return true;
   }
@@ -387,7 +393,7 @@ private:
   {
     if (this->Stream->read(reinterpret_cast<char*>(&x), sizeof(x)) &&
         this->NeedSwap) {
-      ByteSwap(x);
+      this->ByteSwap(x);
     }
     return !this->Stream->fail();
   }
@@ -395,7 +401,7 @@ private:
   {
     if (this->Stream->read(reinterpret_cast<char*>(&x), sizeof(x)) &&
         this->NeedSwap) {
-      ByteSwap(x);
+      this->ByteSwap(x);
     }
     return !this->Stream->fail();
   }
@@ -477,6 +483,8 @@ cmELFInternalImpl<Types>::cmELFInternalImpl(cmELF* external,
       return;
     }
   }
+
+  this->Machine = this->ELFHeader.e_machine;
 
   // Load the section headers.
   this->SectionHeaders.resize(this->ELFHeader.e_shnum);
@@ -573,7 +581,7 @@ std::vector<char> cmELFInternalImpl<Types>::EncodeDynamicEntries(
     dyn.d_un.d_val = static_cast<tagtype>(entry.second);
 
     if (this->NeedSwap) {
-      ByteSwap(dyn);
+      this->ByteSwap(dyn);
     }
 
     char* pdyn = reinterpret_cast<char*>(&dyn);
@@ -755,6 +763,14 @@ cmELF::FileType cmELF::GetFileType() const
     return this->Internal->GetFileType();
   }
   return FileTypeInvalid;
+}
+
+std::uint16_t cmELF::GetMachine() const
+{
+  if (this->Valid()) {
+    return this->Internal->GetMachine();
+  }
+  return 0;
 }
 
 unsigned int cmELF::GetNumberOfSections() const

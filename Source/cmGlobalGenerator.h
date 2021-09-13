@@ -1,19 +1,21 @@
 /* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
    file Copyright.txt or https://cmake.org/licensing for details.  */
-#ifndef cmGlobalGenerator_h
-#define cmGlobalGenerator_h
+#pragma once
 
 #include "cmConfigure.h" // IWYU pragma: keep
 
+#include <cstddef>
 #include <iosfwd>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
+#include <cm/optional>
 #include <cmext/algorithm>
 
 #include "cm_codecvt.hxx"
@@ -26,6 +28,7 @@
 #include "cmSystemTools.h"
 #include "cmTarget.h"
 #include "cmTargetDepend.h"
+#include "cmTransformDepfile.h"
 
 #if !defined(CMAKE_BOOTSTRAP)
 #  include <cm3p/json/value.h>
@@ -39,6 +42,7 @@ class cmDirectoryId;
 class cmExportBuildFileGenerator;
 class cmExternalMakefileProjectGenerator;
 class cmGeneratorTarget;
+class cmInstallRuntimeDependencySet;
 class cmLinkLineComputer;
 class cmLocalGenerator;
 class cmMakefile;
@@ -66,17 +70,17 @@ struct GeneratedMakeCommand
   void Add(T&&... args)
   {
     // iterate the args and append each one
-    AppendStrs(PrimaryCommand, std::forward<T>(args)...);
+    AppendStrs(this->PrimaryCommand, std::forward<T>(args)...);
   }
 
   // Add each value in the iterators as a separate element to the vector
   void Add(std::vector<std::string>::const_iterator start,
            std::vector<std::string>::const_iterator end)
   {
-    cm::append(PrimaryCommand, start, end);
+    cm::append(this->PrimaryCommand, start, end);
   }
 
-  std::string Printable() const { return cmJoin(PrimaryCommand, " "); }
+  std::string Printable() const { return cmJoin(this->PrimaryCommand, " "); }
 
   std::vector<std::string> PrimaryCommand;
   bool RequiresOutputForward = false;
@@ -246,9 +250,13 @@ public:
 
   virtual void PrintBuildCommandAdvice(std::ostream& os, int jobs) const;
 
-  /** Generate a "cmake --build" call for a given target and config.  */
+  /**
+   * Generate a "cmake --build" call for a given target, config and parallel
+   * level.
+   */
   std::string GenerateCMakeBuildCommand(const std::string& target,
                                         const std::string& config,
+                                        const std::string& parallel,
                                         const std::string& native,
                                         bool ignoreErrors);
 
@@ -264,6 +272,9 @@ public:
   {
     return this->LocalGenerators;
   }
+
+  std::vector<cmGeneratorTarget*> GetLocalGeneratorTargetsInOrder(
+    cmLocalGenerator* lg) const;
 
   cmMakefile* GetCurrentMakefile() const
   {
@@ -284,6 +295,11 @@ public:
   std::string GetExtraGeneratorName() const;
 
   void AddInstallComponent(const std::string& component);
+
+  /** Mark the (absolute path to a) file as generated.  */
+  void MarkAsGeneratedFile(const std::string& filepath);
+  /** Determine if the absolute filepath belongs to a generated file.  */
+  bool IsGeneratedFile(const std::string& filepath);
 
   const std::set<std::string>* GetInstallComponents() const
   {
@@ -427,6 +443,8 @@ public:
 
   virtual bool IsVisualStudio() const { return false; }
 
+  virtual bool IsNinja() const { return false; }
+
   /** Return true if we know the exact location of object files.
       If false, store the reason in the given string.
       This is meaningful only after EnableLanguage has been called.  */
@@ -449,6 +467,10 @@ public:
   virtual bool ShouldStripResourcePath(cmMakefile*) const;
 
   virtual bool SupportsCustomCommandDepfile() const { return false; }
+  virtual cm::optional<cmDepfileFormat> DepfileFormat() const
+  {
+    return cm::nullopt;
+  }
 
   std::string GetSharedLibFlagsForLanguage(std::string const& lang) const;
 
@@ -486,7 +508,7 @@ public:
     cmSourceFile* sf) const;
 
 #if !defined(CMAKE_BOOTSTRAP)
-  cmFileLockPool& GetFileLockPool() { return FileLockPool; }
+  cmFileLockPool& GetFileLockPool() { return this->FileLockPool; }
 #endif
 
   bool GetConfigureDoneCMP0026() const
@@ -504,6 +526,13 @@ public:
   }
 
   std::string const& GetRealPath(std::string const& dir);
+
+  std::string NewDeferId();
+
+  cmInstallRuntimeDependencySet* CreateAnonymousRuntimeDependencySet();
+
+  cmInstallRuntimeDependencySet* GetNamedRuntimeDependencySet(
+    const std::string& name);
 
 protected:
   // for a project collect all its targets by following depend
@@ -542,7 +571,8 @@ protected:
   bool IsExcluded(cmStateSnapshot const& root,
                   cmStateSnapshot const& snp) const;
   bool IsExcluded(cmLocalGenerator* root, cmLocalGenerator* gen) const;
-  bool IsExcluded(cmLocalGenerator* root, cmGeneratorTarget* target) const;
+  bool IsExcluded(cmLocalGenerator* root,
+                  const cmGeneratorTarget* target) const;
   virtual void InitializeProgressMarks() {}
 
   struct GlobalTargetInfo
@@ -562,8 +592,9 @@ protected:
   void AddGlobalTarget_Package(std::vector<GlobalTargetInfo>& targets);
   void AddGlobalTarget_PackageSource(std::vector<GlobalTargetInfo>& targets);
   void AddGlobalTarget_Test(std::vector<GlobalTargetInfo>& targets);
-  void AddGlobalTarget_EditCache(std::vector<GlobalTargetInfo>& targets);
-  void AddGlobalTarget_RebuildCache(std::vector<GlobalTargetInfo>& targets);
+  void AddGlobalTarget_EditCache(std::vector<GlobalTargetInfo>& targets) const;
+  void AddGlobalTarget_RebuildCache(
+    std::vector<GlobalTargetInfo>& targets) const;
   void AddGlobalTarget_Install(std::vector<GlobalTargetInfo>& targets);
   cmTarget CreateGlobalTarget(GlobalTargetInfo const& gti, cmMakefile* mf);
 
@@ -589,7 +620,18 @@ protected:
 
   cmGeneratorTarget* FindGeneratorTargetImpl(std::string const& name) const;
 
-  std::string GetPredefinedTargetsFolder();
+  std::string GetPredefinedTargetsFolder() const;
+
+  enum class FindMakeProgramStage
+  {
+    Early,
+    Late,
+  };
+
+  virtual FindMakeProgramStage GetFindMakeProgramStage() const
+  {
+    return FindMakeProgramStage::Late;
+  }
 
 private:
   using TargetMap = std::unordered_map<std::string, cmTarget*>;
@@ -613,6 +655,10 @@ private:
   // Its order is not deterministic.
   LocalGeneratorMap LocalGeneratorSearchIndex;
 
+  void ComputeTargetOrder();
+  void ComputeTargetOrder(cmGeneratorTarget const* gt, size_t& index);
+  std::map<cmGeneratorTarget const*, size_t> TargetOrderIndex;
+
   cmMakefile* TryCompileOuterMakefile;
   // If you add a new map here, make sure it is copied
   // in EnableLanguagesFromGenerator
@@ -624,6 +670,9 @@ private:
   std::map<std::string, std::string> ExtensionToLanguage;
   std::map<std::string, int> LanguageToLinkerPreference;
   std::map<std::string, std::string> LanguageToOriginalSharedLibFlags;
+
+  // Deferral id generation.
+  size_t NextDeferId = 0;
 
   // Record hashes for rules and outputs.
   struct RuleHash
@@ -702,6 +751,13 @@ private:
 
   std::map<std::string, std::string> RealPaths;
 
+  std::unordered_set<std::string> GeneratedFiles;
+
+  std::vector<std::unique_ptr<cmInstallRuntimeDependencySet>>
+    RuntimeDependencySets;
+  std::map<std::string, cmInstallRuntimeDependencySet*>
+    RuntimeDependencySetsByName;
+
 #if !defined(CMAKE_BOOTSTRAP)
   // Pool of file locks
   cmFileLockPool FileLockPool;
@@ -716,5 +772,3 @@ protected:
   bool InstallTargetEnabled;
   bool ConfigureDoneCMP0026AndCMP0024;
 };
-
-#endif

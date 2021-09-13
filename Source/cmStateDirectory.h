@@ -1,8 +1,7 @@
 /* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
    file Copyright.txt or https://cmake.org/licensing for details.  */
 
-#ifndef cmStateDirectory_h
-#define cmStateDirectory_h
+#pragma once
 
 #include "cmConfigure.h" // IWYU pragma: keep
 
@@ -28,17 +27,6 @@ public:
   void SetCurrentSource(std::string const& dir);
   std::string const& GetCurrentBinary() const;
   void SetCurrentBinary(std::string const& dir);
-
-  std::string const& GetRelativePathTopSource() const;
-  std::string const& GetRelativePathTopBinary() const;
-  void SetRelativePathTopSource(const char* dir);
-  void SetRelativePathTopBinary(const char* dir);
-
-  bool ContainsBoth(std::string const& local_path,
-                    std::string const& remote_path) const;
-
-  std::string ConvertToRelPathIfNotContained(
-    std::string const& local_path, std::string const& remote_path) const;
 
   cmStringRange GetIncludeDirectoriesEntries() const;
   cmBacktraceRange GetIncludeDirectoriesEntryBacktraces() const;
@@ -93,10 +81,7 @@ public:
   std::vector<std::string> GetPropertyKeys() const;
 
   void AddNormalTargetName(std::string const& name);
-
-private:
-  void ComputeRelativePathTopSource();
-  void ComputeRelativePathTopBinary();
+  void AddImportedTargetName(std::string const& name);
 
 private:
   cmLinkedTree<cmStateDetail::BuildsystemDirectoryStateType>::iterator
@@ -104,5 +89,3 @@ private:
   cmStateSnapshot Snapshot_;
   friend class cmStateSnapshot;
 };
-
-#endif

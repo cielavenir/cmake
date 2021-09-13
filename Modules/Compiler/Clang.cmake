@@ -56,6 +56,7 @@ else()
     set(_CMAKE_${lang}_IPO_MAY_BE_SUPPORTED_BY_COMPILER YES)
 
     string(COMPARE EQUAL "${CMAKE_${lang}_COMPILER_ID}" "AppleClang" __is_apple_clang)
+    string(COMPARE EQUAL "${CMAKE_${lang}_COMPILER_ID}" "FujitsuClang" __is_fujitsu_clang)
 
     # '-flto=thin' available since Clang 3.9 and Xcode 8
     # * http://clang.llvm.org/docs/ThinLTO.html#clang-llvm
@@ -65,6 +66,8 @@ else()
       if(CMAKE_${lang}_COMPILER_VERSION VERSION_LESS 8.0)
         set(_CMAKE_LTO_THIN FALSE)
       endif()
+    elseif(__is_fujitsu_clang)
+      set(_CMAKE_LTO_THIN FALSE)
     else()
       if(CMAKE_${lang}_COMPILER_VERSION VERSION_LESS 3.9)
         set(_CMAKE_LTO_THIN FALSE)
@@ -77,7 +80,7 @@ else()
       set(CMAKE_${lang}_COMPILE_OPTIONS_IPO "-flto")
     endif()
 
-    if(ANDROID)
+    if(ANDROID AND NOT CMAKE_ANDROID_NDK_VERSION VERSION_GREATER_EQUAL "22")
       # https://github.com/android-ndk/ndk/issues/242
       set(CMAKE_${lang}_LINK_OPTIONS_IPO "-fuse-ld=gold")
     endif()
@@ -105,6 +108,9 @@ else()
     set(CMAKE_PCH_EXTENSION .pch)
     if (NOT CMAKE_GENERATOR MATCHES "Xcode")
       set(CMAKE_PCH_PROLOGUE "#pragma clang system_header")
+    endif()
+    if(CMAKE_${lang}_COMPILER_VERSION VERSION_GREATER_EQUAL 11.0.0 AND NOT __is_apple_clang)
+      set(CMAKE_${lang}_COMPILE_OPTIONS_INSTANTIATE_TEMPLATES_PCH -fpch-instantiate-templates)
     endif()
     set(CMAKE_${lang}_COMPILE_OPTIONS_USE_PCH -Xclang -include-pch -Xclang <PCH_FILE> -Xclang -include -Xclang <PCH_HEADER>)
     set(CMAKE_${lang}_COMPILE_OPTIONS_CREATE_PCH -Xclang -emit-pch -Xclang -include -Xclang <PCH_HEADER> -x ${__pch_header_${lang}})
@@ -151,10 +157,6 @@ macro(__compiler_clang_cxx_standards lang)
       set(CMAKE_${lang}17_EXTENSION_COMPILE_OPTION "-std=gnu++1z")
     endif()
 
-    if(NOT CMAKE_${lang}_COMPILER_VERSION VERSION_LESS 6.0)
-      set(CMAKE_${lang}17_STANDARD__HAS_FULL_SUPPORT ON)
-    endif()
-
     if(NOT CMAKE_${lang}_COMPILER_VERSION VERSION_LESS 11.0)
       set(CMAKE_${lang}20_STANDARD_COMPILE_OPTION "-std=c++20")
       set(CMAKE_${lang}20_EXTENSION_COMPILE_OPTION "-std=gnu++20")
@@ -164,6 +166,11 @@ macro(__compiler_clang_cxx_standards lang)
     endif()
 
     unset(_clang_version_std17)
+
+    if(NOT CMAKE_${lang}_COMPILER_VERSION VERSION_LESS 12.0)
+      set(CMAKE_${lang}23_STANDARD_COMPILE_OPTION "-std=c++2b")
+      set(CMAKE_${lang}23_EXTENSION_COMPILE_OPTION "-std=gnu++2b")
+    endif()
 
     if("x${CMAKE_${lang}_SIMULATE_ID}" STREQUAL "xMSVC")
       # The MSVC standard library requires C++14, and MSVC itself has no
@@ -176,8 +183,6 @@ macro(__compiler_clang_cxx_standards lang)
       # This clang++ is missing some features because of MSVC compatibility.
       unset(CMAKE_${lang}11_STANDARD__HAS_FULL_SUPPORT)
       unset(CMAKE_${lang}14_STANDARD__HAS_FULL_SUPPORT)
-      unset(CMAKE_${lang}17_STANDARD__HAS_FULL_SUPPORT)
-      unset(CMAKE_${lang}20_STANDARD__HAS_FULL_SUPPORT)
     endif()
 
     __compiler_check_default_language_standard(${lang} 2.1 98)
@@ -192,14 +197,23 @@ macro(__compiler_clang_cxx_standards lang)
     set(CMAKE_${lang}11_EXTENSION_COMPILE_OPTION "")
     set(CMAKE_${lang}14_STANDARD_COMPILE_OPTION "-std:c++14")
     set(CMAKE_${lang}14_EXTENSION_COMPILE_OPTION "-std:c++14")
-    if (CMAKE_${lang}_COMPILER_VERSION VERSION_GREATER_EQUAL 6.0)
+
+    if(CMAKE_${lang}_COMPILER_VERSION VERSION_GREATER_EQUAL 6.0)
       set(CMAKE_${lang}17_STANDARD_COMPILE_OPTION "-std:c++17")
       set(CMAKE_${lang}17_EXTENSION_COMPILE_OPTION "-std:c++17")
-      set(CMAKE_${lang}20_STANDARD_COMPILE_OPTION "-std:c++latest")
-      set(CMAKE_${lang}20_EXTENSION_COMPILE_OPTION "-std:c++latest")
     else()
       set(CMAKE_${lang}17_STANDARD_COMPILE_OPTION "-std:c++latest")
       set(CMAKE_${lang}17_EXTENSION_COMPILE_OPTION "-std:c++latest")
+    endif()
+
+    if(CMAKE_${lang}_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+      set(CMAKE_${lang}23_STANDARD_COMPILE_OPTION "-std:c++latest")
+      set(CMAKE_${lang}23_EXTENSION_COMPILE_OPTION "-std:c++latest")
+      set(CMAKE_${lang}20_STANDARD_COMPILE_OPTION "-std:c++20")
+      set(CMAKE_${lang}20_EXTENSION_COMPILE_OPTION "-std:c++20")
+    elseif(CMAKE_${lang}_COMPILER_VERSION VERSION_GREATER_EQUAL 6.0)
+      set(CMAKE_${lang}20_STANDARD_COMPILE_OPTION "-std:c++latest")
+      set(CMAKE_${lang}20_EXTENSION_COMPILE_OPTION "-std:c++latest")
     endif()
 
     __compiler_check_default_language_standard(${lang} 3.9 14)
@@ -217,6 +231,8 @@ macro(__compiler_clang_cxx_standards lang)
     set(CMAKE_${lang}17_EXTENSION_COMPILE_OPTION "")
     set(CMAKE_${lang}20_STANDARD_COMPILE_OPTION "")
     set(CMAKE_${lang}20_EXTENSION_COMPILE_OPTION "")
+    set(CMAKE_${lang}23_STANDARD_COMPILE_OPTION "")
+    set(CMAKE_${lang}23_EXTENSION_COMPILE_OPTION "")
 
     # There is no meaningful default for this
     set(CMAKE_${lang}_STANDARD_DEFAULT "")
@@ -232,6 +248,7 @@ macro(__compiler_clang_cxx_standards lang)
         cxx_std_14
         cxx_std_17
         cxx_std_20
+        cxx_std_23
         )
       _record_compiler_features(${lang} "" CMAKE_${lang}_COMPILE_FEATURES)
     endmacro()

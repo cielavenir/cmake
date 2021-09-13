@@ -7,6 +7,7 @@ macro(AddCMakeTest TestName PreArgs)
   add_test(NAME CMake.${TestName}
     COMMAND ${CMAKE_EXECUTABLE} ${PreArgs}
     -P "${CMAKE_CURRENT_BINARY_DIR}/${TestName}Test.cmake" ${ARGN})
+  set_tests_properties("CMake.${TestName}" PROPERTIES LABELS "CMake;command")
 endmacro()
 
 
@@ -35,7 +36,7 @@ AddCMakeTest(CMakeHostSystemInformation "")
 AddCMakeTest(FileDownload "")
 set_tests_properties(CMake.FileDownload PROPERTIES
   PASS_REGULAR_EXPRESSION "file already exists with expected MD5 sum"
-  FAIL_REGULAR_EXPRESSION "Unexpected status"
+  FAIL_REGULAR_EXPRESSION "Unexpected status|incorrectly interpreted"
   )
 AddCMakeTest(FileDownloadBadHash "")
 set_property(TEST CMake.FileDownloadBadHash PROPERTY
@@ -43,10 +44,6 @@ set_property(TEST CMake.FileDownloadBadHash PROPERTY
   )
 
 AddCMakeTest(FileUpload "")
-
-if(HAVE_ELF_H)
-  AddCMakeTest(ELF "")
-endif()
 
 set(EndStuff_PreArgs
   "-Ddir:STRING=${CMAKE_CURRENT_BINARY_DIR}/EndStuffTest"

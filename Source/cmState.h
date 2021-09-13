@@ -1,15 +1,15 @@
 /* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
    file Copyright.txt or https://cmake.org/licensing for details.  */
-#ifndef cmState_h
-#define cmState_h
+#pragma once
 
 #include "cmConfigure.h" // IWYU pragma: keep
 
 #include <functional>
-#include <map>
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "cmDefinitions.h"
@@ -25,6 +25,7 @@
 class cmCacheManager;
 class cmCommand;
 class cmGlobVerificationManager;
+class cmMakefile;
 class cmStateSnapshot;
 class cmMessenger;
 class cmExecutionStatus;
@@ -56,6 +57,8 @@ public:
   cmStateSnapshot CreateBaseSnapshot();
   cmStateSnapshot CreateBuildsystemDirectorySnapshot(
     cmStateSnapshot const& originSnapshot);
+  cmStateSnapshot CreateDeferCallSnapshot(
+    cmStateSnapshot const& originSnapshot, std::string const& fileName);
   cmStateSnapshot CreateFunctionCallSnapshot(
     cmStateSnapshot const& originSnapshot, std::string const& fileName);
   cmStateSnapshot CreateMacroCallSnapshot(
@@ -85,6 +88,8 @@ public:
   bool SaveCache(const std::string& path, cmMessenger* messenger);
 
   bool DeleteCache(const std::string& path);
+
+  bool IsCacheLoaded() const;
 
   std::vector<std::string> GetCacheEntryKeys() const;
   cmProp GetCacheEntryValue(std::string const& key) const;
@@ -156,10 +161,15 @@ public:
                          std::unique_ptr<cmCommand> command);
   void AddBuiltinCommand(std::string const& name, Command command);
   void AddBuiltinCommand(std::string const& name, BuiltinCommand command);
+  void AddFlowControlCommand(std::string const& name, Command command);
+  void AddFlowControlCommand(std::string const& name, BuiltinCommand command);
   void AddDisallowedCommand(std::string const& name, BuiltinCommand command,
                             cmPolicies::PolicyID policy, const char* message);
   void AddUnexpectedCommand(std::string const& name, const char* error);
-  void AddScriptedCommand(std::string const& name, Command command);
+  void AddUnexpectedFlowControlCommand(std::string const& name,
+                                       const char* error);
+  bool AddScriptedCommand(std::string const& name, BT<Command> command,
+                          cmMakefile& mf);
   void RemoveBuiltinCommand(std::string const& name);
   void RemoveUserDefinedCommands();
   std::vector<std::string> GetCommandNames() const;
@@ -220,8 +230,9 @@ private:
 
   cmPropertyDefinitionMap PropertyDefinitions;
   std::vector<std::string> EnabledLanguages;
-  std::map<std::string, Command> BuiltinCommands;
-  std::map<std::string, Command> ScriptedCommands;
+  std::unordered_map<std::string, Command> BuiltinCommands;
+  std::unordered_map<std::string, Command> ScriptedCommands;
+  std::unordered_set<std::string> FlowControlCommands;
   cmPropertyMap GlobalProperties;
   std::unique_ptr<cmCacheManager> CacheManager;
   std::unique_ptr<cmGlobVerificationManager> GlobVerificationManager;
@@ -249,5 +260,3 @@ private:
   bool NinjaMulti = false;
   Mode CurrentMode = Unknown;
 };
-
-#endif
