@@ -1,1 +1,2 @@
 0001-Fix-cross-compilation-with-MPI.patch
+0002-Prefer-Debian-default-version-of-Python.patch
