@@ -90,6 +90,7 @@ Description: Qt based user interface for CMake (cmake-gui)
 
 Package: cmake-doc
 Architecture: all
+Multi-Arch: foreign
 Section: doc
 Depends: ${misc:Depends}, ${sphinxdoc:Depends}, cmake-data (= ${source:Version})
 Recommends: doc-base

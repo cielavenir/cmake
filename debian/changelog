@@ -17,12 +17,12 @@ cmake (3.21.2-1) unstable; urgency=medium
     - Drop disable_fileapi_json_extra_test.patch
       (no longer needed)
     - New patch Fix-cross-compilation-with-MPI.patch (Closes: #943312)
+    - New patch Prefer-Debian-default-version-of-Python.patch (Closes: #945825)
   * Bump Standards-Version to 4.6.0
   * Switch to debhelper version 13
   * Unset *_proxy variables in autopkgtest (Closes: #960179)
-  * Prefer Debian's default Python 3 version in FindPython.cmake
-    (Closes: #945825)
   * Add myself to uploaders
+  * Mark cmake-doc as Multi-Arch: foreign
 
  -- Timo Röhling <roehling@debian.org>  Tue, 14 Sep 2021 18:05:46 +0200
 
