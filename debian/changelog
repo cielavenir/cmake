@@ -1,4 +1,4 @@
-cmake (3.21.2-1) UNRELEASED; urgency=medium
+cmake (3.21.2-1) unstable; urgency=medium
 
   [ Debian Janitor ]
   * Trim trailing whitespace.
@@ -11,8 +11,20 @@ cmake (3.21.2-1) UNRELEASED; urgency=medium
       (Closes: #728108)
     - Rewrite documentation for UseJava.cmake (Closes: #986327)
     - Add PostgreSQL 13 to list of known versions (Closes: #990623)
+  * Update patches
+    - Drop Compile_with_FILE_OFFSET_BITS_64_on_32-bit_Linux.patch
+      (accepted by upstream)
+    - Drop disable_fileapi_json_extra_test.patch
+      (no longer needed)
+    - New patch Fix-cross-compilation-with-MPI.patch (Closes: #943312)
+  * Bump Standards-Version to 4.6.0
+  * Switch to debhelper version 13
+  * Unset *_proxy variables in autopkgtest (Closes: #960179)
+  * Prefer Debian's default Python 3 version in FindPython.cmake
+    (Closes: #945825)
+  * Add myself to uploaders
 
- -- Timo Röhling <roehling@debian.org>  Tue, 14 Sep 2021 01:09:43 +0200
+ -- Timo Röhling <roehling@debian.org>  Tue, 14 Sep 2021 18:05:46 +0200
 
 cmake (3.18.4-2) unstable; urgency=medium
 
