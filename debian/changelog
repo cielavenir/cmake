@@ -1,10 +1,18 @@
-cmake (3.18.4-3) UNRELEASED; urgency=medium
+cmake (3.21.2-1) UNRELEASED; urgency=medium
 
+  [ Debian Janitor ]
   * Trim trailing whitespace.
   * Fix day-of-week for changelog entries 1.2-1, 1.0-1, 1.2-1, 1.0-1.
   * Drop transition for old debug package migration.
 
- -- Debian Janitor <janitor@jelmer.uk>  Fri, 03 Sep 2021 17:36:22 -0000
+  [ Timo Röhling ]
+  * New upstream version 3.21.2
+    - Map LANGUAGE source file property to compiler language flag
+      (Closes: #728108)
+    - Rewrite documentation for UseJava.cmake (Closes: #986327)
+    - Add PostgreSQL 13 to list of known versions (Closes: #990623)
+
+ -- Timo Röhling <roehling@debian.org>  Tue, 14 Sep 2021 01:09:43 +0200
 
 cmake (3.18.4-2) unstable; urgency=medium
 
