@@ -3,7 +3,8 @@ Section: devel
 Priority: optional
 Maintainer: Debian CMake Team <pkg-cmake-team@lists.alioth.debian.org>
 Uploaders: Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>,
-           Felix Geyer <fgeyer@debian.org>
+           Felix Geyer <fgeyer@debian.org>,
+           Timo Röhling <roehling@debian.org>
 Build-Depends: debhelper-compat (= 13),
                freebsd-glue [kfreebsd-any],
                libarchive-dev (>= 3.3.3),
