@@ -70,4 +70,4 @@ override_dh_sphinxdoc:
 	dh_sphinxdoc -pcmake-doc
 
 %:
-	dh $@ --with=sphinxdoc --builddirectory=Build
+	dh $@ --builddirectory=Build
