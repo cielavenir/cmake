@@ -3,7 +3,7 @@ Upstream-Name: cmake
 Source: http://www.cmake.org/files/v*/
 
 Files: *
-Copyright: 2000-2011 Kitware, Inc., Insight Software Consortium
+Copyright: 2000-2021 Kitware, Inc., Insight Software Consortium
 License: BSD-3-clause
 Comments: CMake was initially developed by Kitware with the following
  sponsorship:
@@ -25,6 +25,7 @@ Copyright: 2001-2006 A. Maitland Bottoms <bottoms@debian.org>
   2008-2010 Modestas Vainius <modax@debian.org>
   2010 Kai Wasserbäch <debian@carbon-project.org>
   2014 Felix Geyer <fgeyer@debian.org>
+  2021 Timo Röhlng <roehling@debian.org>
 License: BSD-3-clause
 
 Files: debian/debtoolchainfilegen
@@ -55,52 +56,115 @@ Files: Source/cmcldeps.cxx
 Copyright: 2011 Google Inc.
 License: Apache-2.0
 
-Files: Utilities/cmlibarchive/libarchive/*
-Copyright: 2007-2010 Joerg Sonnenberger
-  2003-2011 Tim Kientzle
-  2003-2008 Miklos Vajna
-  2009-2012 Michihiro NAKAJIMA
-  2011-2012 libarchive Project
-  2011 Andres Mejia
-  2001 The NetBSD Foundation, Inc.
-  2007 Kai Wang
-  2008 Anselm Strauss
-  2010 Nokia Corporation and/or its subsidiary(-ies).
-  2006 Rudolf Marek SYSGO s.r.o.
-  2002 Thomas Moestl <tmm@FreeBSD.org>
-  2009 Andreas Henriksson <andreas@fatal.se>
-  1994 The Regents of the University of California
-  1996-2008 PostgreSQL Global Development Group
-  2003-2007 Kees Zeelenberg
-  2012 Ondrej Holy
+Files: Utilities/cmlibarchive/*
+Copyright: 2016-2020 Martin Matuska
+           2018 Grzegorz Antoniak
+           2009-2017 Sean Purcell
+           2003-2015 Tim Kientzle
+           2015 Okhotnikov Kirill
+           2008-2014 Michihiro NAKAJIMA
+           2012-2014 Yann Collet
+           2014 Sebastian Freundt
+           2013 Konrad Kleine
+           2013 Marek Kubica
+           2012 Ondrej Holy
+           2011-2012 libarchive Project
+           2011 Andres Mejia
+           2007-2010 Joerg Sonnenberger
+           2010 Nokia Corporation and/or its subsidiary(-ies).
+           2009 Andreas Henriksson <andreas@fatal.se>
+           1996-2008 PostgreSQL Global Development Group
+           2003-2008 Miklos Vajna
+           2008 Anselm Strauss
+           2003-2007 Kees Zeelenberg
+           2007 Kai Wang
+           2006 Rudolf Marek SYSGO s.r.o.
+           2002 Thomas Moestl <tmm@FreeBSD.org>
+           2001 The NetBSD Foundation, Inc.
+           1994 The Regents of the University of California
 License: BSD-2-clause
 
-Files: Utilities/cmlibarchive/libarchive/archive_read_support_filter_compress.c
-  Utilities/cmlibarchive/libarchive/archive_write_add_filter_compress.c
-Copyright: 2003-2007 Tim Kientzle
-  1985-1986 1992-1993 The Regents of the University of California
-  2008 Joerg Sonnenberger
-License: BSD-3-clause
+Files: Utilities/cmlibarchive/CMakeLists.txt
+       Utilities/cmlibarchive/CTestConfig.cmake
+       Utilities/cmlibarchive/build/cmake/*
+       Utilities/cmlibarchive/build/pkgconfig/*
+       Utilities/cmlibarchive/build/version
+       Utilities/cmlibarchive/libarchive/archive_entry.c
+       Utilities/cmlibarchive/libarchive/archive_read_support_filter_compress.c
+       Utilities/cmlibarchive/libarchive/archive_write_add_filter_compress.c
+       Utilities/cmlibarchive/libarchive/mtree.5
+Copyright: 2006 Alexander Neundorf <neundorf@kde.org>
+           2008 Joerg Sonnenberger
+           2016 Martin Matuska
+           2009 Michihiro NAKAJIMA
+           1985-1993 The Regents of the University of California
+           2003-2007 Tim Kientzle
+License: BSD-2-clause or BSD-3-clause
 
 Files: Utilities/cmcurl/*
-Copyright: 1998-2007 Daniel Stenberg <daniel@haxx.se>
-  1996 Internet Software Consortium
+Copyright: 1996-2021 Internet Software Consortium
+           1997-2021 Daniel Stenberg <daniel@haxx.se>
+           2014-2021 Steve Holme <steve_holme@hotmail.com>
+           2017-2021 Red Hat, Inc
+           2019-2021 Michael Forney <mforney@mforney.org>
+           2020-2021 Simon Josefsson <simon@josefsson.org>
+           2020-2021 Jacob Hoffman-Andrews
+           2010-2020 Howard Chu <hyc@highlandsun.com>
+           2019-2020 Björn Stenberg <bjorn@haxx.se>
+           2017-2018 Yiming Jing <jingyiming@baidu.com>
+           2012-2017 Nick Zitzmann <nickzman@gmail.com>
+           2017 Florin Petriuc <petriuc.florin@gmail.com>
+           2012-2016 Linus Nielsen Feltzing <linus@haxx.se>
+           2012-2016 Marc Hoersken <info@marc-hoersken.de>
+           2014 Bill Nagel <wnagel@tycoint.com>
+           2014 Exacq Technologies
+           2012 Mark Salisbury <mark.salisbury@hp.com>
+           2009-2011 Markus Moeller <markus_moeller@compuserve.com>
+           2010-2011 Hoi-Ho Chan <hoiho.chan@gmail.com>
+           2001-2004 Damien Miller <djm@openbsd.org>
+           2001 Alexander Peslyak
 License: ISC
 
-Files: Utilities/cmcompress/*
-Copyright: 1985-1986 The Regents of the University of California
-License: BSD-4-clause
+Files: Utilities/cmlibuv/*
+Copyright: 2015 libuv project contributors
+License: Expat
+
+Files: Utilities/cmjsoncpp/*
+Copyright: 2007-2011 Baptiste Lepilleur and The JsonCpp Authors
+           2016 InfoTeCS JSC
+License: Expat
+
+Files: Utilities/cmbzip2/*
+Copyright: 1996-2019 Julian Seward
+License: BSD-4-Clause
+
+Files: Utilities/cmnghttp2/*
+Copyright: 2012-2016 Tatsuhiro Tsujikawa
+           2012-2016 nghttp2 contributors
+License: Expat
+
+Files: Utilities/cmlibrhash/*
+Copyright: 2005 Aleksey Kravchenko
+License: BSD-0-Clause
 
 Files: Source/CursesDialog/*
 Copyright: 1998 Free Software Foundation, Inc.
   2000-2009 Kitware
   2000-2009 Insight Software Consortium
-License: MIT-like
+License: Expat
 
 Files: Utilities/cmzlib/*
 Copyright: 1995-2005 Jean-loup Gailly
   1995-2005 Mark Adler
 License: zlib
+
+Files: Utilities/cmzstd/*
+Copyright: 2012-2020 Yann Collet
+           2016-2020 Przemyslaw Skibinski
+           2017-2020 Facebook, Inc
+           2016 Tino Reichardt
+License: BSD-3-clause
+
 
 License: BSD-3-clause
  Copyright (c) 2002 Kitware, Inc., Insight Consortium
@@ -133,7 +197,19 @@ License: BSD-3-clause
  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-License: MIT-like
+License: BSD-0-Clause
+ Permission to use, copy, modify, and/or distribute this software for any
+ purpose with or without fee is hereby granted.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+ REGARD TO THIS SOFTWARE  INCLUDING ALL IMPLIED WARRANTIES OF  MERCHANTABILITY
+ AND FITNESS.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+ INDIRECT,  OR CONSEQUENTIAL DAMAGES  OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ LOSS OF USE,  DATA OR PROFITS,  WHETHER IN AN ACTION OF CONTRACT,  NEGLIGENCE
+ OR OTHER TORTIOUS ACTION,  ARISING OUT OF  OR IN CONNECTION  WITH THE USE  OR
+ PERFORMANCE OF THIS SOFTWARE.
+
+License: Expat
  Permission is hereby granted, free of charge, to any person
  obtaining a copy of this software and associated documentation
  files (the "Software"), to deal in the Software without
@@ -156,12 +232,6 @@ License: MIT-like
  OTHER DEALINGS IN THE SOFTWARE.
 
 License: BSD-4-clause
-  Copyright (c) 1988, 1993
-   The Regents of the University of California.  All rights reserved.
-  .
-  This code is derived from software contributed to Berkeley by
-  Guido van Rossum.
-  .
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
   are met:
