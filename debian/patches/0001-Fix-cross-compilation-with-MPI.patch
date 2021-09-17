@@ -2,6 +2,7 @@ From: =?utf-8?q?Timo_R=C3=B6hling?= <roehling@debian.org>
 Date: Tue, 14 Sep 2021 17:04:48 +0200
 Subject: Fix cross compilation with MPI
 
+Forwarded: https://gitlab.kitware.com/cmake/cmake/-/merge_requests/6537
 ---
  Modules/FindMPI.cmake | 36 +++++++++++++++++++++++++++++++++++-
  1 file changed, 35 insertions(+), 1 deletion(-)
