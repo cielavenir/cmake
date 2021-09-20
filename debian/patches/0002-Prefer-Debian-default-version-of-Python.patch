@@ -8,7 +8,7 @@ Forwarded: not-needed
  1 file changed, 14 insertions(+)
 
 diff --git a/Modules/FindPython/Support.cmake b/Modules/FindPython/Support.cmake
-index 8e70e11..828e075 100644
+index ce25cfc..df5ea06 100644
 --- a/Modules/FindPython/Support.cmake
 +++ b/Modules/FindPython/Support.cmake
 @@ -23,6 +23,20 @@ if (NOT DEFINED _${_PYTHON_PREFIX}_REQUIRED_VERSION_MAJOR)
