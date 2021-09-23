@@ -51,10 +51,17 @@ override_dh_auto_configure: $(BUILD_FLAGS_FILE)
 	                         --sphinx-man --sphinx-html --sphinx-flags="-D today=\"$(BUILD_DATE)\"" \
 	                         $(BOOTSTRAP_PARALLEL) --verbose
 
+ifeq ($(DEB_HOST_ARCH_OS),kfreebsd)
+    # Workaround for Bug #815231: skip spuriously failing tests
+    EXCLUDED_TESTS = CTestTestUpload\|kwsys.testSystemTools\|BuildDepends\|RunCMake.Configure
+else
+    EXCLUDED_TESTS = CTestTestUpload
+endif
+
 override_dh_auto_test:
 	# Pass -j1 to "make test" as a workaround, see https://gitlab.kitware.com/cmake/cmake/issues/17165
 	# The tests are still run in parallel as -jX is passed via ARGS to ctest.
-	dh_auto_test --buildsystem=cmake -- -j1 ARGS="-E CTestTestUpload --timeout 5000 -j$(NUMJOBS)"
+	dh_auto_test --buildsystem=cmake -- -j1 ARGS="-E $(EXCLUDED_TESTS) --timeout 5000 -j$(NUMJOBS)"
 
 execute_after_dh_auto_clean:
 	rm -f $(BUILD_FLAGS_FILE)
