@@ -70,9 +70,15 @@ override_dh_sphinxdoc:
 	dh_sphinxdoc -pcmake-doc
 
 export ELPA_NAME = cmake-mode
-execute_before_dh_elpa: debian/cmake-mode-pkg.el
+
+# Instead of dh --with=elpa, we manually add dh_elpa to the sequence.  This
+# way, we can restrict the dh-elpa dependency (which transitively depends on
+# emacs) to indep builds and avoid it for the more fragile port architectures
+execute_after_dh_install-indep: debian/cmake-mode-pkg.el
+	dh_elpa
+
 debian/cmake-mode-pkg.el: debian/cmake-mode-pkg.el.in
 	sed -e 's/@VERSION@/$(DEB_VERSION_UPSTREAM)/' $< > $@
 
 %:
-	dh $@ --with elpa --builddirectory=Build
+	dh $@ --builddirectory=Build

@@ -20,6 +20,7 @@ Build-Depends: debhelper-compat (= 13),
                python3-sphinx,
                python3-sphinxcontrib.qthelp | python3-sphinx (<< 2.0),
                dh-sequence-sphinxdoc,
+Build-Depends-Indep:
                dh-elpa
 Rules-Requires-Root: no
 Standards-Version: 4.6.0
