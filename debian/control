@@ -31,11 +31,10 @@ Homepage: https://cmake.org/
 Package: cmake
 Architecture: any
 Multi-Arch: foreign
-Depends: cmake-data (= ${source:Version}),
-         procps [!hurd-any],
-         ${misc:Depends},
+Depends: ${misc:Depends},
          ${shlibs:Depends},
-         ${elpa:Depends}
+         cmake-data (= ${source:Version}),
+         procps [!hurd-any]
 Recommends: gcc, make
 Suggests: cmake-doc, ninja-build
 Description: cross-platform, open-source make system
@@ -56,7 +55,8 @@ Description: cross-platform, open-source make system
 Package: cmake-data
 Architecture: all
 Multi-Arch: foreign
-Depends: ${misc:Depends}
+Depends: ${misc:Depends},
+         ${elpa:Depends}
 Description: CMake data files (modules, templates and documentation)
  This package provides CMake architecture independent data files (modules,
  templates, documentation etc.). Unless you have cmake installed, you probably
@@ -64,7 +64,9 @@ Description: CMake data files (modules, templates and documentation)
 
 Package: cmake-curses-gui
 Architecture: any
-Depends: cmake (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+         cmake (= ${binary:Version})
 Description: curses based user interface for CMake (ccmake)
  CMake is used to control the software compilation process using simple
  platform and compiler independent configuration files. CMake generates native
@@ -79,7 +81,9 @@ Description: curses based user interface for CMake (ccmake)
 Package: cmake-qt-gui
 Architecture: any
 Build-Profiles: <!stage1>
-Depends: cmake (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends},
+         ${shlibs:Depends}
+         cmake (= ${binary:Version}),
 Provides: cmake-gui
 Description: Qt based user interface for CMake (cmake-gui)
  CMake is used to control the software compilation process using simple
@@ -97,7 +101,9 @@ Architecture: all
 Multi-Arch: foreign
 Section: doc
 Built-Using: ${sphinxdoc:Built-Using}
-Depends: ${misc:Depends}, ${sphinxdoc:Depends}, cmake-data (= ${source:Version})
+Depends: ${misc:Depends},
+         ${sphinxdoc:Depends},
+         cmake-data (= ${source:Version})
 Recommends: doc-base
 Suggests: cmake
 Description: extended documentation in various formats for CMake
