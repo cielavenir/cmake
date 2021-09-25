@@ -1,3 +1,12 @@
+cmake (3.21.3-2) unstable; urgency=medium
+
+  * Prevent dh_elpha from disabling the test suite
+  * Make dh_elpa B-D-Indep
+  * Skip spuriously failing tests on kfreebsd-*
+  * New build profile: pkg.cmake.bootstrap
+
+ -- Timo Röhling <roehling@debian.org>  Sat, 25 Sep 2021 14:34:09 +0200
+
 cmake (3.21.3-1) unstable; urgency=medium
 
   * New upstream version 3.21.3
