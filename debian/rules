@@ -6,12 +6,6 @@ export DEB_CXXFLAGS_MAINT_APPEND := $(shell dpkg-buildflags --get CPPFLAGS)
 export DEB_CFLAGS_MAINT_APPEND := $(shell dpkg-buildflags --get CPPFLAGS)
 export DEB_LDFLAGS_MAINT_APPEND := -Wl,--as-needed
 
-ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-    NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-    BOOTSTRAP_PARALLEL = --parallel=$(NUMJOBS)
-else
-    NUMJOBS = 1
-endif
 
 BUILD_DATE = $(shell LC_ALL=C date -u "+%B %d, %Y" -d "@$(SOURCE_DATE_EPOCH)")
 
@@ -31,8 +25,8 @@ $(BUILD_FLAGS_FILE) verify-build-flags:
 	$(call $(flag_action),CMAKE_C_FLAGS,"$(CFLAGS)","C flags")
 	$(call $(flag_action),CMAKE_CXX_FLAGS,"$(CXXFLAGS)","C++ flags")
 	$(call $(flag_action),CMAKE_SKIP_BOOTSTRAP_TEST,ON,"Skip BootstrapTest")
+ifeq ($(filter pkg.cmake.bootstrap,$(DEB_BUILD_PROFILES)),)
 	$(call $(flag_action),BUILD_CursesDialog,ON,"Build curses GUI")
-ifeq ($(filter stage1,$(DEB_BUILD_PROFILES)),)
 	$(call $(flag_action),BUILD_QtDialog,ON,"Build Qt GUI")
 endif
 ifeq ($(DEB_HOST_ARCH_OS),hurd)
@@ -44,18 +38,29 @@ $(BUILD_FLAGS_FILE): flag_action := set_build_flag
 verify-build-flags: flag_action := verify_build_flag
 .PHONY: verify-build-flags
 
+BOOTSTRAP_FLAGS = --prefix=/usr --docdir=/share/doc/cmake-data --mandir=/share/man \
+                  --sphinx-man --sphinx-html --sphinx-flags="-D today=\"$(BUILD_DATE)\"" \
+                  --init=../$(BUILD_FLAGS_FILE) --verbose
+
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    BOOTSTRAP_FLAGS += --parallel=$(NUMJOBS)
+else
+    NUMJOBS = 1
+endif
+ifeq (,$(filter pkg.cmake.bootstrap,$(DEB_BUILD_PROFILES)))
+    BOOTSTRAP_FLAGS += --system-libs
+endif
+
 override_dh_auto_configure: $(BUILD_FLAGS_FILE)
 	rm -rf Build && mkdir -p Build
-	cd Build && ../bootstrap --prefix=/usr --docdir=/share/doc/cmake-data --mandir=/share/man \
-	                         --init=../$(BUILD_FLAGS_FILE) --system-libs \
-	                         --sphinx-man --sphinx-html --sphinx-flags="-D today=\"$(BUILD_DATE)\"" \
-	                         $(BOOTSTRAP_PARALLEL) --verbose
+	cd Build && ../bootstrap $(BOOTSTRAP_FLAGS)
 
 ifeq ($(DEB_HOST_ARCH_OS),kfreebsd)
     # Workaround for Bug #815231: skip spuriously failing tests
-    EXCLUDED_TESTS = CTestTestUpload\|kwsys.testSystemTools\|BuildDepends\|RunCMake.Configure
+    EXCLUDED_TESTS = CTestTestUpload\|curl\|kwsys.testSystemTools\|BuildDepends\|RunCMake.Configure
 else
-    EXCLUDED_TESTS = CTestTestUpload
+    EXCLUDED_TESTS = CTestTestUpload\|curl
 endif
 
 override_dh_auto_test:

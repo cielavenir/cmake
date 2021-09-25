@@ -7,21 +7,22 @@ Uploaders: Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>,
            Timo Röhling <roehling@debian.org>
 Build-Depends: debhelper-compat (= 13),
                freebsd-glue [kfreebsd-any],
-               libarchive-dev (>= 3.3.3),
-               libcurl4-openssl-dev | libcurl-ssl-dev,
-               libexpat1-dev,
-               libjsoncpp-dev,
-               libncurses5-dev,
-               librhash-dev,
-               libuv1-dev (>= 1.10),
+               libarchive-dev (>= 3.3.3) <!pkg.cmake.bootstrap>,
+               libcurl4-openssl-dev <!pkg.cmake.bootstrap> | libcurl-ssl-dev <!pkg.cmake.bootstrap>,
+               libexpat1-dev <!pkg.cmake.bootstrap>,
+               libjsoncpp-dev <!pkg.cmake.bootstrap>,
+               libncurses5-dev <!pkg.cmake.bootstrap>,
+               librhash-dev <!pkg.cmake.bootstrap>,
+               libssl-dev <pkg.cmake.bootstrap>,
+               libuv1-dev (>= 1.10) <!pkg.cmake.bootstrap>,
                procps [!hurd-any],
-               qtbase5-dev <!stage1>,
-               zlib1g-dev,
                python3-sphinx,
                python3-sphinxcontrib.qthelp | python3-sphinx (<< 2.0),
-               dh-sequence-sphinxdoc,
+               qtbase5-dev <!pkg.cmake.bootstrap>,
+               zlib1g-dev <!pkg.cmake.bootstrap>
 Build-Depends-Indep:
-               dh-elpa
+               dh-elpa,
+               dh-sequence-sphinxdoc
 Rules-Requires-Root: no
 Standards-Version: 4.6.0
 Vcs-Git: https://salsa.debian.org/cmake-team/cmake.git
@@ -64,6 +65,7 @@ Description: CMake data files (modules, templates and documentation)
 
 Package: cmake-curses-gui
 Architecture: any
+Build-Profiles: <!pkg.cmake.bootstrap>
 Depends: ${misc:Depends},
          ${shlibs:Depends},
          cmake (= ${binary:Version})
@@ -80,10 +82,10 @@ Description: curses based user interface for CMake (ccmake)
 
 Package: cmake-qt-gui
 Architecture: any
-Build-Profiles: <!stage1>
+Build-Profiles: <!pkg.cmake.bootstrap>
 Depends: ${misc:Depends},
-         ${shlibs:Depends}
-         cmake (= ${binary:Version}),
+         ${shlibs:Depends},
+         cmake (= ${binary:Version})
 Provides: cmake-gui
 Description: Qt based user interface for CMake (cmake-gui)
  CMake is used to control the software compilation process using simple
@@ -98,6 +100,7 @@ Description: Qt based user interface for CMake (cmake-gui)
 
 Package: cmake-doc
 Architecture: all
+Build-Profiles: <!pkg.cmake.bootstrap>
 Multi-Arch: foreign
 Section: doc
 Built-Using: ${sphinxdoc:Built-Using}
