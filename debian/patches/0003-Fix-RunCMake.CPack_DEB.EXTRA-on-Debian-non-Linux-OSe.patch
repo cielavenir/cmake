@@ -1,0 +1,32 @@
+From: =?utf-8?q?Timo_R=C3=B6hling?= <roehling@debian.org>
+Date: Tue, 28 Sep 2021 16:54:07 +0200
+Subject: Fix RunCMake.CPack_DEB.EXTRA on Debian non-Linux OSes
+
+Forwarded: https://gitlab.kitware.com/cmake/cmake/-/merge_requests/6540
+
+The generated path with the packages uses $CPACK_TOPLEVEL_TAG, which
+by default is $CPACK_SYSTEM_NAME, thus the OS name.
+
+To make the expected stderr match also non-Linux OSes, accept any
+non-slash characters in place of "Linux", so it works also on other
+Debian OSes (e.g. Debian/Hurd).
+
+(Cherry-picked commit b07812c6de51840a0dc6d3486d4a814fa7ef37f4 from
+upstream)
+---
+ Tests/RunCMake/CPack/tests/EXTRA/DEB-stderr.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Tests/RunCMake/CPack/tests/EXTRA/DEB-stderr.txt b/Tests/RunCMake/CPack/tests/EXTRA/DEB-stderr.txt
+index 37360e8..8b6ca94 100644
+--- a/Tests/RunCMake/CPack/tests/EXTRA/DEB-stderr.txt
++++ b/Tests/RunCMake/CPack/tests/EXTRA/DEB-stderr.txt
+@@ -1,6 +1,6 @@
+ CPack Warning: Adding file to tar:
+-#top level directory: .*/Tests/RunCMake/DEB.EXTRA/CPack/EXTRA-build/_CPack_Packages/Linux/DEB/extra-0.1.1-Linux/bas
++#top level directory: .*/Tests/RunCMake/DEB.EXTRA/CPack/EXTRA-build/_CPack_Packages/[^/]+/DEB/extra-0.1.1-[^/]+/bas
+ #missing file: .*/Tests/RunCMake/DEB.EXTRA/CPack/EXTRA-build/conffiles
+ CPack Warning: Adding file to tar:
+-#top level directory: .*/Tests/RunCMake/DEB.EXTRA/CPack/EXTRA-build/_CPack_Packages/Linux/DEB/extra-0.1.1-Linux/foo
++#top level directory: .*/Tests/RunCMake/DEB.EXTRA/CPack/EXTRA-build/_CPack_Packages/[^/]+/DEB/extra-0.1.1-[^/]+/foo
+ #missing file: .*/Tests/RunCMake/DEB.EXTRA/CPack/EXTRA-build/conffiles
