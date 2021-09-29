@@ -1,3 +1,9 @@
+cmake (3.21.3-3) unstable; urgency=medium
+
+  * Fix FTBFS on non-Linux systems (Closes: #995288)
+
+ -- Timo Röhling <roehling@debian.org>  Wed, 29 Sep 2021 10:25:25 +0200
+
 cmake (3.21.3-2) unstable; urgency=medium
 
   * Prevent dh_elpha from disabling the test suite
