@@ -103,7 +103,6 @@ Architecture: all
 Build-Profiles: <!pkg.cmake.bootstrap>
 Multi-Arch: foreign
 Section: doc
-Built-Using: ${sphinxdoc:Built-Using}
 Depends: ${misc:Depends},
          ${sphinxdoc:Depends},
          cmake-data (= ${source:Version})
