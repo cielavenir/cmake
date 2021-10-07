@@ -1,3 +1,10 @@
+cmake (3.21.3-4) unstable; urgency=medium
+
+  * Fix misinterpretation of Debian Policy on LIBEXECDIR
+  * New build profile: cmake.pkg.nogui
+
+ -- Timo Röhling <roehling@debian.org>  Thu, 07 Oct 2021 21:03:50 +0200
+
 cmake (3.21.3-3) unstable; urgency=medium
 
   * Fix FTBFS on non-Linux systems (Closes: #995288)
