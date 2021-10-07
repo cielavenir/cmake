@@ -11,14 +11,14 @@ Build-Depends: debhelper-compat (= 13),
                libcurl4-openssl-dev <!pkg.cmake.bootstrap> | libcurl-ssl-dev <!pkg.cmake.bootstrap>,
                libexpat1-dev <!pkg.cmake.bootstrap>,
                libjsoncpp-dev <!pkg.cmake.bootstrap>,
-               libncurses5-dev <!pkg.cmake.bootstrap>,
+               libncurses5-dev <!pkg.cmake.bootstrap !pkg.cmake.nogui>,
                librhash-dev <!pkg.cmake.bootstrap>,
                libssl-dev <pkg.cmake.bootstrap>,
                libuv1-dev (>= 1.10) <!pkg.cmake.bootstrap>,
                procps [!hurd-any],
                python3-sphinx,
                python3-sphinxcontrib.qthelp | python3-sphinx (<< 2.0),
-               qtbase5-dev <!pkg.cmake.bootstrap>,
+               qtbase5-dev <!pkg.cmake.bootstrap !pkg.cmake.nogui>,
                zlib1g-dev <!pkg.cmake.bootstrap>
 Build-Depends-Indep:
                dh-elpa,
@@ -65,7 +65,7 @@ Description: CMake data files (modules, templates and documentation)
 
 Package: cmake-curses-gui
 Architecture: any
-Build-Profiles: <!pkg.cmake.bootstrap>
+Build-Profiles: <!pkg.cmake.bootstrap !pkg.cmake.nogui>
 Depends: ${misc:Depends},
          ${shlibs:Depends},
          cmake (= ${binary:Version})
@@ -82,7 +82,7 @@ Description: curses based user interface for CMake (ccmake)
 
 Package: cmake-qt-gui
 Architecture: any
-Build-Profiles: <!pkg.cmake.bootstrap>
+Build-Profiles: <!pkg.cmake.bootstrap !pkg.cmake.nogui>
 Depends: ${misc:Depends},
          ${shlibs:Depends},
          cmake (= ${binary:Version})

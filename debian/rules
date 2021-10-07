@@ -25,7 +25,7 @@ $(BUILD_FLAGS_FILE) verify-build-flags:
 	$(call $(flag_action),CMAKE_C_FLAGS,"$(CFLAGS)","C flags")
 	$(call $(flag_action),CMAKE_CXX_FLAGS,"$(CXXFLAGS)","C++ flags")
 	$(call $(flag_action),CMAKE_SKIP_BOOTSTRAP_TEST,ON,"Skip BootstrapTest")
-ifeq ($(filter pkg.cmake.bootstrap,$(DEB_BUILD_PROFILES)),)
+ifeq (,$(filter pkg.cmake.bootstrap pkg.cmake.nogui,$(DEB_BUILD_PROFILES)))
 	$(call $(flag_action),BUILD_CursesDialog,ON,"Build curses GUI")
 	$(call $(flag_action),BUILD_QtDialog,ON,"Build Qt GUI")
 endif
