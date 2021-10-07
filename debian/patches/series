@@ -1,3 +1,4 @@
 0001-Fix-cross-compilation-with-MPI.patch
 0002-Prefer-Debian-default-version-of-Python.patch
 0003-Fix-RunCMake.CPack_DEB.EXTRA-on-Debian-non-Linux-OSe.patch
+0004-Fix-misinterpretation-of-Debian-Policy-on-LIBEXECDIR.patch
