@@ -3,6 +3,8 @@
 #include <cm/iterator>
 
 #include "cmAlgorithms.h"
+#include "cmGeneratorExpression.h"
+#include "cmGeneratorTarget.h"
 #include "cmLocalVisualStudioGenerator.h"
 #include "cmOutputConverter.h"
 #include "cmSystemTools.h"
@@ -147,27 +149,6 @@ bool cmVisualStudioGeneratorOptions::UsingSBCS() const
     }
   }
   return false;
-}
-
-cmVisualStudioGeneratorOptions::CudaRuntime
-cmVisualStudioGeneratorOptions::GetCudaRuntime() const
-{
-  std::map<std::string, FlagValue>::const_iterator i =
-    this->FlagMap.find("CudaRuntime");
-  if (i != this->FlagMap.end() && i->second.size() == 1) {
-    std::string const& cudaRuntime = i->second[0];
-    if (cudaRuntime == "Static") {
-      return CudaRuntimeStatic;
-    }
-    if (cudaRuntime == "Shared") {
-      return CudaRuntimeShared;
-    }
-    if (cudaRuntime == "None") {
-      return CudaRuntimeNone;
-    }
-  }
-  // nvcc default is static
-  return CudaRuntimeStatic;
 }
 
 void cmVisualStudioGeneratorOptions::FixCudaCodeGeneration()
@@ -431,7 +412,7 @@ void cmVisualStudioGeneratorOptions::OutputPreprocessorDefinitions(
   if (this->Defines.empty()) {
     return;
   }
-  const char* tag = "PreprocessorDefinitions";
+  std::string tag = "PreprocessorDefinitions";
   if (lang == "CUDA") {
     tag = "Defines";
   }
@@ -473,7 +454,7 @@ void cmVisualStudioGeneratorOptions::OutputAdditionalIncludeDirectories(
     return;
   }
 
-  const char* tag = "AdditionalIncludeDirectories";
+  std::string tag = "AdditionalIncludeDirectories";
   if (lang == "CUDA") {
     tag = "Include";
   } else if (lang == "ASM_MASM" || lang == "ASM_NASM") {
@@ -528,6 +509,6 @@ void cmVisualStudioGeneratorOptions::OutputFlagMap(std::ostream& fout,
       sep = ";";
     }
 
-    this->OutputFlag(fout, indent, m.first.c_str(), oss.str());
+    this->OutputFlag(fout, indent, m.first, oss.str());
   }
 }

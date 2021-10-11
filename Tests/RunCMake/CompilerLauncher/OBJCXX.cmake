@@ -1,4 +1,2 @@
-enable_language(OBJCXX)
 set(CMAKE_OBJCXX_COMPILER_LAUNCHER "${CMAKE_COMMAND};-E;env;USED_LAUNCHER=1")
-set(CMAKE_VERBOSE_MAKEFILE TRUE)
-add_executable(main main.mm)
+include(OBJCXX-common.cmake)

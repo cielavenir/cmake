@@ -6,13 +6,15 @@
 #include <memory>
 #include <utility>
 
-#include "cmAlgorithms.h"
+#include <cmext/algorithm>
+
 #include "cmCustomCommand.h"
 #include "cmCustomCommandLines.h"
 #include "cmGeneratorExpression.h"
 #include "cmGeneratorTarget.h"
 #include "cmLocalGenerator.h"
 #include "cmMakefile.h"
+#include "cmProperty.h"
 #include "cmStateTypes.h"
 #include "cmStringAlgorithms.h"
 #include "cmSystemTools.h"
@@ -29,10 +31,11 @@ void AppendPaths(const std::vector<std::string>& inputs,
     for (std::string& it : result) {
       cmSystemTools::ConvertToUnixSlashes(it);
       if (cmSystemTools::FileIsFullPath(it)) {
-        it = cmSystemTools::CollapseFullPath(it);
+        it = cmSystemTools::CollapseFullPath(
+          it, lg->GetMakefile()->GetHomeOutputDirectory());
       }
     }
-    cmAppend(output, result);
+    cm::append(output, result);
   }
 }
 }
@@ -56,7 +59,7 @@ cmCustomCommandGenerator::cmCustomCommandGenerator(cmCustomCommand const& cc,
       std::unique_ptr<cmCompiledGeneratorExpression> cge = ge.Parse(clarg);
       std::string parsed_arg = cge->Evaluate(this->LG, this->Config);
       if (this->CC.GetCommandExpandLists()) {
-        cmAppend(argv, cmExpandedList(parsed_arg));
+        cm::append(argv, cmExpandedList(parsed_arg));
       } else {
         argv.push_back(std::move(parsed_arg));
       }
@@ -109,13 +112,13 @@ void cmCustomCommandGenerator::FillEmulatorsWithArguments()
     if (target && target->GetType() == cmStateEnums::EXECUTABLE &&
         !target->IsImported()) {
 
-      const char* emulator_property =
+      cmProp emulator_property =
         target->GetProperty("CROSSCOMPILING_EMULATOR");
       if (!emulator_property) {
         continue;
       }
 
-      cmExpandList(emulator_property, this->EmulatorsWithArguments[c]);
+      cmExpandList(*emulator_property, this->EmulatorsWithArguments[c]);
     }
   }
 }
@@ -137,7 +140,7 @@ const char* cmCustomCommandGenerator::GetArgv0Location(unsigned int c) const
       (target->IsImported() ||
        target->GetProperty("CROSSCOMPILING_EMULATOR") ||
        !this->LG->GetMakefile()->IsOn("CMAKE_CROSSCOMPILING"))) {
-    return target->GetLocation(this->Config);
+    return target->GetLocation(this->Config).c_str();
   }
   return nullptr;
 }
@@ -201,7 +204,9 @@ void cmCustomCommandGenerator::AppendArguments(unsigned int c,
       if (this->OldStyle) {
         cmd += escapeForShellOldStyle(emulator[j]);
       } else {
-        cmd += this->LG->EscapeForShell(emulator[j], this->MakeVars);
+        cmd +=
+          this->LG->EscapeForShell(emulator[j], this->MakeVars, false, false,
+                                   this->MakeVars && this->LG->IsNinjaMulti());
       }
     }
 
@@ -222,7 +227,9 @@ void cmCustomCommandGenerator::AppendArguments(unsigned int c,
     if (this->OldStyle) {
       cmd += escapeForShellOldStyle(arg);
     } else {
-      cmd += this->LG->EscapeForShell(arg, this->MakeVars);
+      cmd +=
+        this->LG->EscapeForShell(arg, this->MakeVars, false, false,
+                                 this->MakeVars && this->LG->IsNinjaMulti());
     }
   }
 }

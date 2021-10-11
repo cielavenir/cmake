@@ -12,13 +12,17 @@
 #include "cmExecutionStatus.h"
 #include "cmGeneratedFileStream.h"
 #include "cmGlobalGenerator.h"
+#include "cmLocalGenerator.h"
 #include "cmMakefile.h"
+#include "cmProperty.h"
 #include "cmStateTypes.h"
 #include "cmStringAlgorithms.h"
 #include "cmSystemTools.h"
 #include "cmTarget.h"
 #include "cmTargetLinkLibraryType.h"
 #include "cmake.h"
+
+class cmListFileBacktrace;
 
 static void FinalAction(cmMakefile& makefile, std::string const& filename,
                         bool append)
@@ -46,11 +50,11 @@ static void FinalAction(cmMakefile& makefile, std::string const& filename,
   // the project.
   cmake* cm = makefile.GetCMakeInstance();
   cmGlobalGenerator* global = cm->GetGlobalGenerator();
-  const std::vector<cmMakefile*>& locals = global->GetMakefiles();
+  const auto& locals = global->GetMakefiles();
   std::map<std::string, std::string> libDepsOld;
   std::map<std::string, std::string> libDepsNew;
   std::map<std::string, std::string> libTypes;
-  for (cmMakefile* local : locals) {
+  for (const auto& local : locals) {
     for (auto const& tgt : local->GetTargets()) {
       // Get the current target.
       cmTarget const& target = tgt.second;
@@ -92,8 +96,8 @@ static void FinalAction(cmMakefile& makefile, std::string const& filename,
           // Handle simple output name changes.  This command is
           // deprecated so we do not support full target name
           // translation (which requires per-configuration info).
-          if (const char* outname = libtgt->GetProperty("OUTPUT_NAME")) {
-            lib = outname;
+          if (cmProp outname = libtgt->GetProperty("OUTPUT_NAME")) {
+            lib = *outname;
           }
         }
         valueOld += lib;
@@ -150,9 +154,9 @@ bool cmExportLibraryDependenciesCommand(std::vector<std::string> const& args,
 
   std::string const& filename = args[0];
   bool const append = args.size() > 1 && args[1] == "APPEND";
-  status.GetMakefile().AddFinalAction(
-    [filename, append](cmMakefile& makefile) {
-      FinalAction(makefile, filename, append);
+  status.GetMakefile().AddGeneratorAction(
+    [filename, append](cmLocalGenerator& lg, const cmListFileBacktrace&) {
+      FinalAction(*lg.GetMakefile(), filename, append);
     });
 
   return true;

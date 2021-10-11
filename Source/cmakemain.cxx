@@ -1,10 +1,24 @@
 /* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
    file Copyright.txt or https://cmake.org/licensing for details.  */
 
-#include "cmAlgorithms.h"
+#include "cmConfigure.h" // IWYU pragma: keep
+
+#include <cassert>
+#include <cctype>
+#include <climits>
+#include <cstring>
+#include <iostream>
+#include <string>
+#include <vector>
+
+#include <cmext/algorithm>
+
+#include <cm3p/uv.h>
+
 #include "cmDocumentationEntry.h" // IWYU pragma: keep
 #include "cmGlobalGenerator.h"
 #include "cmMakefile.h"
+#include "cmProperty.h"
 #include "cmState.h"
 #include "cmStateTypes.h"
 #include "cmStringAlgorithms.h"
@@ -18,19 +32,9 @@
 #endif
 
 #include "cmsys/Encoding.hxx"
-
-#include "cm_uv.h"
 #if defined(_WIN32) && !defined(CMAKE_BOOTSTRAP)
 #  include "cmsys/ConsoleBuf.hxx"
 #endif
-
-#include <cassert>
-#include <cctype>
-#include <climits>
-#include <cstring>
-#include <iostream>
-#include <string>
-#include <vector>
 
 namespace {
 #ifndef CMAKE_BOOTSTRAP
@@ -73,12 +77,15 @@ const char* cmDocumentationOptions[][2] = {
   { "--log-level=<ERROR|WARNING|NOTICE|STATUS|VERBOSE|DEBUG|TRACE>",
     "Set the verbosity of messages from CMake files. "
     "--loglevel is also accepted for backward compatibility reasons." },
+  { "--log-context", "Prepend log messages with context, if given" },
   { "--debug-trycompile",
     "Do not delete the try_compile build tree. Only "
     "useful on one try_compile at a time." },
   { "--debug-output", "Put cmake in a debug mode." },
+  { "--debug-find", "Put cmake find in a debug mode." },
   { "--trace", "Put cmake in trace mode." },
   { "--trace-expand", "Put cmake in trace mode with variable expansion." },
+  { "--trace-format=<human|json-v1>", "Set the output format of the trace." },
   { "--trace-source=<file>",
     "Trace only this CMake file/module. Multiple options allowed." },
   { "--trace-redirect=<file>",
@@ -89,6 +96,14 @@ const char* cmDocumentationOptions[][2] = {
   { "--check-system-vars",
     "Find problems with variable usage in system "
     "files." },
+#  if !defined(CMAKE_BOOTSTRAP)
+  { "--profiling-format=<fmt>",
+    "Output data for profiling CMake scripts. Supported formats: "
+    "google-trace" },
+  { "--profiling-output=<file>",
+    "Select an output path for the profiling data enabled through "
+    "--profiling-format." },
+#  endif
   { nullptr, nullptr }
 };
 
@@ -99,7 +114,7 @@ int do_command(int ac, char const* const* av)
   std::vector<std::string> args;
   args.reserve(ac - 1);
   args.emplace_back(av[0]);
-  cmAppend(args, av + 2, av + ac);
+  cm::append(args, av + 2, av + ac);
   return cmcmd::ExecuteCMakeCommand(args);
 }
 
@@ -282,16 +297,16 @@ int do_cmake(int ac, char const* const* av)
       cmStateEnums::CacheEntryType t = cm.GetState()->GetCacheEntryType(k);
       if (t != cmStateEnums::INTERNAL && t != cmStateEnums::STATIC &&
           t != cmStateEnums::UNINITIALIZED) {
-        const char* advancedProp =
+        cmProp advancedProp =
           cm.GetState()->GetCacheEntryProperty(k, "ADVANCED");
         if (list_all_cached || !advancedProp) {
           if (list_help) {
-            std::cout << "// "
-                      << cm.GetState()->GetCacheEntryProperty(k, "HELPSTRING")
-                      << std::endl;
+            cmProp help =
+              cm.GetState()->GetCacheEntryProperty(k, "HELPSTRING");
+            std::cout << "// " << (help ? *help : "") << std::endl;
           }
           std::cout << k << ":" << cmState::CacheEntryTypeToString(t) << "="
-                    << cm.GetState()->GetCacheEntryValue(k) << std::endl;
+                    << cm.GetState()->GetSafeCacheEntryValue(k) << std::endl;
           if (list_help) {
             std::cout << std::endl;
           }
@@ -308,6 +323,7 @@ int do_cmake(int ac, char const* const* av)
   return 0;
 }
 
+#ifndef CMAKE_BOOTSTRAP
 int extract_job_number(int& index, char const* current, char const* next,
                        int len_of_flag)
 {
@@ -337,6 +353,7 @@ int extract_job_number(int& index, char const* current, char const* next,
   }
   return jobs;
 }
+#endif
 
 int do_build(int ac, char const* const* av)
 {
@@ -346,7 +363,7 @@ int do_build(int ac, char const* const* av)
 #else
   int jobs = cmake::NO_BUILD_PARALLEL_LEVEL;
   std::vector<std::string> targets;
-  std::string config = "Debug";
+  std::string config;
   std::string dir;
   std::vector<std::string> nativeOptions;
   bool cleanFirst = false;
@@ -682,7 +699,6 @@ int main(int ac, char const* const* av)
   ac = args.argc();
   av = args.argv();
 
-  cmSystemTools::EnableMSVCDebugHook();
   cmSystemTools::InitializeLibUV();
   cmSystemTools::FindCMakeResources(av[0]);
   if (ac > 1) {
@@ -703,6 +719,8 @@ int main(int ac, char const* const* av)
 #ifndef CMAKE_BOOTSTRAP
   cmDynamicLoader::FlushCache();
 #endif
-  uv_loop_close(uv_default_loop());
+  if (uv_loop_t* loop = uv_default_loop()) {
+    uv_loop_close(loop);
+  }
   return ret;
 }

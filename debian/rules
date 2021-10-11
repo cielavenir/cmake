@@ -44,7 +44,7 @@ verify-build-flags: flag_action := verify_build_flag
 
 override_dh_auto_configure: $(BUILD_FLAGS_FILE)
 	rm -rf Build && mkdir -p Build
-	cd Build && ../bootstrap --prefix=/usr --docdir=/share/doc/cmake --mandir=/share/man \
+	cd Build && ../bootstrap --prefix=/usr --docdir=/share/doc/cmake-data --mandir=/share/man \
 	                         --init=../$(BUILD_FLAGS_FILE) --system-libs \
 	                         --sphinx-man --sphinx-html --sphinx-flags="-D today=\"$(BUILD_DATE)\"" \
 	                         $(BOOTSTRAP_PARALLEL) --verbose

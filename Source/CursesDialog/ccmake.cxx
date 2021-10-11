@@ -9,12 +9,14 @@
 
 #include "cmsys/Encoding.hxx"
 
+#include "cmCursesColor.h"
 #include "cmCursesForm.h"
 #include "cmCursesMainForm.h"
 #include "cmCursesStandardIncludes.h"
 #include "cmDocumentation.h"
 #include "cmDocumentationEntry.h" // IWYU pragma: keep
 #include "cmState.h"
+#include "cmStringAlgorithms.h"
 #include "cmSystemTools.h"
 #include "cmake.h"
 
@@ -110,8 +112,8 @@ int main(int argc, char const* const* argv)
 
   std::string cacheDir = cmSystemTools::GetCurrentWorkingDirectory();
   for (i = 1; i < args.size(); ++i) {
-    std::string arg = args[i];
-    if (arg.find("-B", 0) == 0) {
+    std::string const& arg = args[i];
+    if (cmHasPrefix(arg, "-B")) {
       cacheDir = arg.substr(2);
     }
   }
@@ -126,6 +128,7 @@ int main(int argc, char const* const* argv)
   noecho();             /* Echo off */
   cbreak();             /* nl- or cr not needed */
   keypad(stdscr, true); /* Use key symbols as KEY_DOWN */
+  cmCursesColor::InitColors();
 
   signal(SIGWINCH, onsig);
 
@@ -153,10 +156,28 @@ int main(int argc, char const* const* argv)
     return 1;
   }
 
+  /*
+   * The message is stored in a list by the form which will be
+   * joined by '\n' before display.
+   * Removing any trailing '\n' avoid extra empty lines in the final results
+   */
+  auto cleanMessage = [](const std::string& message) -> std::string {
+    auto msg = message;
+    if (!msg.empty() && msg.back() == '\n') {
+      msg.pop_back();
+    }
+    return msg;
+  };
   cmSystemTools::SetMessageCallback(
-    [myform](const std::string& message, const char* title) {
-      myform->AddError(message, title);
+    [&](const std::string& message, const char* title) {
+      myform->AddError(cleanMessage(message), title);
     });
+  cmSystemTools::SetStderrCallback([&](const std::string& message) {
+    myform->AddError(cleanMessage(message), "");
+  });
+  cmSystemTools::SetStdoutCallback([&](const std::string& message) {
+    myform->UpdateProgress(cleanMessage(message), -1);
+  });
 
   cmCursesForm::CurrentForm = myform;
 

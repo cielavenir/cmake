@@ -178,16 +178,14 @@ Modules
 Autogen
 -------
 
-* When using :prop_tgt:`AUTOMOC`, CMake now generates the ``-p`` path prefix
+* When using :prop_tgt:`AUTOMOC`, the new :variable:`CMAKE_AUTOMOC_PATH_PREFIX`
+  variable or :prop_tgt:`AUTOMOC_PATH_PREFIX` target property may be enabled
+  to generate the ``-p`` path prefix
   option for ``moc``.  This ensures that ``moc`` output files are identical
   on different build setups (given, that the headers compiled by ``moc`` are
   in an :command:`include directory <target_include_directories>`).
   Also it ensures that ``moc`` output files will compile correctly when the
   source and/or build directory is a symbolic link.
-
-  The ``moc`` path prefix generation behavior can be configured by setting
-  the new :variable:`CMAKE_AUTOMOC_PATH_PREFIX` variable and/or
-  :prop_tgt:`AUTOMOC_PATH_PREFIX` target property.
 
 CTest
 -----
@@ -277,3 +275,50 @@ Other Changes
 * When using :variable:`CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS` on Windows the
   auto-generated exports are now updated only when the object files
   providing the symbols are updated.
+
+Updates
+=======
+
+Changes made since CMake 3.16.0 include the following.
+
+3.16.2
+------
+
+* CMake 3.16.0 and 3.16.1 processed ``.hh`` files with :prop_tgt:`AUTOMOC`.
+  This was a behavior change from CMake 3.15 and below that can break
+  existing projects, so it has been reverted as of 3.16.2.
+
+3.16.5
+------
+
+* The :module:`FindPython`, :module:`FindPython2`, and :module:`FindPython3`
+  modules no longer create cache entries for ``Python{,2,3}_LIBRARY_RELEASE``
+  and ``Python{,2,3}_LIBRARY_DEBUG``.  Those values are always computed from
+  other results and so should not be cached.  The entries were created by
+  CMake 3.16.0 through 3.16.4 but were always ``FORCE``-set and could not
+  be meaningfully edited by users.
+
+  Additionally, the modules no longer expose their internal ``_Python*``
+  cache entries publicly.  CMake 3.16.0 through 3.16.4 accidentally
+  made them visible as advanced cache entries.
+
+3.16.7
+------
+
+* Selection of the Objective C or C++ compiler now considers the
+  :envvar:`CC` or :envvar:`CXX` environment variable if the
+  :envvar:`OBJC` or :envvar:`OBJCXX` environment variable is not set.
+
+* The :module:`FindPkgConfig` module now extracts include directories
+  prefixed with ``-isystem`` into the ``*_INCLUDE_DIRS`` variables and
+  :prop_tgt:`INTERFACE_INCLUDE_DIRECTORIES` target properties.
+  Previously they would be places in ``*_CFLAGS_OTHER`` variables and
+  :prop_tgt:`INTERFACE_COMPILE_OPTIONS` target properties.
+
+3.16.9
+------
+
+* The default value of :variable:`CMAKE_AUTOMOC_PATH_PREFIX` was changed to
+  ``OFF`` because this feature can break existing projects that have
+  identically named header files in different include directories.
+  This restores compatibility with behavior of CMake 3.15 and below.

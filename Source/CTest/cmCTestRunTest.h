@@ -13,12 +13,11 @@
 
 #include <stddef.h>
 
+#include "cmCTest.h"
 #include "cmCTestMultiProcessHandler.h"
 #include "cmCTestTestHandler.h"
 #include "cmDuration.h"
 #include "cmProcess.h"
-
-class cmCTest;
 
 /** \class cmRunTest
  * \brief represents a single test to be run
@@ -30,8 +29,13 @@ class cmCTestRunTest
 public:
   explicit cmCTestRunTest(cmCTestMultiProcessHandler& multiHandler);
 
-  void SetNumberOfRuns(int n) { this->NumberOfRunsLeft = n; }
-  void SetRunUntilFailOn() { this->RunUntilFail = true; }
+  void SetNumberOfRuns(int n)
+  {
+    this->NumberOfRunsLeft = n;
+    this->NumberOfRunsTotal = n;
+  }
+
+  void SetRepeatMode(cmCTest::Repeat r) { this->RepeatMode = r; }
   void SetTestProperties(cmCTestTestHandler::cmCTestTestProperties* prop)
   {
     this->TestProperties = prop;
@@ -61,6 +65,15 @@ public:
   // Read and store output.  Returns true if it must be called again.
   void CheckOutput(std::string const& line);
 
+  static bool StartTest(std::unique_ptr<cmCTestRunTest> runner,
+                        size_t completed, size_t total);
+  static bool StartAgain(std::unique_ptr<cmCTestRunTest> runner,
+                         size_t completed);
+
+  static void StartFailure(std::unique_ptr<cmCTestRunTest> runner,
+                           std::string const& output,
+                           std::string const& detail);
+
   // launch the test process, return whether it started correctly
   bool StartTest(size_t completed, size_t total);
   // capture and report the test results
@@ -70,9 +83,7 @@ public:
 
   void ComputeWeightedCost();
 
-  bool StartAgain(size_t completed);
-
-  void StartFailure(std::string const& output);
+  void StartFailure(std::string const& output, std::string const& detail);
 
   cmCTest* GetCTest() const { return this->CTest; }
 
@@ -80,7 +91,7 @@ public:
 
   const std::vector<std::string>& GetArguments() { return this->Arguments; }
 
-  void FinalizeTest();
+  void FinalizeTest(bool started = true);
 
   bool TimedOutForStopTime() const { return this->TimeoutIsForStopTime; }
 
@@ -98,7 +109,7 @@ public:
   }
 
 private:
-  bool NeedsToRerun();
+  bool NeedsToRepeat();
   void DartProcessing();
   void ExeNotFound(std::string exe);
   bool ForkProcess(cmDuration testTimeOut, bool explicitTimeout,
@@ -108,7 +119,7 @@ private:
   // Run post processing of the process output for MemCheck
   void MemCheckPostProcess();
 
-  void SetupResourcesEnvironment();
+  void SetupResourcesEnvironment(std::vector<std::string>* log = nullptr);
 
   // Returns "completed/total Test #Index: "
   std::string GetTestPrefix(size_t completed, size_t total) const;
@@ -132,9 +143,10 @@ private:
   std::vector<std::map<
     std::string, std::vector<cmCTestMultiProcessHandler::ResourceAllocation>>>
     AllocatedResources;
-  bool RunUntilFail;
-  int NumberOfRunsLeft;
-  bool RunAgain;
+  cmCTest::Repeat RepeatMode = cmCTest::Repeat::Never;
+  int NumberOfRunsLeft = 1;  // default to 1 run of the test
+  int NumberOfRunsTotal = 1; // default to 1 run of the test
+  bool RunAgain = false;     // default to not having to run again
   size_t TotalNumberOfTests;
 };
 

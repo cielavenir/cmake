@@ -206,8 +206,23 @@ Options
  The :command:`message` command will only output messages of the specified
  log level or higher.  The default log level is ``STATUS``.
 
+ To make a log level persist between CMake runs, set
+ :variable:`CMAKE_MESSAGE_LOG_LEVEL` as a cache variable instead.
+ If both the command line option and the variable are given, the command line
+ option takes precedence.
+
  For backward compatibility reasons, ``--loglevel`` is also accepted as a
  synonym for this option.
+
+``--log-context``
+ Enable the :command:`message` command outputting context attached to each
+ message.
+
+ This option turns on showing context for the current CMake run only.
+ To make showing the context persistent for all subsequent CMake runs, set
+ :variable:`CMAKE_MESSAGE_CONTEXT_SHOW` as a cache variable instead.
+ When this command line option is given, :variable:`CMAKE_MESSAGE_CONTEXT_SHOW`
+ is ignored.
 
 ``--debug-trycompile``
  Do not delete the :command:`try_compile` build tree.
@@ -226,6 +241,14 @@ Options
  Print extra information during the cmake run like stack traces with
  :command:`message(SEND_ERROR)` calls.
 
+``--debug-find``
+ Put cmake find commands in a debug mode.
+
+ Print extra find call information during the cmake run to standard
+ error. Output is designed for human consumption and not for parsing.
+ See also the :variable:`CMAKE_FIND_DEBUG_MODE` variable for debugging
+ a more local part of the project.
+
 ``--trace``
  Put cmake in trace mode.
 
@@ -235,6 +258,74 @@ Options
  Put cmake in trace mode.
 
  Like ``--trace``, but with variables expanded.
+
+``--trace-format=<format>``
+ Put cmake in trace mode and sets the trace output format.
+
+ ``<format>`` can be one of the following values.
+
+   ``human``
+     Prints each trace line in a human-readable format. This is the
+     default format.
+
+   ``json-v1``
+     Prints each line as a separate JSON document. Each document is
+     separated by a newline ( ``\n`` ). It is guaranteed that no
+     newline characters will be present inside a JSON document.
+
+     JSON trace format:
+
+     .. code-block:: json
+
+       {
+         "file": "/full/path/to/the/CMake/file.txt",
+         "line": 0,
+         "cmd": "add_executable",
+         "args": ["foo", "bar"],
+         "time": 1579512535.9687231,
+         "frame": 2
+       }
+
+     The members are:
+
+     ``file``
+       The full path to the CMake source file where the function
+       was called.
+
+     ``line``
+       The line in ``file`` of the function call.
+
+     ``cmd``
+       The name of the function that was called.
+
+     ``args``
+       A string list of all function parameters.
+
+     ``time``
+       Timestamp (seconds since epoch) of the function call.
+
+     ``frame``
+       Stack frame depth of the function that was called.
+
+     Additionally, the first JSON document outputted contains the
+     ``version`` key for the current major and minor version of the
+
+     JSON trace format:
+
+     .. code-block:: json
+
+       {
+         "version": {
+           "major": 1,
+           "minor": 0
+         }
+       }
+
+     The members are:
+
+     ``version``
+       Indicates the version of the JSON format. The version has a
+       major and minor components following semantic version conventions.
 
 ``--trace-source=<file>``
  Put cmake in trace mode, but output only lines of a specified file.
@@ -266,6 +357,20 @@ Options
  Normally, unused and uninitialized variables are searched for only
  in :variable:`CMAKE_SOURCE_DIR` and :variable:`CMAKE_BINARY_DIR`.
  This flag tells CMake to warn about other files as well.
+
+``--profiling-output=<path>``
+ Used in conjuction with ``--profiling-format`` to output to a given path.
+
+``--profiling-format=<file>``
+ Enable the output of profiling data of CMake script in the given format.
+
+ This can aid performance analysis of CMake scripts executed. Third party
+ applications should be used to process the output into human readable format.
+
+ Currently supported values are:
+ ``google-trace`` Outputs in Google Trace Format, which can be parsed by the
+ about:tracing tab of Google Chrome or using a plugin for a tool like Trace
+ Compass.
 
 .. _`Build Tool Mode`:
 
@@ -376,12 +481,16 @@ Run a Script
 
 .. code-block:: shell
 
-  cmake [{-D <var>=<value>}...] -P <cmake-script-file>
+  cmake [{-D <var>=<value>}...] -P <cmake-script-file> [-- <unparsed-options>...]
 
 Process the given cmake file as a script written in the CMake
 language.  No configure or generate step is performed and the cache
 is not modified.  If variables are defined using ``-D``, this must be
 done before the ``-P`` argument.
+
+Any options after ``--`` are not parsed by CMake, but they are still included
+in the set of :variable:`CMAKE_ARGV<n> <CMAKE_ARGV0>` variables passed to the
+script (including the ``--`` itself).
 
 
 Run a Command-Line Tool
@@ -448,6 +557,9 @@ Available commands are:
 
   ``serverMode``
     ``true`` if cmake supports server-mode and ``false`` otherwise.
+
+``cat <files>...``
+  Concatenate files and print on the standard output.
 
 ``chdir <dir> <cmd> [<arg>...]``
   Change the current working directory and run a command.
@@ -539,21 +651,37 @@ Available commands are:
      7a0b54896fe5e70cca6dd643ad6f672614b189bf26f8153061c4d219474b05dad08c4e729af9f4b009f1a1a280cb625454bf587c690f4617c27e3aebdf3b7a2d  file2.txt
 
 ``remove [-f] <file>...``
-  Remove the file(s). If any of the listed files already do not
-  exist, the command returns a non-zero exit code, but no message
-  is logged. The ``-f`` option changes the behavior to return a
+  .. deprecated:: 3.17
+
+  Remove the file(s). The planned behaviour was that if any of the
+  listed files already do not exist, the command returns a non-zero exit code,
+  but no message is logged. The ``-f`` option changes the behavior to return a
   zero exit code (i.e. success) in such situations instead.
   ``remove`` does not follow symlinks. That means it remove only symlinks
   and not files it point to.
 
+  The implementation was buggy and always returned 0. It cannot be fixed without
+  breaking backwards compatibility. Use ``rm`` instead.
+
 ``remove_directory <dir>...``
-  Remove ``<dir>`` directories and their contents.  If a directory does
+  .. deprecated:: 3.17
+
+  Remove ``<dir>`` directories and their contents. If a directory does
   not exist it will be silently ignored.  If ``<dir>`` is a symlink to
   a directory, just the symlink will be removed.
+  Use ``rm`` instead.
 
 ``rename <oldname> <newname>``
   Rename a file or directory (on one volume). If file with the ``<newname>`` name
   already exists, then it will be silently replaced.
+
+``rm [-rRf] <file> <dir>...``
+  Remove the files ``<file>`` or directories ``dir``.
+  Use ``-r`` or ``-R`` to remove directories and their contents recursively.
+  If any of the listed files/directories do not exist, the command returns a
+  non-zero exit code, but no message is logged. The ``-f`` option changes
+  the behavior to return a zero exit code (i.e. success) in such
+  situations instead.
 
 ``server``
   Launch :manual:`cmake-server(7)` mode.

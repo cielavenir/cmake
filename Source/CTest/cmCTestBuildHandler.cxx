@@ -7,11 +7,12 @@
 #include <set>
 #include <utility>
 
+#include <cmext/algorithm>
+
 #include "cmsys/Directory.hxx"
 #include "cmsys/FStream.hxx"
 #include "cmsys/Process.h"
 
-#include "cmAlgorithms.h"
 #include "cmCTest.h"
 #include "cmDuration.h"
 #include "cmFileTimeCache.h"
@@ -385,24 +386,20 @@ int cmCTestBuildHandler::ProcessHandler()
   if (this->CTest->GetCTestConfiguration("SourceDirectory").size() > 20) {
     std::string srcdir =
       this->CTest->GetCTestConfiguration("SourceDirectory") + "/";
-    for (cc = srcdir.size() - 2; cc > 0; cc--) {
-      if (srcdir[cc] == '/') {
-        srcdir = srcdir.substr(0, cc + 1);
-        break;
-      }
+    cc = srcdir.rfind('/', srcdir.size() - 2);
+    if (cc != std::string::npos) {
+      srcdir.resize(cc + 1);
+      this->SimplifySourceDir = std::move(srcdir);
     }
-    this->SimplifySourceDir = srcdir;
   }
   if (this->CTest->GetCTestConfiguration("BuildDirectory").size() > 20) {
     std::string bindir =
       this->CTest->GetCTestConfiguration("BuildDirectory") + "/";
-    for (cc = bindir.size() - 2; cc > 0; cc--) {
-      if (bindir[cc] == '/') {
-        bindir = bindir.substr(0, cc + 1);
-        break;
-      }
+    cc = bindir.rfind('/', bindir.size() - 2);
+    if (cc != std::string::npos) {
+      bindir.resize(cc + 1);
+      this->SimplifyBuildDir = std::move(bindir);
     }
-    this->SimplifyBuildDir = bindir;
   }
 
   // Ok, let's do the build
@@ -544,11 +541,11 @@ void cmCTestBuildHandler::GenerateXMLLaunched(cmXMLWriter& xml)
     const char* fname = launchDir.GetFile(i);
     if (this->IsLaunchedErrorFile(fname) && numErrorsAllowed) {
       numErrorsAllowed--;
-      fragments.insert(this->CTestLaunchDir + "/" + fname);
+      fragments.insert(this->CTestLaunchDir + '/' + fname);
       ++this->TotalErrors;
     } else if (this->IsLaunchedWarningFile(fname) && numWarningsAllowed) {
       numWarningsAllowed--;
-      fragments.insert(this->CTestLaunchDir + "/" + fname);
+      fragments.insert(this->CTestLaunchDir + '/' + fname);
       ++this->TotalWarnings;
     }
   }
@@ -969,7 +966,7 @@ void cmCTestBuildHandler::ProcessBuffer(const char* data, size_t length,
     if (it != queue->end()) {
       // Create a contiguous array for the line
       this->CurrentProcessingLine.clear();
-      cmAppend(this->CurrentProcessingLine, queue->begin(), it);
+      cm::append(this->CurrentProcessingLine, queue->begin(), it);
       this->CurrentProcessingLine.push_back(0);
       const char* line = this->CurrentProcessingLine.data();
 

@@ -8,23 +8,14 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
+#include <memory>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
-#include "cm_kwiml.h"
+#include <cmext/algorithm>
 
 #include "cmRange.h"
-
-template <std::size_t N>
-struct cmOverloadPriority : cmOverloadPriority<N - 1>
-{
-};
-
-template <>
-struct cmOverloadPriority<0>
-{
-};
 
 template <typename FwdIt>
 FwdIt cmRotate(FwdIt first, FwdIt middle, FwdIt last)
@@ -36,75 +27,7 @@ FwdIt cmRotate(FwdIt first, FwdIt middle, FwdIt last)
   return first;
 }
 
-template <typename Container, typename Predicate>
-void cmEraseIf(Container& cont, Predicate pred)
-{
-  cont.erase(std::remove_if(cont.begin(), cont.end(), pred), cont.end());
-}
-
-template <typename Range, typename Key>
-auto cmContainsImpl(Range const& range, Key const& key, cmOverloadPriority<2>)
-  -> decltype(range.exists(key))
-{
-  return range.exists(key);
-}
-
-template <typename Range, typename Key>
-auto cmContainsImpl(Range const& range, Key const& key, cmOverloadPriority<1>)
-  -> decltype(range.find(key) != range.end())
-{
-  return range.find(key) != range.end();
-}
-
-template <typename Range, typename Key>
-bool cmContainsImpl(Range const& range, Key const& key, cmOverloadPriority<0>)
-{
-  using std::begin;
-  using std::end;
-  return std::find(begin(range), end(range), key) != end(range);
-}
-
-template <typename Range, typename Key>
-bool cmContains(Range const& range, Key const& key)
-{
-  return cmContainsImpl(range, key, cmOverloadPriority<2>{});
-}
-
 namespace ContainerAlgorithms {
-
-template <typename T>
-struct cmIsPair
-{
-  enum
-  {
-    value = false
-  };
-};
-
-template <typename K, typename V>
-struct cmIsPair<std::pair<K, V>>
-{
-  enum
-  {
-    value = true
-  };
-};
-
-template <typename Range,
-          bool valueTypeIsPair = cmIsPair<typename Range::value_type>::value>
-struct DefaultDeleter
-{
-  void operator()(typename Range::value_type value) const { delete value; }
-};
-
-template <typename Range>
-struct DefaultDeleter<Range, /* valueTypeIsPair = */ true>
-{
-  void operator()(typename Range::value_type value) const
-  {
-    delete value.second;
-  }
-};
 
 template <typename FwdIt>
 FwdIt RemoveN(FwdIt i1, FwdIt i2, size_t n)
@@ -136,25 +59,6 @@ private:
 class cmListFileBacktrace;
 using cmBacktraceRange =
   cmRange<std::vector<cmListFileBacktrace>::const_iterator>;
-
-template <typename Range>
-void cmDeleteAll(Range const& r)
-{
-  std::for_each(r.begin(), r.end(),
-                ContainerAlgorithms::DefaultDeleter<Range>());
-}
-
-template <typename T, typename Range>
-void cmAppend(std::vector<T>& v, Range const& r)
-{
-  v.insert(v.end(), r.begin(), r.end());
-}
-
-template <typename T, typename InputIt>
-void cmAppend(std::vector<T>& v, InputIt first, InputIt last)
-{
-  v.insert(v.end(), first, last);
-}
 
 template <typename Range>
 typename Range::const_iterator cmRemoveN(Range& r, size_t n)
@@ -197,7 +101,7 @@ template <typename ForwardIterator>
 ForwardIterator cmRemoveDuplicates(ForwardIterator first, ForwardIterator last)
 {
   using Value = typename std::iterator_traits<ForwardIterator>::value_type;
-  using Hash = struct
+  struct Hash
   {
     std::size_t operator()(ForwardIterator it) const
     {
@@ -205,7 +109,7 @@ ForwardIterator cmRemoveDuplicates(ForwardIterator first, ForwardIterator last)
     }
   };
 
-  using Equal = struct
+  struct Equal
   {
     bool operator()(ForwardIterator it1, ForwardIterator it2) const
     {
@@ -216,7 +120,7 @@ ForwardIterator cmRemoveDuplicates(ForwardIterator first, ForwardIterator last)
 
   ForwardIterator result = first;
   while (first != last) {
-    if (!cmContains(uniq, first)) {
+    if (!cm::contains(uniq, first)) {
       if (result != first) {
         *result = std::move(*first);
       }

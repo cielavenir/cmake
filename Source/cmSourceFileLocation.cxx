@@ -4,6 +4,8 @@
 
 #include <cassert>
 
+#include <cm/string_view>
+
 #include "cmGlobalGenerator.h"
 #include "cmMakefile.h"
 #include "cmMessageType.h"
@@ -31,7 +33,8 @@ cmSourceFileLocation::cmSourceFileLocation(cmMakefile const* mf,
   this->AmbiguousExtension = true;
   this->Directory = cmSystemTools::GetFilenamePath(name);
   if (cmSystemTools::FileIsFullPath(this->Directory)) {
-    this->Directory = cmSystemTools::CollapseFullPath(this->Directory);
+    this->Directory = cmSystemTools::CollapseFullPath(
+      this->Directory, mf->GetHomeOutputDirectory());
   }
   this->Name = cmSystemTools::GetFilenameName(name);
   if (kind == cmSourceFileLocationKind::Known) {
@@ -151,7 +154,7 @@ bool cmSourceFileLocation::MatchesAmbiguousExtension(
 
   // Only a fixed set of extensions will be tried to match a file on
   // disk.  One of these must match if loc refers to this source file.
-  std::string const& ext = this->Name.substr(loc.Name.size() + 1);
+  auto ext = cm::string_view(this->Name).substr(loc.Name.size() + 1);
   cmMakefile const* mf = this->Makefile;
   auto cm = mf->GetCMakeInstance();
   return cm->IsSourceExtension(ext) || cm->IsHeaderExtension(ext);

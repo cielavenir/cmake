@@ -4,14 +4,16 @@
 
 #include <algorithm>
 #include <array>
-#include <cstring>
 #include <utility>
 
-#include "cmAlgorithms.h"
+#include <cmext/algorithm>
+
 #include "cmExecutionStatus.h"
 #include "cmMakefile.h"
+#include "cmMessageType.h"
 #include "cmStringAlgorithms.h"
 #include "cmSystemTools.h"
+#include "cmake.h"
 
 cmFindCommon::PathGroup cmFindCommon::PathGroup::All("ALL");
 cmFindCommon::PathLabel cmFindCommon::PathLabel::PackageRoot(
@@ -52,11 +54,26 @@ cmFindCommon::cmFindCommon(cmExecutionStatus& status)
   this->SearchAppBundleLast = false;
 
   this->InitializeSearchPathGroups();
+
+  this->DebugMode = false;
 }
 
 void cmFindCommon::SetError(std::string const& e)
 {
   this->Status.SetError(e);
+}
+
+void cmFindCommon::DebugMessage(std::string const& msg) const
+{
+  if (this->Makefile) {
+    this->Makefile->IssueMessage(MessageType::LOG, msg);
+  }
+}
+
+bool cmFindCommon::ComputeIfDebugModeWanted()
+{
+  return this->Makefile->IsOn("CMAKE_FIND_DEBUG_MODE") ||
+    this->Makefile->GetCMakeInstance()->GetDebugFindOutput();
 }
 
 void cmFindCommon::InitializeSearchPathGroups()
@@ -249,7 +266,7 @@ void cmFindCommon::RerootPaths(std::vector<std::string>& paths)
   // If searching both rooted and unrooted paths add the original
   // paths again.
   if (this->FindRootPathMode == RootPathModeBoth) {
-    cmAppend(paths, unrootedPaths);
+    cm::append(paths, unrootedPaths);
   }
 }
 
@@ -262,12 +279,7 @@ void cmFindCommon::GetIgnoredPaths(std::vector<std::string>& ignore)
   // Construct the list of path roots with no trailing slashes.
   for (const char** pathName = paths; *pathName; ++pathName) {
     // Get the list of paths to ignore from the variable.
-    const char* ignorePath = this->Makefile->GetDefinition(*pathName);
-    if ((ignorePath == nullptr) || (strlen(ignorePath) == 0)) {
-      continue;
-    }
-
-    cmExpandList(ignorePath, ignore);
+    this->Makefile->GetDefExpandList(*pathName, ignore);
   }
 
   for (std::string& i : ignore) {

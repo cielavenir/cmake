@@ -6,11 +6,12 @@
 #include <sstream>
 #include <utility>
 
+#include <cm/memory>
+#include <cmext/algorithm>
+#include <cmext/string_view>
+
 #include "cmsys/RegularExpression.hxx"
 
-#include "cm_static_string_view.hxx"
-
-#include "cmAlgorithms.h"
 #include "cmArgumentParser.h"
 #include "cmExecutionStatus.h"
 #include "cmExportBuildAndroidMKGenerator.h"
@@ -22,6 +23,7 @@
 #include "cmMessageType.h"
 #include "cmPolicies.h"
 #include "cmStateTypes.h"
+#include "cmStringAlgorithms.h"
 #include "cmSystemTools.h"
 #include "cmTarget.h"
 
@@ -144,7 +146,7 @@ bool cmExportCommand(std::vector<std::string> const& args,
     }
     exportSet = &it->second;
   } else if (!arguments.Targets.empty() ||
-             cmContains(keywordsMissingValue, "TARGETS")) {
+             cm::contains(keywordsMissingValue, "TARGETS")) {
     for (std::string const& currentTarget : arguments.Targets) {
       if (mf.IsAlias(currentTarget)) {
         std::ostringstream e;
@@ -181,12 +183,34 @@ bool cmExportCommand(std::vector<std::string> const& args,
     return false;
   }
 
+  // if cmExportBuildFileGenerator is already defined for the file
+  // and APPEND is not specified, if CMP0103 is OLD ignore previous definition
+  // else raise an error
+  if (gg->GetExportedTargetsFile(fname) != nullptr) {
+    switch (mf.GetPolicyStatus(cmPolicies::CMP0103)) {
+      case cmPolicies::WARN:
+        mf.IssueMessage(
+          MessageType::AUTHOR_WARNING,
+          cmStrCat(cmPolicies::GetPolicyWarning(cmPolicies::CMP0103), '\n',
+                   "export() command already specified for the file\n  ",
+                   arguments.Filename, "\nDid you miss 'APPEND' keyword?"));
+        CM_FALLTHROUGH;
+      case cmPolicies::OLD:
+        break;
+      default:
+        status.SetError(cmStrCat("command already specified for the file\n  ",
+                                 arguments.Filename,
+                                 "\nDid you miss 'APPEND' keyword?"));
+        return false;
+    }
+  }
+
   // Setup export file generation.
-  cmExportBuildFileGenerator* ebfg = nullptr;
+  std::unique_ptr<cmExportBuildFileGenerator> ebfg = nullptr;
   if (android) {
-    ebfg = new cmExportBuildAndroidMKGenerator;
+    ebfg = cm::make_unique<cmExportBuildAndroidMKGenerator>();
   } else {
-    ebfg = new cmExportBuildFileGenerator;
+    ebfg = cm::make_unique<cmExportBuildFileGenerator>();
   }
   ebfg->SetExportFile(fname.c_str());
   ebfg->SetNamespace(arguments.Namespace);
@@ -196,7 +220,6 @@ bool cmExportCommand(std::vector<std::string> const& args,
   } else {
     ebfg->SetTargets(targets);
   }
-  mf.AddExportBuildFileGenerator(ebfg);
   ebfg->SetExportOld(arguments.ExportOld);
 
   // Compute the set of configurations exported.
@@ -209,10 +232,11 @@ bool cmExportCommand(std::vector<std::string> const& args,
     ebfg->AddConfiguration(ct);
   }
   if (exportSet != nullptr) {
-    gg->AddBuildExportExportSet(ebfg);
+    gg->AddBuildExportExportSet(ebfg.get());
   } else {
-    gg->AddBuildExportSet(ebfg);
+    gg->AddBuildExportSet(ebfg.get());
   }
+  mf.AddExportBuildFileGenerator(std::move(ebfg));
 
   return true;
 }

@@ -6,12 +6,10 @@ Uploaders: Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>,
            Felix Geyer <fgeyer@debian.org>
 Build-Depends: debhelper-compat (= 11),
                freebsd-glue [kfreebsd-any],
-               libarchive-dev (>= 2.8.0),
-               libbz2-dev,
+               libarchive-dev (>= 3.3.3),
                libcurl4-openssl-dev | libcurl-ssl-dev,
                libexpat1-dev,
                libjsoncpp-dev,
-               liblzma-dev,
                libncurses5-dev,
                librhash-dev,
                libuv1-dev (>= 1.10),
@@ -52,6 +50,7 @@ Description: cross-platform, open-source make system
 
 Package: cmake-data
 Architecture: all
+Multi-Arch: foreign
 Depends: ${misc:Depends}
 Description: CMake data files (modules, templates and documentation)
  This package provides CMake architecture independent data files (modules,
