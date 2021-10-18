@@ -2,3 +2,4 @@
 0002-Prefer-Debian-default-version-of-Python.patch
 0003-Fix-RunCMake.CPack_DEB.EXTRA-on-Debian-non-Linux-OSe.patch
 0004-Fix-misinterpretation-of-Debian-Policy-on-LIBEXECDIR.patch
+0005-Make-FindFLTK-safe-to-include-multiple-times.patch
