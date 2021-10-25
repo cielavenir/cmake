@@ -1,3 +1,11 @@
+cmake (3.21.3-5) unstable; urgency=medium
+
+  * Package can be cross-compiled now
+  * Make FindFLTK safe to include multiple times (Closes: #671746)
+  * Fix check_symbols_exists() with -pedantic-errors (Closes: #777542)
+
+ -- Timo Röhling <roehling@debian.org>  Fri, 22 Oct 2021 14:24:08 +0200
+
 cmake (3.21.3-4~bpo11+1) bullseye-backports; urgency=medium
 
   * Rebuild for bullseye-backports.

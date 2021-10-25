@@ -6,6 +6,7 @@ Uploaders: Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>,
            Felix Geyer <fgeyer@debian.org>,
            Timo Röhling <roehling@debian.org>
 Build-Depends: debhelper-compat (= 13),
+               cmake <cross>,
                freebsd-glue [kfreebsd-any],
                libarchive-dev (>= 3.3.3) <!pkg.cmake.bootstrap>,
                libcurl4-openssl-dev <!pkg.cmake.bootstrap> | libcurl-ssl-dev <!pkg.cmake.bootstrap>,
@@ -16,8 +17,8 @@ Build-Depends: debhelper-compat (= 13),
                libssl-dev <pkg.cmake.bootstrap>,
                libuv1-dev (>= 1.10) <!pkg.cmake.bootstrap>,
                procps [!hurd-any],
-               python3-sphinx,
-               python3-sphinxcontrib.qthelp | python3-sphinx (<< 2.0),
+               python3-sphinx:native,
+               python3-sphinxcontrib.qthelp:native,
                qtbase5-dev <!pkg.cmake.bootstrap !pkg.cmake.nogui>,
                zlib1g-dev <!pkg.cmake.bootstrap>
 Build-Depends-Indep:

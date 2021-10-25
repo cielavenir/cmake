@@ -42,6 +42,12 @@ BOOTSTRAP_FLAGS = --prefix=/usr --docdir=/share/doc/cmake-data --mandir=/share/m
                   --sphinx-man --sphinx-html --sphinx-flags="-D today=\"$(BUILD_DATE)\"" \
                   --init=../$(BUILD_FLAGS_FILE) --verbose
 
+CROSS_CMAKE_FLAGS = -C../$(BUILD_FLAGS_FILE) \
+                    -DCMAKE_DOC_DIR=share/doc/cmake-data \
+                    -DCMAKE_MAN_DIR=share/man \
+                    -DSPHINX_HTML=ON -DSPHINX_MAN=ON \
+                    -DSPHINX_FLAGS="-D today=\"$(BUILD_DATE)\""
+
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
     NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
     BOOTSTRAP_FLAGS += --parallel=$(NUMJOBS)
@@ -50,11 +56,17 @@ else
 endif
 ifeq (,$(filter pkg.cmake.bootstrap,$(DEB_BUILD_PROFILES)))
     BOOTSTRAP_FLAGS += --system-libs
+    CROSS_CMAKE_FLAGS += -DCMAKE_USE_SYSTEM_LIBRARIES=ON
 endif
 
 override_dh_auto_configure: $(BUILD_FLAGS_FILE)
+ifeq (,$(filter cross,$(DEB_BUILD_PROFILES)))
 	rm -rf Build && mkdir -p Build
 	cd Build && ../bootstrap $(BOOTSTRAP_FLAGS)
+else
+	dh_auto_configure --buildsystem=cmake --builddirectory=Build -- \
+		$(CROSS_CMAKE_FLAGS)
+endif
 
 ifeq ($(DEB_HOST_ARCH_OS),kfreebsd)
     # Workaround for Bug #815231: skip spuriously failing tests
