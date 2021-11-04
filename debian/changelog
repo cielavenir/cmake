@@ -1,3 +1,9 @@
+cmake (3.21.4-1~bpo11+1) bullseye-backports; urgency=medium
+
+  * Rebuild for bullseye-backports.
+
+ -- Timo Röhling <roehling@debian.org>  Thu, 04 Nov 2021 09:27:04 +0100
+
 cmake (3.21.4-1) unstable; urgency=medium
 
   * Also unset _proxy variables for ninja autopkgtest (Fixup for #960179)
