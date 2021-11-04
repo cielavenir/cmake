@@ -1,6 +1,5 @@
-0001-Fix-cross-compilation-with-MPI.patch
-0002-Prefer-Debian-default-version-of-Python.patch
+0001-Prefer-Debian-default-version-of-Python.patch
+0002-Fix-cross-compilation-with-MPI.patch
 0003-Fix-RunCMake.CPack_DEB.EXTRA-on-Debian-non-Linux-OSe.patch
-0004-Fix-misinterpretation-of-Debian-Policy-on-LIBEXECDIR.patch
-0005-Make-FindFLTK-safe-to-include-multiple-times.patch
-0006-Fix-check_symbol_exists-with-pedantic-errors.patch
+0004-Make-FindFLTK-safe-to-include-multiple-times.patch
+0005-Fix-check_symbol_exists-with-pedantic-errors.patch

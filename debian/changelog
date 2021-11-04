@@ -1,3 +1,23 @@
+cmake (3.21.4-1) unstable; urgency=medium
+
+  * Also unset _proxy variables for ninja autopkgtest (Fixup for #960179)
+  * New upstream version 3.21.4
+  * Refresh patches
+    - Keep Prefer-Debian-default-version-of-Python.patch
+      (Debian-specific)
+    - Update Fix-cross-compilation-with-MPI.patch
+      (modified by upstream, targeted for 3.22 release)
+    - Keep Fix-RunCMake.CPack_DEB.EXTRA-on-Debian-non-Linux-OSe.patch
+      (accepted by upstream, targeted for 3.22 release)
+    - Drop Fix-misinterpretation-of-Debian-Policy-on-LIBEXECDIR.patch
+      (applied by upstream)
+    - Keep Make-FindFLTK-safe-to-include-multiple-times.patch
+      (accepted by upstream, targeted for 3.22 release)
+    - Keep Fix-check_symbol_exists-with-pedantic-errors.patch
+      (accepted by upstream, targeted for 3.23 release)
+
+ -- Timo Röhling <roehling@debian.org>  Tue, 02 Nov 2021 14:18:06 +0100
+
 cmake (3.21.3-5~bpo11+1) bullseye-backports; urgency=medium
 
   * Rebuild for buster-backports.
