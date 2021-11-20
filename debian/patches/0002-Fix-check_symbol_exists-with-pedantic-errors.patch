@@ -9,7 +9,7 @@ Forwarded: https://gitlab.kitware.com/cmake/cmake/-/merge_requests/6656
  2 files changed, 26 insertions(+)
 
 diff --git a/Modules/CheckSymbolExists.cmake b/Modules/CheckSymbolExists.cmake
-index f8ca584..a87fdbd 100644
+index 48ee3c4..a7139af 100644
 --- a/Modules/CheckSymbolExists.cmake
 +++ b/Modules/CheckSymbolExists.cmake
 @@ -67,14 +67,29 @@ cmake_policy(SET CMP0054 NEW) # if() quoted variables not dereferenced
