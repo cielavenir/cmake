@@ -1,3 +1,20 @@
+cmake (3.22.0-1) unstable; urgency=medium
+
+  * Add lintian overrides for various false positives
+  * New upstream version 3.22.0
+  * Refresh patches
+    - Drop Fix-cross-compilation-with-MPI.patch (applied upstream)
+    - Drop Fix-RunCMake.CPack_DEB.EXTRA-on-Debian-non-Linux-OSe.patch
+      (applied upstream)
+    - Drop Make-FindFLTK-safe-to-include-multiple-times.patch
+      (applied upstream)
+    - Keep Prefer-Debian-default-version-of-Python.patch
+      (Debian-specific)
+    - Keep Fix-check_symbol_exists-with-pedantic-errors.patch
+      (accepted by upstream, targeted for 3.23 release)
+
+ -- Timo Röhling <roehling@debian.org>  Sat, 20 Nov 2021 13:55:40 +0100
+
 cmake (3.21.4-1~bpo11+1) bullseye-backports; urgency=medium
 
   * Rebuild for bullseye-backports.
