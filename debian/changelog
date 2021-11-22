@@ -1,3 +1,9 @@
+cmake (3.22.0-1~bpo11+1) bullseye-backports; urgency=medium
+
+  * Rebuild for bullseye-backports.
+
+ -- Timo Röhling <roehling@debian.org>  Mon, 22 Nov 2021 13:36:59 +0100
+
 cmake (3.22.0-1) unstable; urgency=medium
 
   * Add lintian overrides for various false positives
