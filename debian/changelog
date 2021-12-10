@@ -1,3 +1,13 @@
+cmake (3.22.1-1) unstable; urgency=medium
+
+  [ Mathieu Malaterre ]
+  * d/control: Add cmake-format to Suggests: line
+
+  [ Timo Röhling ]
+  * New upstream version 3.22.1
+
+ -- Timo Röhling <roehling@debian.org>  Wed, 08 Dec 2021 00:19:44 +0100
+
 cmake (3.22.0-1~bpo11+1) bullseye-backports; urgency=medium
 
   * Rebuild for bullseye-backports.
