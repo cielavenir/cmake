@@ -235,6 +235,10 @@ Files: debian/debtoolchainfilegen
 Copyright: 2018, Helmut Grohne <helmut@subdivi.de>
 License: BSD-2-Clause
 
+Files: debian/com.kitware.cmake-gui.metainfo.xml
+Copyright: 2022, Timo Röhling <roehling@debian.org>
+License: FSFAP
+
 License: Apache-2.0
   Version 2.0, January 2004
   .
@@ -512,6 +516,11 @@ License: Expat
  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  OTHER DEALINGS IN THE SOFTWARE.
+
+License: FSFAP
+ Copying and distribution of this file, with or without modification, are
+ permitted in any medium without royalty provided the copyright notice and
+ this notice are preserved. This file is offered as-is, without any warranty.
 
 License: GPL-2+ with Bison exception
   This program is free software; you can redistribute it and/or modify
