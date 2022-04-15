@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2022 Timo Röhling <roehling@debian.org>
+
+  Copying and distribution of this file, with or without modification, are
+  permitted in any medium without royalty provided the copyright notice and
+  this notice are preserved. This file is offered as-is, without any warranty.
+-->
+<component type="desktop-application">
+  <id>com.kitware.cmake-gui</id>
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>BSD-3-Clause</project_license>
+  <name>CMake</name>
+  <summary>Cross-platform buildsystem</summary>
+  <description>
+    CMake is an open-source, cross-platform family of tools designed to
+    build, test and package software. CMake is used to control the software
+    compilation process using simple platform and compiler independent
+    configuration files, and generate native makefiles and workspaces that
+    can be used in the compiler environment of your choice. The suite of
+    CMake tools were created by Kitware in response to the need for a
+    powerful, cross-platform build environment for open-source projects such
+    as ITK and VTK.
+  </description>
+  <launchable type="desktop-id">cmake-gui.desktop</launchable>
+  <url>https://www.cmake.org</url>
+</component>
+

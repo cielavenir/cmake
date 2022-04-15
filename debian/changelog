@@ -1,3 +1,10 @@
+cmake (3.23.1-1) unstable; urgency=medium
+
+  * Add AppStream metadata for cmake-qt-gui
+  * New upstream version 3.23.1
+
+ -- Timo Röhling <roehling@debian.org>  Wed, 13 Apr 2022 00:33:22 +0200
+
 cmake (3.23.0-1~bpo11+1) bullseye-backports; urgency=medium
 
   * Rebuild for bullseye-backports.
