@@ -235,7 +235,7 @@ Files: debian/debtoolchainfilegen
 Copyright: 2018, Helmut Grohne <helmut@subdivi.de>
 License: BSD-2-Clause
 
-Files: debian/com.kitware.cmake-gui.metainfo.xml
+Files: debian/com.kitware.cmake_gui.metainfo.xml
 Copyright: 2022, Timo Röhling <roehling@debian.org>
 License: FSFAP
 

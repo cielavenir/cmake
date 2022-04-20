@@ -3,4 +3,4 @@ usr/share/applications/cmake-gui.desktop
 usr/share/man/man1/cmake-gui.1
 usr/share/mime/packages/cmakecache.xml
 usr/share/icons/hicolor/*/apps/CMakeSetup.png
-debian/com.kitware.cmake-gui.metainfo.xml	usr/share/metainfo
+debian/com.kitware.cmake_gui.metainfo.xml	usr/share/metainfo
