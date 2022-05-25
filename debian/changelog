@@ -1,3 +1,15 @@
+cmake (3.23.2-1) unstable; urgency=medium
+
+  * Bump Standards-Version to 4.6.1
+  * New upstream version 3.23.2
+    - Fix cmake-ncurses-gui crash when all cache items are deleted
+      (Closes: #1010690)
+  * Refresh patches
+    - Drop Revert-commit-f745e049-temporarily.patch
+      (applied upstream)
+
+ -- Timo Röhling <roehling@debian.org>  Wed, 25 May 2022 21:02:25 +0200
+
 cmake (3.23.1-2) unstable; urgency=medium
 
   * Work around regression with qa=+canary.
